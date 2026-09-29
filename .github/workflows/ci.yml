@@ -95,3 +95,31 @@ jobs:
             --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
+
+  regression-gate:
+    name: Regression Gate (anti-regressão)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Baseline (staging)
+        run: |
+          cp scripts/test-regression.dart /tmp/test-regression.dart
+          git checkout staging
+          flutter pub get
+          dart run /tmp/test-regression.dart --baseline
+          git checkout "${{ github.head_ref }}"
+
+      - name: Compare (PR branch)
+        run: dart run scripts/test-regression.dart --compare
