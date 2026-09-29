@@ -99,12 +99,11 @@ jobs:
 
       - name: Baseline (staging)
         run: |
-          git stash -u || true
+          cp scripts/test-regression.dart /tmp/test-regression.dart
           git checkout staging
           flutter pub get
-          dart run scripts/test-regression.dart --baseline
-          git checkout ${{ github.head_ref }}
-          git stash pop || true
+          dart run /tmp/test-regression.dart --baseline
+          git checkout "${{ github.head_ref }}"
 
       - name: Compare (PR branch)
         run: dart run scripts/test-regression.dart --compare
