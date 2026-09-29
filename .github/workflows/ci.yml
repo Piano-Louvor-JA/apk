@@ -90,7 +90,8 @@ jobs:
 
       - name: Build iOS (debug, no codesign)
         # Paridade com o APK: mesmo sem instalar, o build valida os defines.
-        run: flutter build ios --debug --no-codesign --no-tree-shake-icons \
+        run: |
+          flutter build ios --debug --no-codesign --no-tree-shake-icons \
             --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
