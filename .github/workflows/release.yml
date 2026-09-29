@@ -64,8 +64,16 @@ jobs:
       - run: flutter pub get
 
       - name: Build APK release
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        # API 100% via dart-define (apk#54) — env simples não chega no
+        # String.fromEnvironment: tem que ser flag na linha de comando.
         run: |
-          flutter build apk --release --no-tree-shake-icons
+          flutter build apk --release --no-tree-shake-icons \
+            --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
+            --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
+            --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
+            --dart-define=API_TOKEN="$API_TOKEN"
           VERSION=${{ needs.resolve.outputs.version }}
           cp build/app/outputs/flutter-apk/app-release.apk \
              louvorja-piano-${VERSION#v}.apk
@@ -92,7 +100,13 @@ jobs:
       - run: flutter pub get
 
       - name: Build iOS (release, no codesign)
-        run: flutter build ios --release --no-codesign --no-tree-shake-icons
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: flutter build ios --release --no-codesign --no-tree-shake-icons \
+            --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
+            --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
+            --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
+            --dart-define=API_TOKEN="$API_TOKEN"
 
       - name: Package unsigned IPA
         run: |
