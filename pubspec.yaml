@@ -16,7 +16,7 @@ dependencies:
   flutter_bloc: ^9.0.0
 
   # Networking
-  dio: ^5.7.0
+  dio: ^5.11.1
   crypto: ^3.0.6
 
   # Routing
@@ -38,7 +38,7 @@ dependencies:
   connectivity_plus: ^7.3.1
 
   # Icons (mesma lib do Electron/web, v3.44.0 ≈ v3.45.0)
-  tabler_icons_plus: ^3.44.0
+  tabler_icons_plus: ^3.48.0
 
   # SVG rendering (logos e brand assets)
   flutter_markdown: ^0.7.6
@@ -59,7 +59,7 @@ dependencies:
   json_annotation: ^4.9.0
 
   # Logging (substitui print)
-  logger: ^2.5.0
+  logger: ^2.8.0
   path_provider: ^2.1.6
   audioplayers: ^6.8.1
 
@@ -72,13 +72,13 @@ dependencies:
   url_launcher: ^6.3.1
 
   # Manter tela acesa durante o culto
-  wakelock_plus: ^1.2.8
-  flutter_local_notifications: ^22.3.0
+  wakelock_plus: ^1.5.2
+  flutter_local_notifications: ^22.3.1
   timezone: ^0.11.1
   open_filex: ^4.7.0
   image_picker: ^1.2.3
   flutter_colorpicker: ^1.1.0
-  image: ^4.9.1
+  image: ^4.10.1
   archive: ^4.2.0
   flutter_foreground_task: ^11.0.0
   multicast_dns: ^0.3.3+1
