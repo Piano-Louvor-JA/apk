@@ -79,7 +79,7 @@ jobs:
              louvorja-piano-${VERSION#v}.apk
 
       - name: Attach APK to release (cria se nao existir)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.version }}
           files: louvorja-piano-*.apk
@@ -119,7 +119,7 @@ jobs:
           ls -lh build/ios/louvorja-piano-ios-unsigned.ipa
 
       - name: Attach IPA to release (cria se nao existir)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.version }}
           files: build/ios/louvorja-piano-ios-unsigned.ipa
