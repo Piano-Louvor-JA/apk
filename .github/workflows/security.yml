@@ -39,7 +39,9 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             "$RUNNER_TEMP/gitleaks" detect --source . --redact --log-opts="${{ github.event.pull_request.base.sha }}..HEAD"
           else
-            "$RUNNER_TEMP/gitleaks" detect --source . --redact
+            # Sem --log-opts o gitleaks usa --all e reprova o push da staging
+            # por segredo que existe só em outra branch.
+            "$RUNNER_TEMP/gitleaks" detect --source . --redact --log-opts="HEAD"
           fi
       - name: Ensure build secrets use dart-define
         run: |
