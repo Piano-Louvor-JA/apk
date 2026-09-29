@@ -30,3 +30,4 @@ coverage/
 
 # Diretórios locais
 .planning/
+.regression-baseline.json
