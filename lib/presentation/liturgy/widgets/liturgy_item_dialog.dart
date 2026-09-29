@@ -388,18 +388,20 @@ void showLiturgyItemDialog(
                     _FileSelectorCard(
                       filePath: filePathCtrl,
                       onPick: () async {
-                        final result = await FilePicker.platform.pickFiles(
-                          type: type.value == LiturgyItemType.images
-                              ? FileType.image
-                              : type.value == LiturgyItemType.video
-                              ? FileType.video
-                              : type.value == LiturgyItemType.pdf
-                              ? FileType.custom
-                              : FileType.any,
-                          allowMultiple: type.value == LiturgyItemType.images,
-                        );
-                        if (result != null && result.files.isNotEmpty) {
-                          final path = result.files.first.path;
+                        final fileType = type.value == LiturgyItemType.images
+                            ? FileType.image
+                            : type.value == LiturgyItemType.video
+                            ? FileType.video
+                            : type.value == LiturgyItemType.pdf
+                            ? FileType.custom
+                            : FileType.any;
+                        final files = type.value == LiturgyItemType.images
+                            ? await FilePicker.pickFiles(type: fileType)
+                            : [
+                                ?await FilePicker.pickFile(type: fileType),
+                              ];
+                        if (files.isNotEmpty) {
+                          final path = files.first.path;
                           // Duração automática de vídeo/áudio local (MP4).
                           var probed = 0;
                           if (path != null) {
@@ -408,7 +410,7 @@ void showLiturgyItemDialog(
                           setModalState(() {
                             filePathCtrl.text = path ?? '';
                             if (nameCtrl.text.isEmpty) {
-                              nameCtrl.text = result.files.first.name;
+                              nameCtrl.text = files.first.name;
                             }
                             if (probed > 0) {
                               durationMinutes.value = probed ~/ 60000;
