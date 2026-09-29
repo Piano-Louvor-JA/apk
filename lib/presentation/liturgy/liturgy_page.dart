@@ -12,7 +12,8 @@ import 'package:louvorja_piano_mobile/presentation/hymns/stage_customization_she
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
-import 'dart:io' show File;
+
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/ja_liturgy_parser.dart';
@@ -118,11 +119,7 @@ class _LiturgyViewState extends State<_LiturgyView> {
   Future<void> _importJaFile(BuildContext context) async {
     // FileType.custom com extensão .ja não é selecionável no Android SAF
     // (mime desconhecido) — aceita qualquer arquivo e valida a extensão.
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      withData: true,
-    );
-    final file = picked?.files.singleOrNull;
+    final file = await FilePicker.pickFile(type: FileType.any);
     if (file == null) return;
     if (!file.name.toLowerCase().endsWith('.ja')) {
       ScaffoldMessenger.of(
@@ -130,16 +127,12 @@ class _LiturgyViewState extends State<_LiturgyView> {
       ).showSnackBar(SnackBar(content: Text('liturgy.importJaInvalid'.tr())));
       return;
     }
-    // withData pode não preencher bytes em alguns providers: lê do path.
-    var data = file.bytes;
-    if (data == null && file.path != null) {
-      try {
-        data = await File(file.path!).readAsBytes();
-      } catch (_) {
-        data = null;
-      }
+    final Uint8List data;
+    try {
+      data = await file.readAsBytes();
+    } catch (_) {
+      return;
     }
-    if (data == null) return;
     final messenger = ScaffoldMessenger.of(context);
     final JaLiturgy imported;
     try {

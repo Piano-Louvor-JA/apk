@@ -1,7 +1,7 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,22 +34,20 @@ class SyncFileService {
   Future<String?> export() async {
     final prefs = await SharedPreferences.getInstance();
     final pkg = await SyncAdapter(prefs).export();
-    return FilePicker.platform.saveFile(
+    final uri = await FilePicker.saveFile(
       fileName: fileNameFor(DateTime.now()),
-      bytes: utf8.encode(pkg.encode()),
+      bytes: Uint8List.fromList(utf8.encode(pkg.encode())),
     );
+    return uri?.toString();
   }
 
   /// Importa: escolhe arquivo, valida e aplica com LWW.
   /// Devolve o resultado ou null se cancelou/inválido.
   Future<SyncImportResult?> import() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.any);
-    final file = result?.files.singleOrNull;
+    final file = await FilePicker.pickFile(type: FileType.any);
     if (file == null) return null;
 
-    final raw = file.path != null
-        ? utf8.decode(await File(file.path!).readAsBytes())
-        : utf8.decode(file.bytes ?? const []);
+    final raw = utf8.decode(await file.readAsBytes());
 
     if (!isValidContent(raw)) return null;
 

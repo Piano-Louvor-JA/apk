@@ -2,7 +2,7 @@
 // Usa storage próprio (liturgy_avulsa_yyyyMMdd) — não afeta a liturgia semanal.
 library;
 
-import 'dart:io' show File;
+import 'dart:typed_data';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
@@ -50,11 +50,7 @@ class _LiturgyAvulsaPageState extends State<LiturgyAvulsaPage> {
   /// Importa itensAgendados(.xml) do Delphi: pede os 2 arquivos em sequência.
   Future<void> _importScheduled(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      withData: true,
-    );
-    var file = picked?.files.singleOrNull;
+    final file = await FilePicker.pickFile(type: FileType.any);
     if (file == null) return;
     final fname = file.name.toLowerCase();
     const notPorted = [
@@ -79,32 +75,22 @@ class _LiturgyAvulsaPageState extends State<LiturgyAvulsaPage> {
       );
       return;
     }
-    var data = file.bytes;
-    if (data == null && file.path != null) {
-      try {
-        data = await File(file.path!).readAsBytes();
-      } catch (_) {}
+    final Uint8List data;
+    try {
+      data = await file.readAsBytes();
+    } catch (_) {
+      return;
     }
-    if (data == null) return;
     final catsXml = String.fromCharCodes(data);
 
     // segundo arquivo: itens (se o usuário cancelar, importa só categorias)
     List<Map<String, String>> itemRows = [];
-    final picked2 = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      withData: true,
-    );
-    final f2 = picked2?.files.singleOrNull;
+    final f2 = await FilePicker.pickFile(type: FileType.any);
     if (f2 != null && f2.name.toLowerCase().endsWith('.xml')) {
-      var d2 = f2.bytes;
-      if (d2 == null && f2.path != null) {
-        try {
-          d2 = await File(f2.path!).readAsBytes();
-        } catch (_) {}
-      }
-      if (d2 != null) {
+      try {
+        final d2 = await f2.readAsBytes();
         itemRows = DataPacketParser.parse(String.fromCharCodes(d2));
-      }
+      } catch (_) {}
     }
 
     final catRows = DataPacketParser.parse(catsXml);
