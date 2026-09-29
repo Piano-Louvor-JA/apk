@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/liturgy_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/liturgy_widget_bg">
+
+    <!-- Header: título do dia -->
+    <TextView
+        android:id="@+id/liturgy_widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Culto de Oração"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <!-- Próximo item pendente -->
+    <TextView
+        android:id="@+id/liturgy_widget_next"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="▶ Louvor congregacional"
+        android:textColor="#B0BEC5"
+        android:textSize="12sp"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <!-- Progresso (3/12 itens feitos) -->
+    <TextView
+        android:id="@+id/liturgy_widget_progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+    android:layout_marginTop="2dp"
+        android:text="3/12"
+        android:textColor="#78909C"
+        android:textSize="10sp" />
+
+</LinearLayout>

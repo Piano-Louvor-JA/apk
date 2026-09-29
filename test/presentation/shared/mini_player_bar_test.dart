@@ -36,10 +36,9 @@ void main() {
     final notifier = NowPlayingNotifier();
     final player = _FakePlayer();
 
-    await tester.pumpWidget(_wrap(MiniPlayerBar(
-      notifier: notifier,
-      player: player,
-    )));
+    await tester.pumpWidget(
+      _wrap(MiniPlayerBar(notifier: notifier, player: player)),
+    );
 
     expect(find.byType(MiniPlayerBar), findsOneWidget);
     expect(find.text('Hino'), findsNothing);
@@ -51,10 +50,9 @@ void main() {
     notifier.start(title: 'Chegado à Cruz', album: 'Hinário', hymnId: 10);
     player._playing.value = true;
 
-    await tester.pumpWidget(_wrap(MiniPlayerBar(
-      notifier: notifier,
-      player: player,
-    )));
+    await tester.pumpWidget(
+      _wrap(MiniPlayerBar(notifier: notifier, player: player)),
+    );
 
     expect(find.text('Chegado à Cruz'), findsOneWidget);
     expect(find.text('Hinário'), findsOneWidget);
@@ -66,10 +64,9 @@ void main() {
     notifier.start(title: 'Hino A', album: 'Album', hymnId: 1);
     player._playing.value = true;
 
-    await tester.pumpWidget(_wrap(MiniPlayerBar(
-      notifier: notifier,
-      player: player,
-    )));
+    await tester.pumpWidget(
+      _wrap(MiniPlayerBar(notifier: notifier, player: player)),
+    );
     await tester.tap(find.byKey(const Key('miniplayer-toggle')));
     await tester.pump();
     expect(player.isPlaying, isFalse);
@@ -85,10 +82,9 @@ void main() {
     notifier.start(title: 'Hino A', album: 'Album', hymnId: 1);
     player._playing.value = true;
 
-    await tester.pumpWidget(_wrap(MiniPlayerBar(
-      notifier: notifier,
-      player: player,
-    )));
+    await tester.pumpWidget(
+      _wrap(MiniPlayerBar(notifier: notifier, player: player)),
+    );
     await tester.tap(find.byKey(const Key('miniplayer-stop')));
     await tester.pump();
 
@@ -103,11 +99,15 @@ void main() {
     notifier.start(title: 'Hino A', album: 'Album', hymnId: 1);
     player._playing.value = true;
 
-    await tester.pumpWidget(_wrap(MiniPlayerBar(
-      notifier: notifier,
-      player: player,
-      onOpenPlayer: () => opened = true,
-    )));
+    await tester.pumpWidget(
+      _wrap(
+        MiniPlayerBar(
+          notifier: notifier,
+          player: player,
+          onOpenPlayer: () => opened = true,
+        ),
+      ),
+    );
     await tester.tap(find.byKey(const Key('miniplayer-tap-area')));
     await tester.pump();
 

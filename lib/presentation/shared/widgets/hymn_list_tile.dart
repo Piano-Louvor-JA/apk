@@ -58,21 +58,19 @@ class HymnListTile extends StatelessWidget {
       ),
       subtitle: subtitle == null
           ? null
-          : Text(
-              subtitle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-      trailing: trailing ?? (isDownloaded
-          ? Icon(
-              TablerIcons.download,
-              size: 18,
-              color: theme.colorScheme.primary,
-            )
-          : Icon(
-              TablerIcons.chevronRight,
-              color: theme.colorScheme.onSurfaceVariant,
-            )),
+          : Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing:
+          trailing ??
+          (isDownloaded
+              ? Icon(
+                  TablerIcons.download,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                )
+              : Icon(
+                  TablerIcons.chevronRight,
+                  color: theme.colorScheme.onSurfaceVariant,
+                )),
     );
   }
 }

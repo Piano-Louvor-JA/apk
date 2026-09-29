@@ -20,14 +20,15 @@ void main() {
 
   test('delivered quando o nativo confirma a sessão', () async {
     mock((call) async => 'delivered');
-    expect(await ApkInstaller.install('/x.apk'),
-        ApkInstallOutcome.delivered);
+    expect(await ApkInstaller.install('/x.apk'), ApkInstallOutcome.delivered);
   });
 
   test('needsPermission quando falta fonte desconhecida', () async {
     mock((call) async => 'needs_permission');
-    expect(await ApkInstaller.install('/x.apk'),
-        ApkInstallOutcome.needsPermission);
+    expect(
+      await ApkInstaller.install('/x.apk'),
+      ApkInstallOutcome.needsPermission,
+    );
   });
 
   test('failed em PlatformException', () async {

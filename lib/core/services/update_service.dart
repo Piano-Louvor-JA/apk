@@ -44,13 +44,13 @@ class UpdateCheckResult {
 
   /// A verificacao FALHOU (nao confundir com "sem atualizacao").
   const UpdateCheckResult.unavailable({required UpdateCheckFailure reason})
-      : hasUpdate = false,
-        latestVersion = null,
-        downloadUrl = null,
-        releaseNotes = null,
-        apkSize = null,
-        apkSha256 = null,
-        failure = reason;
+    : hasUpdate = false,
+      latestVersion = null,
+      downloadUrl = null,
+      releaseNotes = null,
+      apkSize = null,
+      apkSha256 = null,
+      failure = reason;
 
   bool get isUnavailable => failure != null;
 }
@@ -68,10 +68,7 @@ class UpdateService {
   /// Token PAT para acessar releases de repositorios privados.
   /// Fornecido via --dart-define=GH_TOKEN=xxx no build.
   /// Fallback vazio (repo publico nao precisa).
-  static const _ghToken = String.fromEnvironment(
-    'GH_TOKEN',
-    defaultValue: '',
-  );
+  static const _ghToken = String.fromEnvironment('GH_TOKEN', defaultValue: '');
 
   /// Endpoint proxy próprio (ex.: https://pianolouvorja.duckdns.org).
   /// Quando definido via --dart-define=UPDATE_API=..., a consulta de

@@ -44,32 +44,35 @@ void main() {
       expect(find.byIcon(Icons.search), findsOneWidget);
     });
 
-    testWidgets('exibe botão de ação quando actionLabel + onActionTap fornecidos',
-        (tester) async {
-      var actionCalled = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SectionHeader(
-              title: 'Favoritos',
-              actionLabel: 'Ver todos',
-              onActionTap: () => actionCalled = true,
+    testWidgets(
+      'exibe botão de ação quando actionLabel + onActionTap fornecidos',
+      (tester) async {
+        var actionCalled = false;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SectionHeader(
+                title: 'Favoritos',
+                actionLabel: 'Ver todos',
+                onActionTap: () => actionCalled = true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final button = find.text('Ver todos');
-      expect(button, findsOneWidget);
+        final button = find.text('Ver todos');
+        expect(button, findsOneWidget);
 
-      await tester.tap(button);
-      await tester.pump();
+        await tester.tap(button);
+        await tester.pump();
 
-      expect(actionCalled, isTrue);
-    });
+        expect(actionCalled, isTrue);
+      },
+    );
 
-    testWidgets('NÃO exibe TextButton quando actionLabel é null',
-        (tester) async {
+    testWidgets('NÃO exibe TextButton quando actionLabel é null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: SectionHeader(title: 'Título')),

@@ -20,9 +20,7 @@ void main() async {
   }
 
   // App operador: fixar em portrait (nao faz sentido landscape no celular)
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   final settings = SettingsController();
   // Tema precisa estar pronto antes da Splash Flutter montar. SharedPreferences
@@ -33,7 +31,11 @@ void main() async {
     ChangeNotifierProvider.value(
       value: settings,
       child: EasyLocalization(
-        supportedLocales: const [Locale('pt', 'BR'), Locale('en'), Locale('es')],
+        supportedLocales: const [
+          Locale('pt', 'BR'),
+          Locale('en'),
+          Locale('es'),
+        ],
         path: 'assets/translations',
         fallbackLocale: const Locale('pt', 'BR'),
         // Segue o idioma do OS por padrao. Usuario pode trocar nas Configuracoes.

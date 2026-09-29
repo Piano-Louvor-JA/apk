@@ -20,13 +20,19 @@ class _NavMockApi implements LouvorjaApiClient {
 
   @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [
-        BibleBook(id: 1, name: 'Gen', abbreviation: 'Gn', chapters: 2, bookNumber: 1),
-      ];
+    BibleBook(
+      id: 1,
+      name: 'Gen',
+      abbreviation: 'Gn',
+      chapters: 2,
+      bookNumber: 1,
+    ),
+  ];
 
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [
-        BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
-      ];
+    BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
+  ];
 
   @override
   Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async {
@@ -135,31 +141,34 @@ void main() {
       await bloc.close();
     });
 
-    test('cruza para capitulo anterior ao chegar no primeiro versiculo', () async {
-      final repo = BibleRepositoryImpl(
-        _NavMockApi(chapterVerses: {'1': 'v1prev', '2': 'v2prev'}),
-        CatalogCache.noop(),
-      );
-      final bloc = BibleBloc(repo);
+    test(
+      'cruza para capitulo anterior ao chegar no primeiro versiculo',
+      () async {
+        final repo = BibleRepositoryImpl(
+          _NavMockApi(chapterVerses: {'1': 'v1prev', '2': 'v2prev'}),
+          CatalogCache.noop(),
+        );
+        final bloc = BibleBloc(repo);
 
-      bloc.add(BibleBootstrap());
-      await Future.delayed(const Duration(milliseconds: 300));
+        bloc.add(BibleBootstrap());
+        await Future.delayed(const Duration(milliseconds: 300));
 
-      // Ir para cap 2 primeiro
-      bloc.add(BibleSelectChapter(2));
-      await Future.delayed(const Duration(milliseconds: 300));
+        // Ir para cap 2 primeiro
+        bloc.add(BibleSelectChapter(2));
+        await Future.delayed(const Duration(milliseconds: 300));
 
-      // Selecionar versiculo 1
-      bloc.add(const BibleSelectVerse(1));
-      await Future.delayed(const Duration(milliseconds: 100));
+        // Selecionar versiculo 1
+        bloc.add(const BibleSelectVerse(1));
+        await Future.delayed(const Duration(milliseconds: 100));
 
-      // Navegar anterior -> cruza para cap 1, ultimo versiculo
-      bloc.add(const BibleNavigateVerse(-1));
-      await Future.delayed(const Duration(milliseconds: 300));
+        // Navegar anterior -> cruza para cap 1, ultimo versiculo
+        bloc.add(const BibleNavigateVerse(-1));
+        await Future.delayed(const Duration(milliseconds: 300));
 
-      final state = bloc.state as BibleLoaded;
-      expect(state.selectedChapter, 1);
-      await bloc.close();
-    });
+        final state = bloc.state as BibleLoaded;
+        expect(state.selectedChapter, 1);
+        await bloc.close();
+      },
+    );
   });
 }

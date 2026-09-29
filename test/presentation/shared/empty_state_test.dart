@@ -32,29 +32,31 @@ void main() {
       expect(find.text('Tente buscar novamente mais tarde.'), findsOneWidget);
     });
 
-    testWidgets('exibe botão de ação quando actionLabel + onAction fornecidos',
-        (tester) async {
-      var tapped = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: EmptyState(
-              title: 'Erro',
-              actionLabel: 'Recarregar',
-              onAction: () => tapped = true,
+    testWidgets(
+      'exibe botão de ação quando actionLabel + onAction fornecidos',
+      (tester) async {
+        var tapped = false;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: EmptyState(
+                title: 'Erro',
+                actionLabel: 'Recarregar',
+                onAction: () => tapped = true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final button = find.text('Recarregar');
-      expect(button, findsOneWidget);
+        final button = find.text('Recarregar');
+        expect(button, findsOneWidget);
 
-      await tester.tap(button);
-      await tester.pump();
+        await tester.tap(button);
+        await tester.pump();
 
-      expect(tapped, isTrue);
-    });
+        expect(tapped, isTrue);
+      },
+    );
 
     testWidgets('NÃO exibe botão quando onAction é null', (tester) async {
       await tester.pumpWidget(

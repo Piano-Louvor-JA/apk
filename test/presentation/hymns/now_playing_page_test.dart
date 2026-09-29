@@ -42,40 +42,42 @@ class _FakePlayer extends HymnPlayerLike {
 }
 
 Hymn _detail() => Hymn(
-      id: 1,
-      title: 'Nosso Sol é Jesus',
-      imageUrl: '/images/capa.jpg',
-      lyricRaw: const [
-        {
-          'lyric': 'O nosso sol',
-          'time': '00:00:08',
-          'instrumental_time': '00:00:08',
-          'url_image': '/images/hasd.jpg',
-          'show_slide': '1',
-          'order': '1',
-        },
-        {
-          'lyric': 'Veio iluminar',
-          'time': '00:00:17',
-          'instrumental_time': '00:00:17',
-          'show_slide': '1',
-          'order': '2',
-        },
-      ],
-    );
+  id: 1,
+  title: 'Nosso Sol é Jesus',
+  imageUrl: '/images/capa.jpg',
+  lyricRaw: const [
+    {
+      'lyric': 'O nosso sol',
+      'time': '00:00:08',
+      'instrumental_time': '00:00:08',
+      'url_image': '/images/hasd.jpg',
+      'show_slide': '1',
+      'order': '1',
+    },
+    {
+      'lyric': 'Veio iluminar',
+      'time': '00:00:17',
+      'instrumental_time': '00:00:17',
+      'show_slide': '1',
+      'order': '2',
+    },
+  ],
+);
 
 void main() {
   testWidgets('troca de slide automática pelo tempo do áudio', (tester) async {
     final player = _FakePlayer();
 
-    await tester.pumpWidget(MaterialApp(
-      home: NowPlayingPage(
-        detail: _detail(),
-        instrumental: false,
-        player: player,
-        filesUrl: 'https://api.louvorja.com.br/file',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     // Capa (índice 0): mostra título
@@ -94,18 +96,21 @@ void main() {
     expect(find.text('3 / 3'), findsOneWidget);
   });
 
-  testWidgets('toque em next slide faz seek do áudio pro time do slide',
-      (tester) async {
+  testWidgets('toque em next slide faz seek do áudio pro time do slide', (
+    tester,
+  ) async {
     final player = _FakePlayer();
 
-    await tester.pumpWidget(MaterialApp(
-      home: NowPlayingPage(
-        detail: _detail(),
-        instrumental: false,
-        player: player,
-        filesUrl: 'https://api.louvorja.com.br/file',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
       ),
-    ));
+    );
     await tester.pump();
 
     await tester.tap(find.byIcon(TablerIcons.chevronRight).first);

@@ -7,8 +7,8 @@
 ///   blurPx = 4 + (intensity / 100) * 24  → range: 4-28px
 ///   fillAlpha = 42 + (intensity / 100) * 40 → range: 42%-82%
 library;
-abstract final class AppBlur {
 
+abstract final class AppBlur {
   static const double defaultIntensity = 60;
 
   /// Converte intensidade 0-100 para sigma do BackdropFilter.

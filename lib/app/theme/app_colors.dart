@@ -3,11 +3,11 @@
 /// Fonte: pianolouvorja/app/src/design-system/tokens/colors.ts
 /// Tradução 1:1 dos tokens TypeScript/CSS para Flutter.
 library;
+
 import 'package:flutter/material.dart';
 
 /// Cores de marca (fixas, não mudam com tema).
 abstract final class AppBrandColors {
-
   /// Azul de ação / destaque.
   static const Color primary = Color(0xFF2196F3);
 
@@ -26,7 +26,6 @@ abstract final class AppBrandColors {
 
 /// Cores do tema "Ethereal Lumens" (dark, padrão).
 abstract final class EtherealLumensColors {
-
   static const Color background = Color(0xFF131313);
   static const Color surface = Color(0xFF131313);
   static const Color surfaceElevated = Color(0xFF1E1E1E);
@@ -38,13 +37,14 @@ abstract final class EtherealLumensColors {
   static const Color onSurfaceVariant = Color(0xFFBFC7D4);
   static const Color onPrimary = Color(0xFF003258);
   static const Color outline = Color(0x0DFFFFFF); // rgba(255,255,255,0.05)
-  static const Color outlineStrong = Color(0x1AFFFFFF); // rgba(255,255,255,0.10)
+  static const Color outlineStrong = Color(
+    0x1AFFFFFF,
+  ); // rgba(255,255,255,0.10)
   static const Color tertiary = Color(0xFFFFB77B);
 }
 
 /// Cores do tema "Luminous Clarity" (light).
 abstract final class LuminousClarityColors {
-
   static const Color background = Color(0xFFF8F9FF);
   static const Color surface = Color(0xFFF8F9FF);
   static const Color surfaceElevated = Color(0xFFFFFFFF);

@@ -87,17 +87,20 @@ void main() {
         expect(hymn.lyric, 'Primeira estrofe\n\nSegunda estrofe');
       });
 
-      test('fromJson retorna null quando lista de letra nao tem blocos visiveis', () {
-        final hymn = Hymn.fromJson({
-          'id_music': 1,
-          'lyric': [
-            {'order': 1, 'show_slide': 0, 'lyric': 'Oculta'},
-            {'order': 2, 'show_slide': 1, 'lyric': ''},
-          ],
-        });
+      test(
+        'fromJson retorna null quando lista de letra nao tem blocos visiveis',
+        () {
+          final hymn = Hymn.fromJson({
+            'id_music': 1,
+            'lyric': [
+              {'order': 1, 'show_slide': 0, 'lyric': 'Oculta'},
+              {'order': 2, 'show_slide': 1, 'lyric': ''},
+            ],
+          });
 
-        expect(hymn.lyric, isNull);
-      });
+          expect(hymn.lyric, isNull);
+        },
+      );
 
       test('campos como string (compatibilidade)', () {
         final h = Hymn.fromJson({
@@ -158,7 +161,10 @@ void main() {
       });
 
       test('formato longo H:MM:SS', () {
-        expect(const Hymn(id: 0, durationMs: 3723000).formattedDuration, '1:02:03');
+        expect(
+          const Hymn(id: 0, durationMs: 3723000).formattedDuration,
+          '1:02:03',
+        );
       });
 
       test('sem duração retorna string vazia', () {

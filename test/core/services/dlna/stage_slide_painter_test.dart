@@ -10,8 +10,11 @@ void main() {
   group('StageSlidePainter (lógica)', () {
     test('settings default = tipografia de projeção TV, fundo escuro', () {
       const s = StageSettings();
-      expect(s.fontSize, greaterThanOrEqualTo(80),
-          reason: 'fonte de palco precisa ser grande (era pequena no bug)');
+      expect(
+        s.fontSize,
+        greaterThanOrEqualTo(80),
+        reason: 'fonte de palco precisa ser grande (era pequena no bug)',
+      );
       expect(s.margin, 120);
       expect(s.backgroundColor, const Color(0xFF0A0E1A));
       expect(s.textColor, Colors.white);
@@ -58,15 +61,16 @@ void _capabilityGroup() {
       expect(r.screenCapability.width, 1920);
     });
 
-    test('settings escala fonte pela capacidade (SM não gera fonte gigante)',
-        () {
-      const fhd = StageSettings(fontSize: 96);
-      final sm = fhd.copyWith(
-          capability: DlnaScreenCapability.sm);
-      // proporção fonte/canvas se mantém: 96/1920 == x/640
-      final scale = sm.capability.width / 1920;
-      expect(96 * scale, closeTo(32, 0.01));
-    });
+    test(
+      'settings escala fonte pela capacidade (SM não gera fonte gigante)',
+      () {
+        const fhd = StageSettings(fontSize: 96);
+        final sm = fhd.copyWith(capability: DlnaScreenCapability.sm);
+        // proporção fonte/canvas se mantém: 96/1920 == x/640
+        final scale = sm.capability.width / 1920;
+        expect(96 * scale, closeTo(32, 0.01));
+      },
+    );
   });
 }
 
@@ -81,8 +85,7 @@ void _compatGroup() {
       expect(r.preferredImageFormat, StageImageFormat.png);
     });
 
-    test('TV legada DMR-1.0 (só JPEG): fallback JPEG + FullHD via JPEG_LRG',
-        () {
+    test('TV legada DMR-1.0 (só JPEG): fallback JPEG + FullHD via JPEG_LRG', () {
       final r = DlnaRenderer(ip: '1.1.1.1', descriptionUrl: 'http://x/')
         ..sinkProtocols =
             'http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG,http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_SM';
@@ -98,8 +101,11 @@ void _compatGroup() {
     });
 
     test('DIDL JPEG usa protocolInfo JPEG_LRG (comum Samsung/Philips)', () {
-      final didl = DlnaRendererClient.didlImageFor('http://x/s.jpg', 'T',
-          jpeg: true);
+      final didl = DlnaRendererClient.didlImageFor(
+        'http://x/s.jpg',
+        'T',
+        jpeg: true,
+      );
       expect(didl, contains('image/jpeg:DLNA.ORG_PN=JPEG_LRG'));
       expect(didl, isNot(contains('PNG')));
     });

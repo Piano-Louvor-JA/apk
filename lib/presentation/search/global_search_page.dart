@@ -65,14 +65,8 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       setState(() => _results = const []);
       return;
     }
-    final hymnResults = widget.service.searchHymns(
-      query,
-      hymns: _hymns!,
-    );
-    final bibleResults = widget.service.searchBible(
-      query,
-      verses: _verses!,
-    );
+    final hymnResults = widget.service.searchHymns(query, hymns: _hymns!);
+    final bibleResults = widget.service.searchBible(query, verses: _verses!);
     final all = [...hymnResults, ...bibleResults]
       ..sort((a, b) => b.score.compareTo(a.score));
     setState(() => _results = all);
@@ -86,15 +80,11 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final hymnResults =
-        _results.where((r) => r.groupKey == 'hymns').toList();
-    final bibleResults =
-        _results.where((r) => r.groupKey == 'bible').toList();
+    final hymnResults = _results.where((r) => r.groupKey == 'hymns').toList();
+    final bibleResults = _results.where((r) => r.groupKey == 'bible').toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('search.title'.tr()),
-      ),
+      appBar: AppBar(title: Text('search.title'.tr())),
       body: Column(
         children: [
           Padding(
@@ -126,11 +116,13 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                         ),
                         for (final result in hymnResults)
                           _ResultTile(
-                            title: (result.item as Hymn).title ??
+                            title:
+                                (result.item as Hymn).title ??
                                 'Nº ${(result.item as Hymn).number ?? '-'}',
                             subtitle: result.snippet,
-                            onTap: () =>
-                                widget.onHymnSelected?.call(result.item as Hymn),
+                            onTap: () => widget.onHymnSelected?.call(
+                              result.item as Hymn,
+                            ),
                           ),
                       ],
                       if (bibleResults.isNotEmpty) ...[
@@ -142,8 +134,9 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                           _ResultTile(
                             title: (result.item as BibleVerseRef).reference,
                             subtitle: result.snippet,
-                            onTap: () => widget.onVerseSelected
-                                ?.call(result.item as BibleVerseRef),
+                            onTap: () => widget.onVerseSelected?.call(
+                              result.item as BibleVerseRef,
+                            ),
                           ),
                       ],
                     ],
@@ -188,11 +181,7 @@ class _ResultTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onTap;
 
-  const _ResultTile({
-    required this.title,
-    required this.subtitle,
-    this.onTap,
-  });
+  const _ResultTile({required this.title, required this.subtitle, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -202,15 +191,17 @@ class _ResultTile extends StatelessWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodyMedium
-            ?.copyWith(fontWeight: FontWeight.w500),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
       ),
       subtitle: Text(
         subtitle,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall
-            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
       onTap: onTap,
     );

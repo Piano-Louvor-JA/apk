@@ -23,7 +23,7 @@ class _MockApi implements LouvorjaApiClient {
   List<Hymn> hymnal1996Result = const [];
   Hymn? musicDetail;
   bool shouldFail = false;
-  bool shouldFailHymnal1996 = false; // API ES nao possui esse arquivo (404). 
+  bool shouldFailHymnal1996 = false; // API ES nao possui esse arquivo (404).
 
   @override
   Future<List<AlbumCategory>> fetchCategories() async {
@@ -62,13 +62,15 @@ class _MockApi implements LouvorjaApiClient {
   }
 
   @override
-  String resolveMediaUrl(String relativePath) => 'https://example.com/$relativePath';
-@override
+  String resolveMediaUrl(String relativePath) =>
+      'https://example.com/$relativePath';
+  @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 void main() {
@@ -83,9 +85,11 @@ void main() {
 
   test('getCategories injeta hinario quando hymnal nao e vazio', () async {
     api.categoriesResult = [
-      AlbumCategory(id: 1, name: 'Cat 1', albums: [
-        const Album(id: 100, name: 'Album A'),
-      ]),
+      AlbumCategory(
+        id: 1,
+        name: 'Cat 1',
+        albums: [const Album(id: 100, name: 'Album A')],
+      ),
     ];
     api.hymnalResult = [
       const Hymn(id: 1, title: 'Hino 1'),
@@ -102,27 +106,30 @@ void main() {
     expect(result.first.albums.first.trackCount, 2);
   });
 
-  test('getCategories preserva catalogo e hinario atual quando 1996 indisponivel (API ES 404)', () async {
-    api.languagePrefix = 'es';
-    api.categoriesResult = [
-      AlbumCategory(id: 1, name: 'Cat ES', albums: [
-        const Album(id: 100, name: 'Album ES'),
-      ]),
-    ];
-    api.hymnalResult = [const Hymn(id: 1, title: 'Himno actual')];
-    api.shouldFailHymnal1996 = true;
+  test(
+    'getCategories preserva catalogo e hinario atual quando 1996 indisponivel (API ES 404)',
+    () async {
+      api.languagePrefix = 'es';
+      api.categoriesResult = [
+        AlbumCategory(
+          id: 1,
+          name: 'Cat ES',
+          albums: [const Album(id: 100, name: 'Album ES')],
+        ),
+      ];
+      api.hymnalResult = [const Hymn(id: 1, title: 'Himno actual')];
+      api.shouldFailHymnal1996 = true;
 
-    final result = await HymnRepositoryImpl(api, cache).getCategories();
+      final result = await HymnRepositoryImpl(api, cache).getCategories();
 
-    expect(result.any((c) => c.name == 'Cat ES'), isTrue);
-    expect(result.expand((c) => c.albums).any((a) => a.id == -1), isTrue);
-    expect(result.expand((c) => c.albums).any((a) => a.id == -2), isFalse);
-  });
+      expect(result.any((c) => c.name == 'Cat ES'), isTrue);
+      expect(result.expand((c) => c.albums).any((a) => a.id == -1), isTrue);
+      expect(result.expand((c) => c.albums).any((a) => a.id == -2), isFalse);
+    },
+  );
 
   test('hinario atual usa cache quando API cai (offline-first)', () async {
-    api.hymnalResult = [
-      const Hymn(id: 1, title: 'Nosso Sol é Jesus'),
-    ];
+    api.hymnalResult = [const Hymn(id: 1, title: 'Nosso Sol é Jesus')];
     final repo = HymnRepositoryImpl(api, cache);
 
     // Primeira visita online popula album_-1 no CatalogCache.
@@ -140,9 +147,11 @@ void main() {
 
   test('getCategories nao injeta hinario quando vazio', () async {
     api.categoriesResult = [
-      AlbumCategory(id: 1, name: 'Cat 1', albums: [
-        const Album(id: 100, name: 'A'),
-      ]),
+      AlbumCategory(
+        id: 1,
+        name: 'Cat 1',
+        albums: [const Album(id: 100, name: 'A')],
+      ),
     ];
     api.hymnalResult = const [];
 
@@ -165,7 +174,9 @@ void main() {
     final result = await repo.getCategories();
 
     // Deve ter categoria com hinario 1996
-    final hymnalCat = result.where((c) => c.name == 'Hinário Adventista').toList();
+    final hymnalCat = result
+        .where((c) => c.name == 'Hinário Adventista')
+        .toList();
     expect(hymnalCat, isNotEmpty);
     final album1996 = hymnalCat.first.albums.where((a) => a.id == -2).first;
     expect(album1996.name, contains('1996'));
@@ -173,9 +184,7 @@ void main() {
   });
 
   test('getHymnsByAlbum retorna hinario 1996 do endpoint dedicado', () async {
-    api.hymnal1996Result = [
-      const Hymn(id: 10, title: 'O Deus de Amor'),
-    ];
+    api.hymnal1996Result = [const Hymn(id: 10, title: 'O Deus de Amor')];
 
     final repo = HymnRepositoryImpl(api, cache);
     final hymns = await repo.getHymnsByAlbum(-2);
@@ -186,12 +195,16 @@ void main() {
 
   test('getCategories filtra IDs 712 e 629', () async {
     api.categoriesResult = [
-      AlbumCategory(id: 1, name: 'Cat 1', albums: [
-        const Album(id: 100, name: 'Album A'),
-        const Album(id: 712, name: 'Excluido 712'),
-        const Album(id: 629, name: 'Excluido 629'),
-        const Album(id: 200, name: 'Album B'),
-      ]),
+      AlbumCategory(
+        id: 1,
+        name: 'Cat 1',
+        albums: [
+          const Album(id: 100, name: 'Album A'),
+          const Album(id: 712, name: 'Excluido 712'),
+          const Album(id: 629, name: 'Excluido 629'),
+          const Album(id: 200, name: 'Album B'),
+        ],
+      ),
     ];
 
     final repo = HymnRepositoryImpl(api, cache);
@@ -218,7 +231,10 @@ void main() {
 
   test('getHymnsByAlbum retorna hinos', () async {
     api.albumHymns = {
-      100: [const Hymn(id: 1, title: 'Hino 1'), const Hymn(id: 2, title: 'Hino 2')],
+      100: [
+        const Hymn(id: 1, title: 'Hino 1'),
+        const Hymn(id: 2, title: 'Hino 2'),
+      ],
     };
 
     final repo = HymnRepositoryImpl(api, cache);
@@ -309,7 +325,11 @@ void main() {
   });
 
   test('getHymnDetails delega para fetchMusic', () async {
-    api.musicDetail = const Hymn(id: 42, title: 'Detalhado', urlMusic: '/musics/foo.mp3');
+    api.musicDetail = const Hymn(
+      id: 42,
+      title: 'Detalhado',
+      urlMusic: '/musics/foo.mp3',
+    );
     final repo = HymnRepositoryImpl(api, cache);
     final h = await repo.getHymnDetails(42);
 

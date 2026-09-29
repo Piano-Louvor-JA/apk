@@ -37,7 +37,8 @@ class _UpdateBannerState extends State<UpdateBanner> {
   String get _sizeLabel {
     final bytes = widget.apkSizeBytes;
     if (bytes == null) return '';
-    if (bytes >= 1048576) return ' (${(bytes / 1048576).toStringAsFixed(1)} MB)';
+    if (bytes >= 1048576)
+      return ' (${(bytes / 1048576).toStringAsFixed(1)} MB)';
     if (bytes >= 1024) return ' (${(bytes / 1024).round()} KB)';
     return '';
   }

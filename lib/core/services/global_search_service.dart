@@ -55,12 +55,33 @@ class GlobalSearchService {
 
   /// Mapeamento direto de precompostos latinos (pt/es/en) para ASCII.
   static const _foldMap = {
-    'á': 'a', 'à': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a',
-    'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-    'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
-    'ó': 'o', 'ò': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
-    'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
-    'ç': 'c', 'ñ': 'n', 'ý': 'y', 'ÿ': 'y',
+    'á': 'a',
+    'à': 'a',
+    'â': 'a',
+    'ã': 'a',
+    'ä': 'a',
+    'å': 'a',
+    'é': 'e',
+    'è': 'e',
+    'ê': 'e',
+    'ë': 'e',
+    'í': 'i',
+    'ì': 'i',
+    'î': 'i',
+    'ï': 'i',
+    'ó': 'o',
+    'ò': 'o',
+    'ô': 'o',
+    'õ': 'o',
+    'ö': 'o',
+    'ú': 'u',
+    'ù': 'u',
+    'û': 'u',
+    'ü': 'u',
+    'ç': 'c',
+    'ñ': 'n',
+    'ý': 'y',
+    'ÿ': 'y',
   };
 
   /// Normaliza: lowercase + remove diacriticos (precompostos e combinantes).
@@ -203,20 +224,55 @@ class GlobalSearchService {
         .toList();
   }
 
-  /// Filtra versiculos de um capitulo pelo input de busca da Biblia.
+  /// Filtra versículos do capítulo aberto.
   ///
-  /// Match por texto (normalizado) ou numero exato do versiculo.
+  /// Aceita texto livre, número exato e seletores locais:
+  /// `1-3`, `1,3,5`, `1,3-5`. Não exige livro/capítulo porque a tela
+  /// já está naquele capítulo. Busca global fica em fluxo separado.
   static Map<String, String> filterVerses(
     Map<String, String> verses,
     String query,
   ) {
     final q = normalize(query);
     if (q.isEmpty) return verses;
+
+    final selected = _parseVerseSelector(q);
+    if (selected != null) {
+      return Map.fromEntries(
+        verses.entries.where((e) => selected.contains(int.tryParse(e.key))),
+      );
+    }
+
     return Map.fromEntries(
       verses.entries.where((e) {
-        if (e.key == q) return true; // numero exato
+        if (e.key == q) return true;
         return normalize(e.value).contains(q);
       }),
     );
+  }
+
+  /// `1,3-5` → {1,3,4,5}; null significa que é texto, não seletor.
+  static Set<int>? _parseVerseSelector(String query) {
+    if (!RegExp(r'^\d+(?:\s*(?:,|-)\s*\d+)*$').hasMatch(query)) {
+      return null;
+    }
+    final out = <int>{};
+    for (final part in query.split(',')) {
+      final range = part.trim().split('-');
+      final first = int.tryParse(range.first.trim());
+      if (first == null || first < 1 || range.length > 2) return null;
+      if (range.length == 1) {
+        out.add(first);
+        continue;
+      }
+      final last = int.tryParse(range.last.trim());
+      if (last == null || last < 1) return null;
+      final lo = first <= last ? first : last;
+      final hi = first <= last ? last : first;
+      for (var verse = lo; verse <= hi; verse++) {
+        out.add(verse);
+      }
+    }
+    return out;
   }
 }

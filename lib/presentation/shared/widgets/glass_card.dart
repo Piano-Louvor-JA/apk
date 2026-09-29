@@ -5,6 +5,7 @@
 /// Usa BackdropFilter com sigma baseado na intensidade configurável.
 /// A assimetria de borda (TL+BR) é aplicada via AppRadius.lg.
 library;
+
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -42,9 +43,7 @@ class GlassCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.colorScheme.surface.withValues(alpha: fillAlpha),
             borderRadius: borderRadius,
-            border: Border.all(
-              color: theme.colorScheme.outline,
-            ),
+            border: Border.all(color: theme.colorScheme.outline),
           ),
           padding: padding ?? const EdgeInsets.all(AppSpacing.cardPadding),
           child: child,

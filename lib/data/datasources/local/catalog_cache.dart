@@ -13,16 +13,33 @@ class CatalogCache {
   static const _ttl = Duration(hours: 24);
 
   CatalogCache(this._dir, {DateTime Function()? now})
-      : _now = now ?? DateTime.now;
+    : _now = now ?? DateTime.now;
 
   /// Construtor para Web: sem sistema de arquivos.
   /// Todas operações retornam null/no-op silenciosamente.
   const CatalogCache.noop({DateTime Function()? now})
-      : _dir = null,
-        _now = DateTime.now;
+    : _dir = null,
+      _now = DateTime.now;
 
   File? _file(String key) =>
       _dir == null ? null : File('${_dir.path}/catalog_$key.json');
+
+  /// Lista todas as chaves atualmente em cache no diretório.
+  /// Retorna vazio em Web (noop).
+  List<String> listKeys() {
+    if (_dir == null) return const [];
+    if (!_dir.existsSync()) return const [];
+    return _dir
+        .listSync()
+        .whereType<File>()
+        .map((f) => f.uri.pathSegments.last)
+        .where((name) => name.startsWith('catalog_') && name.endsWith('.json'))
+        .map(
+          (name) =>
+              name.substring('catalog_'.length, name.length - '.json'.length),
+        )
+        .toList();
+  }
 
   /// Lê o JSON do cache se existir e for válido.
   /// Retorna null se expirado, inexistente ou Web (noop).

@@ -13,7 +13,8 @@ class HymnPlayerAdapter implements HymnPlayerLike {
   final HymnAudioPlayer _player;
   final ValueNotifier<bool> _playing;
 
-  HymnPlayerAdapter(this._player) : _playing = ValueNotifier<bool>(_player.isPlaying) {
+  HymnPlayerAdapter(this._player)
+    : _playing = ValueNotifier<bool>(_player.isPlaying) {
     _player.playingStream.listen((playing) {
       _playing.value = playing;
     });
@@ -33,6 +34,9 @@ class HymnPlayerAdapter implements HymnPlayerLike {
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> setVolume(double v) => _player.setVolume(v);
 
   @override
   Future<void> pause() => _player.pause();

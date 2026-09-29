@@ -26,8 +26,9 @@ void main() {
       expect(find.text('Algo deu errado'), findsOneWidget);
     });
 
-    testWidgets('exibe botão "Tentar novamente" quando onRetry fornecido',
-        (tester) async {
+    testWidgets('exibe botão "Tentar novamente" quando onRetry fornecido', (
+      tester,
+    ) async {
       var retryCalled = false;
       await tester.pumpWidget(
         MaterialApp(

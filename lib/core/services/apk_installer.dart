@@ -33,10 +33,9 @@ class ApkInstaller {
   static Future<ApkInstallOutcome> install(String apkPath) async {
     if (kIsWeb) return ApkInstallOutcome.failed;
     try {
-      final r = await _channel.invokeMethod<dynamic>(
-        'installApk',
-        {'path': apkPath},
-      );
+      final r = await _channel.invokeMethod<dynamic>('installApk', {
+        'path': apkPath,
+      });
       return switch (r) {
         'needs_permission' => ApkInstallOutcome.needsPermission,
         'delivered' => ApkInstallOutcome.delivered,

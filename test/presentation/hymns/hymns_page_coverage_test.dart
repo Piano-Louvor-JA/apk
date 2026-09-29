@@ -43,12 +43,13 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchMusicIndex() async => const [];
   @override
   String resolveMediaUrl(String relativePath) => '';
-@override
+  @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 HymnsBloc _bloc({_MockApi? api}) {
@@ -81,11 +82,17 @@ void main() {
   });
 
   testWidgets('AlbumCard sem cover mostra placeholder', (tester) async {
-    final bloc = _bloc(api: _MockApi(categories: [
-      AlbumCategory(id: 1, name: 'Cat', albums: [
-        const Album(id: 10, name: 'Sem Capa'),
-      ]),
-    ]));
+    final bloc = _bloc(
+      api: _MockApi(
+        categories: [
+          AlbumCategory(
+            id: 1,
+            name: 'Cat',
+            albums: [const Album(id: 10, name: 'Sem Capa')],
+          ),
+        ],
+      ),
+    );
     bloc.add(HymnsLoadRequested());
 
     await tester.pumpWidget(
@@ -102,11 +109,17 @@ void main() {
   });
 
   testWidgets('AlbumCard tap navega', (tester) async {
-    final bloc = _bloc(api: _MockApi(categories: [
-      AlbumCategory(id: 1, name: 'Cat', albums: [
-        const Album(id: 10, name: 'Nav'),
-      ]),
-    ]));
+    final bloc = _bloc(
+      api: _MockApi(
+        categories: [
+          AlbumCategory(
+            id: 1,
+            name: 'Cat',
+            albums: [const Album(id: 10, name: 'Nav')],
+          ),
+        ],
+      ),
+    );
     bloc.add(HymnsLoadRequested());
 
     final router = GoRouter(
@@ -137,11 +150,17 @@ void main() {
   });
 
   testWidgets('RefreshIndicator dispara refresh', (tester) async {
-    final bloc = _bloc(api: _MockApi(categories: [
-      AlbumCategory(id: 1, name: 'Cat', albums: [
-        const Album(id: 10, name: 'R'),
-      ]),
-    ]));
+    final bloc = _bloc(
+      api: _MockApi(
+        categories: [
+          AlbumCategory(
+            id: 1,
+            name: 'Cat',
+            albums: [const Album(id: 10, name: 'R')],
+          ),
+        ],
+      ),
+    );
     bloc.add(HymnsLoadRequested());
 
     await tester.pumpWidget(
@@ -154,7 +173,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.fling(find.byType(RefreshIndicator), const Offset(0, 500), 1000);
+    await tester.fling(
+      find.byType(RefreshIndicator),
+      const Offset(0, 500),
+      1000,
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
   });

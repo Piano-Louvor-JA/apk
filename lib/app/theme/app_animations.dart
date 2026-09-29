@@ -2,6 +2,7 @@
 ///
 /// Fonte: pianolouvorja/app/src/design-system/animations/page.ts
 library;
+
 import 'package:flutter/animation.dart';
 
 /// Perfil de interação escolhido pelo usuário. Default: soft.
@@ -36,7 +37,6 @@ extension InteractionProfileX on InteractionProfile {
 
 /// Tokens de animação do dock (macOS-style).
 abstract final class DockAnimation {
-
   static const double hoverScale = 1.25;
   static const double hoverLift = -4;
   static const Duration duration = Duration(milliseconds: 300);

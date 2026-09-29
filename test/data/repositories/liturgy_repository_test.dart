@@ -49,7 +49,11 @@ void main() {
     test('cloneDay copia itens e notas', () async {
       final repo = LiturgyRepository(prefs);
       await repo.saveItems(LiturgyWeekday.sunday, [
-        const LiturgyItem(id: '1', type: LiturgyItemType.annotation, name: 'Nota'),
+        const LiturgyItem(
+          id: '1',
+          type: LiturgyItemType.annotation,
+          name: 'Nota',
+        ),
       ]);
       await repo.saveNotes(LiturgyWeekday.sunday, 'Notas dom');
 
@@ -62,7 +66,11 @@ void main() {
     test('clearDay remove itens e notas', () async {
       final repo = LiturgyRepository(prefs);
       await repo.saveItems(LiturgyWeekday.saturday, [
-        const LiturgyItem(id: '1', type: LiturgyItemType.prayer, name: 'Oracao'),
+        const LiturgyItem(
+          id: '1',
+          type: LiturgyItemType.prayer,
+          name: 'Oracao',
+        ),
       ]);
       await repo.saveNotes(LiturgyWeekday.saturday, 'Notas sab');
 

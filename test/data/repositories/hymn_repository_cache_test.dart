@@ -21,13 +21,17 @@ class _MockApi implements LouvorjaApiClient {
   @override
   Future<List<AlbumCategory>> fetchCategories() async {
     if (fail) throw Exception('fail');
-    return [AlbumCategory(id: 1, name: 'Live', albums: const [Album(id: 10)])];
+    return [
+      AlbumCategory(id: 1, name: 'Live', albums: const [Album(id: 10)]),
+    ];
   }
+
   @override
   Future<List<Hymn>> fetchAlbumHymns(int albumId) async {
     if (fail) throw Exception('fail');
     return [const Hymn(id: 1, title: 'H1')];
   }
+
   @override
   Future<Hymn> fetchMusic(int musicId) async => Hymn(id: musicId);
   @override
@@ -38,12 +42,13 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchMusicIndex() async => const [];
   @override
   String resolveMediaUrl(String relativePath) => '';
-@override
+  @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 void main() {
@@ -56,15 +61,21 @@ void main() {
   });
 
   tearDown(() {
-    try { tempDir.deleteSync(recursive: true); } catch (_) {}
+    try {
+      tempDir.deleteSync(recursive: true);
+    } catch (_) {}
   });
 
   test('getCategories le do cache em disco quando API falha', () async {
     // 1. Popula cache em disco com dados validos
     final cachedData = [
-      {'id_category': 99, 'name': 'Cached Cat', 'albums': [
-        {'id_album': 50, 'name': 'Cached Album'}
-      ]}
+      {
+        'id_category': 99,
+        'name': 'Cached Cat',
+        'albums': [
+          {'id_album': 50, 'name': 'Cached Album'},
+        ],
+      },
     ];
     cache.write('categories', cachedData);
 
@@ -79,7 +90,7 @@ void main() {
   test('getHymnsByAlbum le do cache quando API falha', () async {
     // 1. Popula cache do album
     cache.write('album_100', [
-      {'id_music': 1, 'name': 'Cached Hino'}
+      {'id_music': 1, 'name': 'Cached Hino'},
     ]);
 
     // 2. API falha
@@ -94,7 +105,7 @@ void main() {
   test('getCategories le do cache local valido (nao expirado)', () async {
     // Escreve cache valido (sem expirar)
     cache.write('categories', [
-      {'id_category': 1, 'name': 'From Cache', 'albums': []}
+      {'id_category': 1, 'name': 'From Cache', 'albums': []},
     ]);
 
     final api = _MockApi();
@@ -106,14 +117,17 @@ void main() {
     expect(result, isNotEmpty);
   });
 
-  test('_parseCategories com dados invalidos retorna do fallback vazio', () async {
-    cache.write('categories', 'invalid_string');
-    final api = _MockApi()..fail = true;
-    final repo = HymnRepositoryImpl(api, cache);
+  test(
+    '_parseCategories com dados invalidos retorna do fallback vazio',
+    () async {
+      cache.write('categories', 'invalid_string');
+      final api = _MockApi()..fail = true;
+      final repo = HymnRepositoryImpl(api, cache);
 
-    // Cache invalido (nao e List) -> _parseCategories retorna []
-    // API falha -> fallback retorna [] do cache invalido
-    final result = await repo.getCategories();
-    expect(result, isEmpty);
-  });
+      // Cache invalido (nao e List) -> _parseCategories retorna []
+      // API falha -> fallback retorna [] do cache invalido
+      final result = await repo.getCategories();
+      expect(result, isEmpty);
+    },
+  );
 }

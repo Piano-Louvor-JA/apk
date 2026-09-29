@@ -35,10 +35,14 @@ void main() {
       expect(find.byType(HomePage), findsOneWidget);
     });
 
-    testWidgets('salva e reabre os campos de Distrito e Igreja', (tester) async {
+    testWidgets('salva e reabre os campos de Distrito e Igreja', (
+      tester,
+    ) async {
       // MaterialApp direto torna o teste independente do carregamento async
       // do arquivo JSON. Sem provider, tr() retorna a key mas a UI funciona.
-      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: HomePage())));
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: HomePage())),
+      );
       await tester.pump();
 
       expect(find.byType(TextField), findsOneWidget);
@@ -59,7 +63,9 @@ void main() {
     });
 
     testWidgets('tap em Igreja (modo texto) ativa onEdit', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: HomePage())));
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: HomePage())),
+      );
       await tester.pump();
 
       // Distrito começa em edição; submeter para virar texto
@@ -79,13 +85,16 @@ void main() {
       }
     });
 
-    testWidgets('atualiza relógio periódico enquanto está montada', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: HomePage())));
+    testWidgets('atualiza relógio periódico enquanto está montada', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: HomePage())),
+      );
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       expect(find.byType(HomePage), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
     });
-
   });
 }

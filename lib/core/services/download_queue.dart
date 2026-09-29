@@ -20,8 +20,11 @@ class DownloadQueueItem {
     required this.url,
   });
 
-  Map<String, dynamic> toJson() =>
-      {'musicId': musicId, 'title': title, 'url': url};
+  Map<String, dynamic> toJson() => {
+    'musicId': musicId,
+    'title': title,
+    'url': url,
+  };
 
   factory DownloadQueueItem.fromJson(Map<String, dynamic> json) =>
       DownloadQueueItem(
@@ -38,11 +41,18 @@ class DownloadQueueProgress {
   final int received;
   final int total;
 
+  /// Posição na fila (1-based) e tamanho total do lote — dá contexto ao
+  /// usuário ('12/75') em vez de só o progresso da faixa corrente.
+  final int queueIndex;
+  final int queueTotal;
+
   const DownloadQueueProgress({
     required this.musicId,
     required this.title,
     required this.received,
     required this.total,
+    required this.queueIndex,
+    required this.queueTotal,
   });
 }
 
@@ -71,9 +81,13 @@ class DownloadQueue {
       ValueNotifier<DownloadQueueProgress?>(null);
 
   final List<DownloadQueueItem> _pending = [];
+
   /// Itens que falharam neste drain — ficam no disco p/ proximo boot.
   final List<DownloadQueueItem> _failedThisRun = [];
   final Set<int> _enqueuedIds = {};
+
+  /// Tamanho do lote corrente (p/ progresso '12/75').
+  int _queueTotalThisRun = 0;
 
   /// Circuit breaker: falhas de RATE LIMIT seguidas param o drain.
   /// Incidente 2026-08-16: 'baixar todas' martelou a API em 429 e a
@@ -116,6 +130,7 @@ class DownloadQueue {
       _enqueuedIds.add(item.musicId);
       _pending.add(item);
     }
+    _queueTotalThisRun += _pending.length;
     if (_restoring) {
       // o restore pendente vai processar os novos itens junto
       return;
@@ -183,6 +198,10 @@ class DownloadQueue {
                 title: item.title,
                 received: received,
                 total: total,
+                // +1: _pending já teve o item removido; a faixa corrente
+                // é a (totalOriginal - restantes) da fila.
+                queueIndex: _queueTotalThisRun - _pending.length,
+                queueTotal: _queueTotalThisRun,
               );
             },
           );
@@ -218,11 +237,14 @@ class DownloadQueue {
   /// Persiste pendencias restantes + falhas deste run.
   Future<void> _persist() async {
     try {
-      await storage.write(jsonEncode({
-        'pending': [..._pending, ..._failedThisRun]
-            .map((e) => e.toJson())
-            .toList(),
-      }));
+      await storage.write(
+        jsonEncode({
+          'pending': [
+            ..._pending,
+            ..._failedThisRun,
+          ].map((e) => e.toJson()).toList(),
+        }),
+      );
     } catch (_) {
       // persistencia best-effort: fila em memoria continua
     }

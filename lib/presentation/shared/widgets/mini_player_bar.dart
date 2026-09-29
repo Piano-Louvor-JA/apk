@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import '../../../../core/services/now_playing.dart';
+import '../../../../core/services/dlna/stage_session.dart';
+import '../../../../core/services/palco/palco_controller.dart'
+    show PalcoAudioRoute;
+import '../../palco/remote_control_sheet.dart';
 import 'player_timeline.dart';
 
 /// Miniplayer fixo (issue #90): barra acima da nav com a faixa ativa.
@@ -55,18 +59,26 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
   }
 
   Future<void> _toggle() async {
+    final stage = StageSession.instance;
     if (widget.notifier.isPlaying) {
       await widget.player.pause();
       widget.notifier.pause();
+      stage.pauseHymnAudio(); // espelha no Palco
+    } else if (stage.audioRoute == PalcoAudioRoute.tv && stage.isPalcoMode) {
+      // modo só-TV: retoma APENAS no palco (celular é controle)
+      stage.palco?.resumeAudio();
+      widget.notifier.setPlaying(true);
     } else {
       await widget.player.resume();
       widget.notifier.setPlaying(true);
+      stage.rerouteCurrentAudio();
     }
   }
 
   Future<void> _stop() async {
     await widget.player.stop();
     widget.notifier.stop();
+    StageSession.instance.stopHymnAudio(); // espelha no Palco
   }
 
   @override
@@ -87,7 +99,11 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             children: [
-              Icon(TablerIcons.music, size: 20, color: theme.colorScheme.primary),
+              Icon(
+                TablerIcons.music,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -119,6 +135,9 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
                         positionStream: widget.player.positionStream,
                         durationStream: widget.player.durationStream,
                         onSeek: widget.player.seek,
+                        fallbackDuration: Duration(
+                          milliseconds: track.durationMs ?? 0,
+                        ),
                       ),
                     ),
                   ],
@@ -139,6 +158,20 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
                 color: theme.colorScheme.onSurfaceVariant,
                 onPressed: _stop,
                 tooltip: 'common.stop'.tr(),
+              ),
+              // Controle remoto: comanda o player do desktop/web
+              // conectado ao Palco (mesma sessão WS).
+              IconButton(
+                key: const Key('miniplayer-remote'),
+                icon: const Icon(TablerIcons.deviceTv),
+                color: theme.colorScheme.onSurfaceVariant,
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  builder: (_) => const RemoteControlSheet(),
+                ),
+                tooltip: 'remote.title'.tr(),
               ),
             ],
           ),

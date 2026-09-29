@@ -14,8 +14,10 @@ class _Port implements OfflineMusicPort, OfflineLibraryPort {
   bool get isSupported => true;
 
   @override
-  Future<String?> localPathFor(int musicId, {bool instrumental = false}) async =>
-      downloaded.contains(musicId) ? '/local/$musicId.mp3' : null;
+  Future<String?> localPathFor(
+    int musicId, {
+    bool instrumental = false,
+  }) async => downloaded.contains(musicId) ? '/local/$musicId.mp3' : null;
 
   @override
   Future<String> download({
@@ -50,7 +52,9 @@ class _Port implements OfflineMusicPort, OfflineLibraryPort {
 
   @override
   Future<List<OfflineListedTrack>> listDownloaded({int? albumId}) async =>
-      tracks.values.where((t) => albumId == null || t.albumId == albumId).toList();
+      tracks.values
+          .where((t) => albumId == null || t.albumId == albumId)
+          .toList();
 
   @override
   Future<void> remove(int musicId, {bool instrumental = false}) async {}

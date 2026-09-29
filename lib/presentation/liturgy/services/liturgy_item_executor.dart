@@ -5,9 +5,25 @@ library;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
+import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart'
+    show PalcoAudioRoute;
+import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
+
+/// Monta a URL de stream do hino da liturgia (percent-encode por segmento).
+///
+/// Bug real: paths da API tem espaco/acento; sem encode o request quebra
+/// (intermittencia de audio reportada no culto). Mesma regra do download.
+String buildLiturgyMusicUrl(String relativeUrl) {
+  if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+    return relativeUrl;
+  }
+  return DownloadUrlBuilder.build(relativeUrl);
+}
 
 /// Executa a acao correspondente ao tipo do item da liturgia.
 ///
@@ -19,8 +35,8 @@ class LiturgyItemExecutor {
   LiturgyItemExecutor._();
 
   static final _api = LouvorjaApiImpl(
-    baseUrl: 'https://api.louvorja.com.br/json_db',
-    filesUrl: 'https://api.louvorja.com.br/file',
+    baseUrls: ApiConfig.databaseUrls(),
+    filesUrls: ApiConfig.filesUrls(),
     apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
   );
 
@@ -31,14 +47,51 @@ class LiturgyItemExecutor {
         return _executeMusic(context, item);
 
       case LiturgyItemType.site:
-      case LiturgyItemType.onlineVideo:
         return _executeUrl(context, item);
 
       case LiturgyItemType.video:
-      case LiturgyItemType.images:
+        // F3.3k: com Palco ligado, vídeo LOCAL renderiza NA TV (receiver
+        // tem <video>); ao terminar volta ao idle. Sem palco: abre externo.
+        final stageV = StageSession.instance;
+        final vpath = item.filePath;
+        if (stageV.isOn && stageV.isPalcoMode && vpath != null) {
+          if (stageV.playVideoOnStage(vpath)) {
+            return 'Reproduzindo vídeo no Palco';
+          }
+        }
+        return _executeFile(context, item);
+
+      case LiturgyItemType.onlineVideo:
+        // F3.3k: vídeo ONLINE (youtube etc) — só projeta se for URL de
+        // arquivo direto (mp4/webm); senão abre externo (player dedicado).
+        final stageO = StageSession.instance;
+        final ourl = item.url;
+        if (stageO.isOn && stageO.isPalcoMode && ourl != null) {
+          final lower = ourl.toLowerCase();
+          if (lower.endsWith('.mp4') || lower.endsWith('.webm')) {
+            if (stageO.playVideoOnStage(ourl)) {
+              return 'Reproduzindo vídeo no Palco';
+            }
+          }
+        }
+        return _executeUrl(context, item);
+
       case LiturgyItemType.pdf:
-      case LiturgyItemType.presentation:
       case LiturgyItemType.otherFiles:
+        return _executeFile(context, item);
+
+      case LiturgyItemType.presentation:
+      case LiturgyItemType.images:
+        // F3.3i: com Palco ligado, PPTX/imagens projetam os slides na TV
+        // (imagens extraídas do .pptx servidas via /media do sender).
+        final stage = StageSession.instance;
+        final path = item.filePath;
+        if (stage.isOn && stage.isPalcoMode && path != null) {
+          final count = stage.projectPptxSlides(path);
+          if (count > 0) {
+            return 'Projetando $count slides — setas do controle navegam';
+          }
+        }
         return _executeFile(context, item);
 
       case LiturgyItemType.scheduled:
@@ -56,7 +109,9 @@ class LiturgyItemExecutor {
   }
 
   static Future<String> _executeMusic(
-      BuildContext context, LiturgyItem item) async {
+    BuildContext context,
+    LiturgyItem item,
+  ) async {
     if (item.musicId == null) {
       return 'Hino nao vinculado';
     }
@@ -66,9 +121,20 @@ class LiturgyItemExecutor {
       if (relativeUrl.isEmpty) {
         return 'Audio nao disponivel';
       }
-      final url = relativeUrl.startsWith('http')
-          ? relativeUrl
-          : 'https://api.louvorja.com.br/file/${relativeUrl.replaceFirst(RegExp(r'^/+'), '')}';
+      // URL encodada por segmento: paths com espaco/acento quebram sem encode.
+      final url = buildLiturgyMusicUrl(relativeUrl);
+      // Palco ligado (modo tv/mirror): roteia o audio pela TV em vez de
+      // tocar local (mesma regra do NowPlaying). Modo local ou palco off:
+      // comporta-se como antes (toggle local).
+      final stage = StageSession.instance;
+      if (stage.isOn && stage.audioRoute != PalcoAudioRoute.local) {
+        stage.playHymnAudio(
+          url,
+          title: hymn.title ?? item.name,
+          cover: hymn.imageUrl,
+        );
+        return 'Tocando na TV: ${hymn.title ?? item.name}';
+      }
       await HymnAudioPlayer.instance.toggleUrl(url);
       return 'Tocando: ${hymn.title ?? item.name}';
     } catch (_) {
@@ -77,7 +143,9 @@ class LiturgyItemExecutor {
   }
 
   static Future<String> _executeUrl(
-      BuildContext context, LiturgyItem item) async {
+    BuildContext context,
+    LiturgyItem item,
+  ) async {
     final url = item.url;
     if (url == null || url.trim().isEmpty) {
       return 'URL nao definida';
@@ -95,7 +163,9 @@ class LiturgyItemExecutor {
   }
 
   static Future<String> _executeFile(
-      BuildContext context, LiturgyItem item) async {
+    BuildContext context,
+    LiturgyItem item,
+  ) async {
     final path = item.filePath;
     if (path == null || path.trim().isEmpty) {
       return 'Arquivo nao selecionado';

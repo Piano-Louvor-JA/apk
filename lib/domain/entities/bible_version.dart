@@ -34,16 +34,18 @@ class BibleVersion {
   }
 
   Map<String, dynamic> toJson() => {
-        'id_bible_version': id,
-        'abbreviation': abbreviation,
-        'name': name,
-        'id_language': languageId,
-      };
+    'id_bible_version': id,
+    'abbreviation': abbreviation,
+    'name': name,
+    'id_language': languageId,
+  };
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is BibleVersion && runtimeType == other.runtimeType && id == other.id;
+      other is BibleVersion &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;

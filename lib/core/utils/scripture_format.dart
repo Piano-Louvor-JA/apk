@@ -51,21 +51,19 @@ abstract final class ScriptureFormat {
   }) {
     if (bookName.isEmpty || chapter == 0) return '';
 
-    final versePart =
-        verses.isNotEmpty ? ':${formatVerseIntervals(verses)}' : '';
+    final versePart = verses.isNotEmpty
+        ? ':${formatVerseIntervals(verses)}'
+        : '';
     final versionPart =
         versionAbbreviation != null && versionAbbreviation.isNotEmpty
-            ? ' ($versionAbbreviation)'
-            : '';
+        ? ' ($versionAbbreviation)'
+        : '';
 
     return '$bookName $chapter$versePart$versionPart';
   }
 
   /// Interpreta busca por numeros/intervalos ("1", "1-3", "1,3-5").
-  static List<int> parseVerseQuery(
-    String query,
-    Map<String, String> verses,
-  ) {
+  static List<int> parseVerseQuery(String query, Map<String, String> verses) {
     final selected = <int>{};
     final parts = query.split(',');
 
@@ -97,10 +95,7 @@ abstract final class ScriptureFormat {
   }
 
   /// Concatena o texto dos versiculos selecionados.
-  static String buildText(
-    Map<String, String> verses,
-    List<int> selected,
-  ) {
+  static String buildText(Map<String, String> verses, List<int> selected) {
     return selected
         .map((verseNum) => verses[verseNum.toString()])
         .whereType<String>()
@@ -109,11 +104,7 @@ abstract final class ScriptureFormat {
   }
 
   /// Chave do endpoint de capitulo da API.
-  static String chapterRecordKey(
-    int versionId,
-    int bookId,
-    int chapter,
-  ) {
+  static String chapterRecordKey(int versionId, int bookId, int chapter) {
     return 'bible_${versionId}_${bookId}_$chapter';
   }
 
@@ -124,8 +115,7 @@ abstract final class ScriptureFormat {
   ) {
     if (versions.isEmpty) return null;
 
-    if (savedId != null &&
-        versions.any((v) => v.id == savedId)) {
+    if (savedId != null && versions.any((v) => v.id == savedId)) {
       return savedId;
     }
 

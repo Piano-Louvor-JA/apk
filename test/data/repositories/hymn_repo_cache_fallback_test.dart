@@ -32,12 +32,13 @@ class _FailingApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchMusicIndex() async => const [];
   @override
   String resolveMediaUrl(String p) => p;
-@override
+  @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 void main() {
@@ -55,31 +56,27 @@ void main() {
     } catch (_) {}
   });
 
-  test('getHymnsByAlbum: cache corrompido + API falha = erro honesto (nao lista vazia)',
-      () async {
-    // Escreve cache com dados nao-List (parsed sera vazio)
-    cache.write('album_42', 'not_a_list');
+  test(
+    'getHymnsByAlbum: cache corrompido + API falha = erro honesto (nao lista vazia)',
+    () async {
+      // Escreve cache com dados nao-List (parsed sera vazio)
+      cache.write('album_42', 'not_a_list');
 
-    final repo = HymnRepositoryImpl(_FailingApi(), cache);
+      final repo = HymnRepositoryImpl(_FailingApi(), cache);
 
-    // Fluxo: le cache -> parsed e [] (not_a_list) -> tenta API -> falha
-    // -> catch: fresh e stale ambos inuteis (parse vazio) -> rethrow.
-    // Sem lista vazia silenciosa (bug do empty-state enganoso).
-    expect(
-      () => repo.getHymnsByAlbum(42),
-      throwsA(isA<Exception>()),
-    );
-  });
+      // Fluxo: le cache -> parsed e [] (not_a_list) -> tenta API -> falha
+      // -> catch: fresh e stale ambos inuteis (parse vazio) -> rethrow.
+      // Sem lista vazia silenciosa (bug do empty-state enganoso).
+      expect(() => repo.getHymnsByAlbum(42), throwsA(isA<Exception>()));
+    },
+  );
 
   test('getHymnsByAlbum: sem cache + API falha = rethrow', () async {
     final repo = HymnRepositoryImpl(_FailingApi(), cache);
 
     // Fluxo: le cache -> null -> tenta API -> falha
     // -> catch: cached == null -> rethrow
-    expect(
-      () => repo.getHymnsByAlbum(99),
-      throwsA(isA<Exception>()),
-    );
+    expect(() => repo.getHymnsByAlbum(99), throwsA(isA<Exception>()));
   });
 
   _staleGroup();
@@ -93,9 +90,9 @@ class _CountingFailingApi implements LouvorjaApiClient {
   _CountingFailingApi({this.succeedFirst = 0});
 
   List<Hymn> get _hymns => [
-        const Hymn(id: 1, title: 'Remoto A'),
-        const Hymn(id: 2, title: 'Remoto B'),
-      ];
+    const Hymn(id: 1, title: 'Remoto A'),
+    const Hymn(id: 2, title: 'Remoto B'),
+  ];
 
   @override
   String languagePrefix = 'pt';
@@ -124,7 +121,8 @@ class _CountingFailingApi implements LouvorjaApiClient {
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 void _staleGroup() {
@@ -135,7 +133,7 @@ void _staleGroup() {
       final cache = CatalogCache(dir);
       // escreve cache com dados validos e mtime antigo (expirado)
       cache.write('album_7', [
-        {'id_music': 1, 'name': 'Hino Cache', 'track': 1}
+        {'id_music': 1, 'name': 'Hino Cache', 'track': 1},
       ]);
       // envelhece o arquivo além do TTL de 24h
       final f = File('${dir.path}/catalog_album_7.json');
@@ -146,8 +144,11 @@ void _staleGroup() {
       final repo = HymnRepositoryImpl(api, cache);
 
       final result = await repo.getHymnsByAlbum(7);
-      expect(result, isNotEmpty,
-          reason: 'cache expirado deve servir quando a API esta fora');
+      expect(
+        result,
+        isNotEmpty,
+        reason: 'cache expirado deve servir quando a API esta fora',
+      );
       expect(result.first.title, 'Hino Cache');
     });
   });

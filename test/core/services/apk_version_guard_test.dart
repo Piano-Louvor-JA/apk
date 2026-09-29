@@ -33,13 +33,17 @@ void main() {
 
     test('compara corretamente minor/patch (0.2.0 > 0.1.9)', () {
       expect(
-        ApkVersionGuard.canInstall(installed: '0.1.9', available: '0.2.0')
-            .allowed,
+        ApkVersionGuard.canInstall(
+          installed: '0.1.9',
+          available: '0.2.0',
+        ).allowed,
         isTrue,
       );
       expect(
-        ApkVersionGuard.canInstall(installed: '0.1.10', available: '0.1.9')
-            .allowed,
+        ApkVersionGuard.canInstall(
+          installed: '0.1.10',
+          available: '0.1.9',
+        ).allowed,
         isFalse,
       );
     });

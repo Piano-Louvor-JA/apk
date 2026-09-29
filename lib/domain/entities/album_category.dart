@@ -13,18 +13,15 @@ class AlbumCategory {
   final String? name;
   final List<Album> albums;
 
-  const AlbumCategory({
-    required this.id,
-    this.name,
-    this.albums = const [],
-  });
+  const AlbumCategory({required this.id, this.name, this.albums = const []});
 
   factory AlbumCategory.fromJson(Map<String, dynamic> json) {
     final albumsRaw = json['albums'] as List<dynamic>?;
     return AlbumCategory(
       id: _parseInt(json['id_category']),
       name: json['name'] as String?,
-      albums: albumsRaw
+      albums:
+          albumsRaw
               ?.map((a) => Album.fromJson(a as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -32,10 +29,10 @@ class AlbumCategory {
   }
 
   Map<String, dynamic> toJson() => {
-        'id_category': id,
-        if (name != null) 'name': name,
-        'albums': albums.map((a) => a.toJson()).toList(),
-      };
+    'id_category': id,
+    if (name != null) 'name': name,
+    'albums': albums.map((a) => a.toJson()).toList(),
+  };
 
   static int _parseInt(dynamic v) {
     if (v is int) return v;
@@ -55,5 +52,6 @@ class AlbumCategory {
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'AlbumCategory(id: $id, name: $name, ${albums.length} albums)';
+  String toString() =>
+      'AlbumCategory(id: $id, name: $name, ${albums.length} albums)';
 }

@@ -37,12 +37,12 @@ class OfflineTrackMeta {
   });
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        if (number != null) 'number': number,
-        if (albumId != null) 'albumId': albumId,
-        if (albumName != null) 'albumName': albumName,
-        'instrumental': instrumental,
-      };
+    'title': title,
+    if (number != null) 'number': number,
+    if (albumId != null) 'albumId': albumId,
+    if (albumName != null) 'albumName': albumName,
+    'instrumental': instrumental,
+  };
 
   factory OfflineTrackMeta.fromJson(int musicId, Map<String, dynamic> json) =>
       OfflineTrackMeta(
@@ -74,6 +74,7 @@ class MusicOfflineRepository {
 
   final Dio _dio;
   final Directory _root;
+
   /// Índice v2: chave -> {path, ...meta} OU string path (v1, legado).
   Map<String, dynamic>? _index;
 
@@ -141,7 +142,8 @@ class MusicOfflineRepository {
       );
       await partial.rename(target.path);
       final index = await _loadIndex();
-      final meta = metadata ??
+      final meta =
+          metadata ??
           OfflineTrackMeta(musicId: musicId, title: 'Hino #$musicId');
       index[_key(musicId, instrumental)] = {
         'path': target.path,

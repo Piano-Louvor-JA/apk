@@ -22,14 +22,17 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     const channel = MethodChannel('dev.fluttercommunity.plus/package_info');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (_) async => <String, dynamic>{
-              'appName': 'LouvorJA PIANO',
-              'packageName': 'com.louvorja.piano.mobile',
-              'version': '0.1.0-alpha',
-              'buildNumber': '1',
-              'buildSignature': '',
-              'installerStore': null,
-            });
+        .setMockMethodCallHandler(
+          channel,
+          (_) async => <String, dynamic>{
+            'appName': 'LouvorJA PIANO',
+            'packageName': 'com.louvorja.piano.mobile',
+            'version': '0.1.0-alpha',
+            'buildNumber': '1',
+            'buildSignature': '',
+            'installerStore': null,
+          },
+        );
   });
 
   testWidgets('renderiza todas as configurações', (tester) async {
@@ -68,7 +71,9 @@ void main() {
     await tester.pumpWidget(_subject(controller));
     await tester.pumpAndSettle();
 
-    final chips = tester.widgetList<ChoiceChip>(find.byType(ChoiceChip)).toList();
+    final chips = tester
+        .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+        .toList();
     // Chips na ordem: 3 tema, 3 interação, 3 idioma
     // Mas pode haver variação; procura por 'Portugues' e 'Espanol'
     for (final chip in chips) {
@@ -86,7 +91,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Procurar o _ChoiceChip com texto que contem 'Espanol' e dar tap
-    final chips = tester.widgetList<ChoiceChip>(find.byType(ChoiceChip)).toList();
+    final chips = tester
+        .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+        .toList();
     for (final chip in chips) {
       final label = (chip.label as Text).data ?? '';
       if (label.contains('Espanol')) {
@@ -97,7 +104,9 @@ void main() {
     }
   });
 
-  testWidgets('acento, interação e glass acionam callbacks reais', (tester) async {
+  testWidgets('acento, interação e glass acionam callbacks reais', (
+    tester,
+  ) async {
     final controller = SettingsController();
     await tester.pumpWidget(_subject(controller));
     await tester.pumpAndSettle();

@@ -90,8 +90,11 @@ void main() {
         onlineUrl: 'https://api/x.mp3',
         offline: offline,
       );
-      expect(r.source, '/local/42.mp3',
-          reason: 'baixado deve tocar do disco, nao streaming');
+      expect(
+        r.source,
+        '/local/42.mp3',
+        reason: 'baixado deve tocar do disco, nao streaming',
+      );
       expect(r.isLocal, isTrue);
     });
 
@@ -114,8 +117,11 @@ void main() {
         instrumental: true,
         offline: offline,
       );
-      expect(r.source, 'https://api/i.mp3',
-          reason: 'instrumental nao baixado cai na URL remota');
+      expect(
+        r.source,
+        'https://api/i.mp3',
+        reason: 'instrumental nao baixado cai na URL remota',
+      );
     });
 
     test('nao suportado (web): URL remota direto', () async {

@@ -2,9 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, staging]
   pull_request:
-    branches: [main, master]
 
 permissions:
   contents: read
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -25,14 +24,14 @@ jobs:
       - run: flutter pub get
 
       - name: Analyze (warnings only)
-        run: flutter analyze --fatal-warnings
+        run: flutter analyze --fatal-warnings --no-fatal-infos
 
   test:
     name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -47,9 +46,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -62,14 +61,25 @@ jobs:
       - run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --debug --no-tree-shake-icons
+        env:
+          # Token vem de secret (nunca hardcoded). Vazio = sem token.
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        # API 100% via dart-define (apk#54) — sem isso o app sai do CI
+        # sem onde fazer requisição ("erro sem conexão com o servidor").
+        # env simples NÃO chega no String.fromEnvironment: tem que ser flag.
+        run: >-
+          flutter build apk --debug --no-tree-shake-icons
+          --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db
+          --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file
+          --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
+          --dart-define=API_TOKEN=$API_TOKEN
 
   build-ios:
     name: Build iOS
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -79,4 +89,37 @@ jobs:
       - run: flutter pub get
 
       - name: Build iOS (debug, no codesign)
-        run: flutter build ios --debug --no-codesign --no-tree-shake-icons
+        # Paridade com o APK: mesmo sem instalar, o build valida os defines.
+        run: |
+          flutter build ios --debug --no-codesign --no-tree-shake-icons \
+            --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
+            --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
+            --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
+
+  regression-gate:
+    name: Regression Gate (anti-regressão)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Baseline (staging)
+        run: |
+          cp scripts/test-regression.dart /tmp/test-regression.dart
+          git checkout staging
+          flutter pub get
+          dart run /tmp/test-regression.dart --baseline
+          git checkout "${{ github.head_ref }}"
+
+      - name: Compare (PR branch)
+        run: dart run scripts/test-regression.dart --compare

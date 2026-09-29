@@ -89,11 +89,15 @@ class _HomePageState extends State<HomePage> {
     );
     if (!guard.allowed) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(guard.reason == ApkVersionRejectReason.sameVersion
-              ? 'A atualização disponível é a mesma versão instalada.'
-              : 'A atualização disponível é mais antiga que a instalada.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              guard.reason == ApkVersionRejectReason.sameVersion
+                  ? 'A atualização disponível é a mesma versão instalada.'
+                  : 'A atualização disponível é mais antiga que a instalada.',
+            ),
+          ),
+        );
       }
       return;
     }

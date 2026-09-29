@@ -199,8 +199,6 @@ class HymnRepositoryImpl implements HymnRepository {
 
   List<Hymn> _parseHymns(dynamic data) {
     if (data is! List) return const [];
-    return data
-        .map((e) => Hymn.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return data.map((e) => Hymn.fromJson(e as Map<String, dynamic>)).toList();
   }
 }

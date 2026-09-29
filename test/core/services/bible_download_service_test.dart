@@ -11,7 +11,10 @@ class _FakeRepo implements BibleRepository {
 
   @override
   Future<Map<String, String>> getChapter(
-      int versionId, int bookId, int chapter) async {
+    int versionId,
+    int bookId,
+    int chapter,
+  ) async {
     final key = '$versionId-$bookId-$chapter';
     if (failOn.contains(key)) throw Exception('network');
     fetched.add(key);
@@ -30,8 +33,20 @@ void main() {
     final repo = _FakeRepo();
     final svc = BibleDownloadService(repo);
     final books = const [
-      BibleBook(id: 1, name: 'Gênesis', abbreviation: 'gn', bookNumber: 1, chapters: 2),
-      BibleBook(id: 66, name: 'Apocalipse', abbreviation: 'ap', bookNumber: 66, chapters: 1),
+      BibleBook(
+        id: 1,
+        name: 'Gênesis',
+        abbreviation: 'gn',
+        bookNumber: 1,
+        chapters: 2,
+      ),
+      BibleBook(
+        id: 66,
+        name: 'Apocalipse',
+        abbreviation: 'ap',
+        bookNumber: 66,
+        chapters: 1,
+      ),
     ];
 
     final progress = <int>[];
@@ -47,16 +62,29 @@ void main() {
     expect(progress.last, 3);
   });
 
-  test('capítulo que falha é pulado e contabilizado, sem derrubar o resto',
-      () async {
-    final repo = _FakeRepo()..failOn.add('12-1-2');
-    final svc = BibleDownloadService(repo);
-    final books = const [BibleBook(id: 1, name: 'Gn', abbreviation: 'gn', bookNumber: 1, chapters: 3)];
+  test(
+    'capítulo que falha é pulado e contabilizado, sem derrubar o resto',
+    () async {
+      final repo = _FakeRepo()..failOn.add('12-1-2');
+      final svc = BibleDownloadService(repo);
+      final books = const [
+        BibleBook(
+          id: 1,
+          name: 'Gn',
+          abbreviation: 'gn',
+          bookNumber: 1,
+          chapters: 3,
+        ),
+      ];
 
-    final (done, failed) = await svc.downloadVersion(versionId: 12, books: books);
+      final (done, failed) = await svc.downloadVersion(
+        versionId: 12,
+        books: books,
+      );
 
-    expect(done, 2);
-    expect(failed, 1);
-    expect(repo.fetched, containsAll(['12-1-1', '12-1-3']));
-  });
+      expect(done, 2);
+      expect(failed, 1);
+      expect(repo.fetched, containsAll(['12-1-1', '12-1-3']));
+    },
+  );
 }

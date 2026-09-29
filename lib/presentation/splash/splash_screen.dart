@@ -51,10 +51,12 @@ class _SplashScreenState extends State<SplashScreen>
     // de 1.5s no cold start release travava a splash em 'v0.1.0' para
     // sempre). Boot comeca apos 400ms; quando a versao chegar, o texto
     // atualiza via setState — nunca exibir versao falsa.
-    (widget.versionFuture ?? AppVersion.displayVersion).then((v) {
-      if (!mounted) return;
-      setState(() => _version = v);
-    }).catchError((_) {});
+    (widget.versionFuture ?? AppVersion.displayVersion)
+        .then((v) {
+          if (!mounted) return;
+          setState(() => _version = v);
+        })
+        .catchError((_) {});
     Timer(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       _startBootSequence();
@@ -90,7 +92,10 @@ class _SplashScreenState extends State<SplashScreen>
     setState(() {});
 
     // Boot mínimo visual. Será substituído pelo bootstrap real de catálogo.
-    _bootTimer = Timer(const Duration(milliseconds: 2200), _completeInitialization);
+    _bootTimer = Timer(
+      const Duration(milliseconds: 2200),
+      _completeInitialization,
+    );
   }
 
   @override
@@ -113,9 +118,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (fadeLogo == null || fadeCodename == null || fadeStatus == null) {
       return Scaffold(
         backgroundColor: theme.colorScheme.surface,
-        body: Center(
-          child: const LouvorJaLogo(size: 140),
-        ),
+        body: Center(child: const LouvorJaLogo(size: 140)),
       );
     }
 

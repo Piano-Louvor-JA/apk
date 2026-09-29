@@ -65,11 +65,7 @@ abstract final class SearchSources {
     final books = await repository.getBooks();
     for (final book in books.take(maxBooks)) {
       try {
-        final chapter = await repository.getChapter(
-          versionId,
-          book.id,
-          1,
-        );
+        final chapter = await repository.getChapter(versionId, book.id, 1);
         chapter.forEach((verseNum, text) {
           final n = int.tryParse(verseNum);
           if (n == null || text.trim().isEmpty) return;

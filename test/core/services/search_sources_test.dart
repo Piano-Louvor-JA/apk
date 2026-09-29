@@ -9,9 +9,7 @@ void main() {
     test('loadHymnSources agrega hinos de todos os albuns', () async {
       final hymns = await SearchSources.loadHymnSources(
         repository: _FakeHymnRepo({
-          1: [
-            Hymn(id: 1, title: 'Hino A', number: 1, hasInstrumental: false),
-          ],
+          1: [Hymn(id: 1, title: 'Hino A', number: 1, hasInstrumental: false)],
           2: [
             Hymn(id: 2, title: 'Hino B', number: 2, hasInstrumental: false),
             Hymn(id: 3, title: 'Hino C', number: 3, hasInstrumental: false),
@@ -26,9 +24,7 @@ void main() {
     test('loadHymnSources com erro em um album continua os outros', () async {
       final hymns = await SearchSources.loadHymnSources(
         repository: _FakeHymnRepo({
-          1: [
-            Hymn(id: 1, title: 'Hino A', number: 1, hasInstrumental: false),
-          ],
+          1: [Hymn(id: 1, title: 'Hino A', number: 1, hasInstrumental: false)],
           2: null, // simula erro
         }),
       );
@@ -48,10 +44,7 @@ void main() {
 
     test('limita livros carregados para performance', () async {
       final repo = _FakeBibleRepo(bookCount: 90);
-      await SearchSources.loadBibleSources(
-        repository: repo,
-        maxBooks: 10,
-      );
+      await SearchSources.loadBibleSources(repository: repo, maxBooks: 10);
 
       expect(repo.requestedBooks.length, lessThanOrEqualTo(10));
     });
@@ -79,8 +72,10 @@ class _FakeBibleRepo implements BibleRepositoryView {
   _FakeBibleRepo({this.bookCount = 1});
 
   @override
-  Future<List<BibleBookInfo>> getBooks() async =>
-      List.generate(bookCount, (i) => BibleBookInfo(id: i + 1, name: 'Livro ${i + 1}', chapters: 1));
+  Future<List<BibleBookInfo>> getBooks() async => List.generate(
+    bookCount,
+    (i) => BibleBookInfo(id: i + 1, name: 'Livro ${i + 1}', chapters: 1),
+  );
 
   @override
   Future<Map<String, String>> getChapter(
@@ -89,9 +84,6 @@ class _FakeBibleRepo implements BibleRepositoryView {
     int chapter,
   ) async {
     requestedBooks.add(bookId);
-    return {
-      '1': 'Porque Deus amou o mundo',
-      '16': 'texto do versiculo',
-    };
+    return {'1': 'Porque Deus amou o mundo', '16': 'texto do versiculo'};
   }
 }

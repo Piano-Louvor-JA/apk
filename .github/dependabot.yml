@@ -4,7 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    target-branch: staging
     open-pull-requests-limit: 5
+    target-branch: staging
     groups:
       flutter-dependencies:
         patterns:
@@ -14,4 +16,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    target-branch: staging
     open-pull-requests-limit: 5
+    target-branch: staging

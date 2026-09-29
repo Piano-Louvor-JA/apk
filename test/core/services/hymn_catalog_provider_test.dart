@@ -17,7 +17,9 @@ void main() {
     test('setCatalog armazena categorias e marca loaded', () async {
       final provider = HymnCatalogProvider();
       await provider.setCatalog(
-        [_category(1, 'Hinário', albums: [_album(1)])],
+        [
+          _category(1, 'Hinário', albums: [_album(1)]),
+        ],
         hymnLoader: _loader({
           1: [_hymn(10, 'Chegado à Cruz'), _hymn(11, 'Lindo Rancho')],
         }),
@@ -48,12 +50,20 @@ void main() {
     test('setCatalog substitui catalogo anterior (refresh)', () async {
       final provider = HymnCatalogProvider();
       await provider.setCatalog(
-        [_category(1, 'Old', albums: [_album(1)])],
-        hymnLoader: _loader({1: [_hymn(10, 'Antigo')]}),
+        [
+          _category(1, 'Old', albums: [_album(1)]),
+        ],
+        hymnLoader: _loader({
+          1: [_hymn(10, 'Antigo')],
+        }),
       );
       await provider.setCatalog(
-        [_category(2, 'New', albums: [_album(2)])],
-        hymnLoader: _loader({2: [_hymn(20, 'Novo')]}),
+        [
+          _category(2, 'New', albums: [_album(2)]),
+        ],
+        hymnLoader: _loader({
+          2: [_hymn(20, 'Novo')],
+        }),
       );
 
       expect(provider.hymns, hasLength(1));
@@ -75,13 +85,34 @@ void main() {
 
       expect(provider.hymns, hasLength(1));
     });
+
+    test('albumCoverById resolve cover do album (null quando vazio)', () async {
+      final provider = HymnCatalogProvider();
+      await provider.setCatalog([
+        _category(
+          1,
+          'Cat',
+          albums: [
+            _album(7, coverUrl: 'covers/hinario.jpg'),
+            _album(8),
+            _album(9, coverUrl: ''),
+          ],
+        ),
+      ], hymnLoader: (_) async => []);
+
+      expect(provider.albumCoverById(7), 'covers/hinario.jpg');
+      expect(provider.albumCoverById(8), isNull);
+      expect(provider.albumCoverById(9), isNull); // string vazia não conta
+      expect(provider.albumCoverById(999), isNull);
+    });
   });
 }
 
 AlbumCategory _category(int id, String name, {List<Album> albums = const []}) =>
     AlbumCategory(id: id, name: name, albums: albums);
 
-Album _album(int id) => Album(id: id, name: 'Album $id');
+Album _album(int id, {String? coverUrl}) =>
+    Album(id: id, name: 'Album $id', coverUrl: coverUrl);
 
 Future<List<Hymn>> Function(int) _loader(Map<int, List<Hymn>> map) =>
     (albumId) async => map[albumId] ?? [];

@@ -1,0 +1,35 @@
+name: Bug report
+description: Reporte algo que não funciona
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: O que aconteceu?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versão / commit / ambiente
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidência
+      description: Logs, screenshots ou vídeo.

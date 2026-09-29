@@ -1,6 +1,7 @@
 library;
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
@@ -15,6 +16,7 @@ import '../../core/services/settings_controller.dart';
 import '../../core/services/sync/sync_file_service.dart';
 import '../../core/services/update_service.dart';
 import 'widgets/remote/remote_section.dart';
+import 'widgets/stage_section.dart';
 import 'widgets/sync_section.dart';
 
 /// SettingsPage — tela de configuracoes (tab "Mais").
@@ -152,6 +154,12 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 32),
 
+            // --- Palco (cast) — RF-01/02 spec palco-v2 ---
+            _SectionHeader(icon: TablerIcons.cast, title: 'Palco'),
+            const SizedBox(height: 12),
+            const StageSection(),
+            const SizedBox(height: 32),
+
             // --- Geral ---
             _SectionHeader(
               icon: TablerIcons.adjustments,
@@ -171,7 +179,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     selected: locale == const Locale('pt', 'BR'),
                     onTap: () => EasyLocalization.of(
                       context,
-                    // coverage:ignore-line
+                      // coverage:ignore-line
                     )?.setLocale(const Locale('pt', 'BR')),
                   ),
                   _ChoiceChip(
@@ -187,7 +195,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     // coverage:ignore-line
                     onTap: () => EasyLocalization.of(
                       context,
-                    // coverage:ignore-line
+                      // coverage:ignore-line
                     )?.setLocale(const Locale('es')),
                   ),
                 ],
@@ -311,7 +319,16 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               title: Text('settings.termsOfUse'.tr()),
               trailing: const Icon(TablerIcons.chevronRight),
-              // Destino será ligado na Fase 6; sem interação enganosa por ora.
+              onTap: () => context.push('/settings/terms'),
+            ),
+            ListTile(
+              leading: Icon(
+                TablerIcons.shieldLock,
+                color: theme.colorScheme.primary,
+              ),
+              title: Text('settings.privacyPolicy'.tr()),
+              trailing: const Icon(TablerIcons.chevronRight),
+              onTap: () => context.push('/settings/privacy'),
             ),
           ],
         ),
@@ -325,14 +342,17 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final path = await SyncFileService().export();
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(path != null
-            ? 'sync.exported'.tr()
-            : 'sync.exportCancelled'.tr()),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            path != null ? 'sync.exported'.tr() : 'sync.exportCancelled'.tr(),
+          ),
+        ),
+      );
     } catch (_) {
       messenger.showSnackBar(
-          const SnackBar(content: Text('Falha ao exportar.')));
+        const SnackBar(content: Text('Falha ao exportar.')),
+      );
     } finally {
       if (mounted) setState(() => _syncBusy = false);
     }
@@ -346,19 +366,25 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       if (r == null) {
         messenger.showSnackBar(
-            SnackBar(content: Text('sync.importInvalid'.tr())));
+          SnackBar(content: Text('sync.importInvalid'.tr())),
+        );
       } else if (r.applied.isEmpty) {
         messenger.showSnackBar(
-            SnackBar(content: Text('sync.importedNone'.tr())));
+          SnackBar(content: Text('sync.importedNone'.tr())),
+        );
       } else {
-        messenger.showSnackBar(SnackBar(
-          content: Text('sync.imported'.tr(
-              namedArgs: {'applied': r.applied.join(', ')})),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'sync.imported'.tr(namedArgs: {'applied': r.applied.join(', ')}),
+            ),
+          ),
+        );
       }
     } catch (_) {
       messenger.showSnackBar(
-          const SnackBar(content: Text('Falha ao importar.')));
+        const SnackBar(content: Text('Falha ao importar.')),
+      );
     } finally {
       if (mounted) setState(() => _syncBusy = false);
     }
@@ -378,8 +404,7 @@ class _SettingsPageState extends State<SettingsPage> {
         if (kIsWeb) {
           // coverage:ignore-line
           setState(() {
-            _updateStatus =
-                'Versão ${result.latestVersion} disponível!';
+            _updateStatus = 'Versão ${result.latestVersion} disponível!';
           });
           await launchUrl(
             Uri.parse(result.downloadUrl!),
@@ -404,8 +429,9 @@ class _SettingsPageState extends State<SettingsPage> {
             UpdateCheckFailure.unauthorized =>
               'Não foi possível verificar: repositório privado. Aguarde '
                   'uma decisão de acesso (repo público ou proxy).',
-            _ => 'Não foi possível verificar atualizações. Verifique sua '
-                'conexão e tente novamente.',
+            _ =>
+              'Não foi possível verificar atualizações. Verifique sua '
+                  'conexão e tente novamente.',
           };
         });
       } else {

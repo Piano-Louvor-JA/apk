@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Internet -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Leitor de QR de emparelhamento (controle remoto/palcos) -->
+    <uses-permission android:name="android.permission.CAMERA"/>
 
     <!-- Storage (Android <13) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -13,6 +15,9 @@
 
     <!-- Tela sempre acesa durante o culto -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Android 13+: necessário para alertar ao término do countdown -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -26,7 +31,8 @@
     <application
         android:label="Piano LouvorJA"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -35,6 +41,8 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
             android:windowSoftInputMode="adjustResize">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
@@ -66,6 +74,30 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Widget de liturgia -->
+        <receiver
+            android:name=".LiturgyWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/liturgy_widget_info" />
+        </receiver>
+
+        <!-- Widget de liturgia 4x2 -->
+        <receiver
+            android:name=".LiturgyWidgetLargeProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/liturgy_widget_info_4x2" />
+        </receiver>
+
         <!-- Resultado da sessão PackageInstaller (auto-update). Registrado
              no manifest (não registrado dinamicamente) para receber o
              commit mesmo se a activity for destruída. STATUS_PENDING_USER_ACTION
@@ -74,6 +106,10 @@
         <receiver
             android:name=".InstallResultReceiver"
             android:exported="false" />
+            <service
+            android:name=".PalcoForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

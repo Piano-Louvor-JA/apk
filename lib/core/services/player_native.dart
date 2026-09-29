@@ -19,11 +19,37 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
   final _durations = StreamController<Duration>.broadcast();
 
   _NativeAudioPlayer() {
+    // AudioContext explicito (F3.3b): sem usage=media o One UI classifica a
+    // reproducao como nao-midia em background ("AudioHardening ... would be
+    // muted") e muta/pausa o player — que e o relógio dos slides do Palco.
+    // stayAwake mantem o wake lock do audio (letra sincronizada em bg).
+    unawaited(
+      _player.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(
+            usageType: AndroidUsageType.media,
+            contentType: AndroidContentType.music,
+            audioFocus: AndroidAudioFocus.gain,
+            stayAwake: true,
+          ),
+        ),
+      ),
+    );
     _player.onPositionChanged.listen((pos) => _positions.add(pos));
-    _player.onDurationChanged.listen((dur) => _durations.add(dur));
+    // Cache + replay: duração pode chegar antes do NowPlayingPage assinar
+    // (broadcast stream sem replay = evento perdido = slider em 0).
+    Duration? cached;
+    _player.onDurationChanged.listen((dur) {
+      cached = dur;
+      _durations.add(dur);
+    });
+    _durations.onListen = () {
+      if (cached != null) _durations.add(cached!);
+    };
     _player.onPlayerStateChanged.listen((state) {
       _isPlaying = state == PlayerState.playing;
       _controller.add(_isPlaying);
+      if (state == PlayerState.completed) _completions.add(null);
     });
   }
 
@@ -36,6 +62,11 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
   @override
   Stream<bool> get playingStream => _controller.stream;
 
+  final _completions = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get completionStream => _completions.stream;
+
   @override
   Stream<Duration> get positionStream => _positions.stream;
 
@@ -44,6 +75,9 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> setVolume(double v) => _player.setVolume(v);
 
   @override
   Future<void> toggleUrl(String url) async {
@@ -81,5 +115,6 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
   void dispose() {
     _player.dispose();
     _controller.close();
+    _completions.close();
   }
 }

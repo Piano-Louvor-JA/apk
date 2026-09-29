@@ -36,9 +36,11 @@ class BibleOfflineVersions {
     if (offline != true) return versions;
 
     return versions
-        .where((v) =>
-            File('$dir/catalog_bible_version_downloaded_${v.id}.json')
-                .existsSync())
+        .where(
+          (v) => File(
+            '$dir/catalog_bible_version_downloaded_${v.id}.json',
+          ).existsSync(),
+        )
         .toList();
   }
 

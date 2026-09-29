@@ -3,8 +3,10 @@
 /// 4 tabs: Inicio, Hinos, Ferramentas, Mais.
 /// Usa StatefulShellRoute.indexedStack para preservar estado de cada tab.
 library;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import '../core/services/global_search_service.dart';
 import '../core/services/hymn_catalog_provider.dart';
 import '../core/services/search_sources.dart';
@@ -16,8 +18,11 @@ import '../domain/entities/hymn.dart';
 import '../presentation/home/home_page.dart';
 import '../presentation/hymns/hymns_page.dart';
 import '../presentation/hymns/album_detail_page.dart';
+import '../presentation/custom/custom_collections_page.dart';
+import '../presentation/playlists/playlists_page.dart';
 import '../presentation/search/global_search_page.dart';
 import '../presentation/settings/settings_page.dart';
+import '../presentation/settings/terms_page.dart';
 import '../presentation/shared/widgets/main_navigation.dart';
 import '../presentation/tools/tools_page.dart';
 
@@ -35,10 +40,7 @@ final appRouter = GoRouter(
         // Tab 0: Inicio
         StatefulShellBranch(
           routes: [
-            GoRoute(
-              path: '/',
-              builder: (context, state) => const HomePage(),
-            ),
+            GoRoute(path: '/', builder: (context, state) => const HomePage()),
           ],
         ),
         // Tab 1: Hinos
@@ -48,10 +50,25 @@ final appRouter = GoRouter(
               path: '/hymns',
               builder: (context, state) => const HymnsPage(),
               routes: [
+                // ATENÇÃO: 'custom' DEVE vir antes de ':albumId' — o go_router
+                // casa rotas em ordem de declaração. Se ':albumId' viesse
+                // primeiro, push('/hymns/custom') casaria com o padrão do
+                // álbum (albumId='custom' → parse falha → 0 → abria o
+                // Hinário Atual). Bug real encontrado em device 10/09.
+                GoRoute(
+                  path: 'playlists',
+                  builder: (context, state) => const PlaylistsPage(),
+                ),
+                GoRoute(
+                  path: 'custom',
+                  builder: (context, state) => const CustomCollectionsPage(),
+                ),
                 GoRoute(
                   path: ':albumId',
                   builder: (context, state) => AlbumDetailPage(
-                    albumId: int.tryParse(state.pathParameters['albumId'] ?? '') ?? 0,
+                    albumId:
+                        int.tryParse(state.pathParameters['albumId'] ?? '') ??
+                        0,
                   ),
                 ),
               ],
@@ -73,6 +90,17 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/settings',
               builder: (context, state) => SettingsPage(),
+              routes: [
+                GoRoute(
+                  path: 'terms',
+                  builder: (context, state) =>
+                      const TermsPage(isPrivacy: false),
+                ),
+                GoRoute(
+                  path: 'privacy',
+                  builder: (context, state) => const TermsPage(isPrivacy: true),
+                ),
+              ],
             ),
           ],
         ),
@@ -103,30 +131,29 @@ final appRouter = GoRouter(
 
 HymnRepositoryImpl _searchHymnRepo() {
   final api = LouvorjaApiImpl(
-    baseUrl: 'https://api.louvorja.com.br/json_db',
-    filesUrl: 'https://api.louvorja.com.br/file',
+    baseUrls: ApiConfig.databaseUrls(),
+    filesUrls: ApiConfig.filesUrls(),
     apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
   );
   return HymnRepositoryImpl(api, CatalogCache.noop());
 }
 
 Future<List<Hymn>> _searchHymns() => SearchSources.loadHymnSources(
-      repository: _HymnRepoAdapter(_searchHymnRepo()),
-    );
+  repository: _HymnRepoAdapter(_searchHymnRepo()),
+);
 
 Future<List<BibleVerseRef>> _searchVerses() => SearchSources.loadBibleSources(
-      repository: _BibleRepoAdapter(
-        BibleRepositoryImpl(
-          LouvorjaApiImpl(
-            baseUrl: 'https://api.louvorja.com.br/json_db',
-            filesUrl: 'https://api.louvorja.com.br/file',
-            apiToken:
-                const String.fromEnvironment('API_TOKEN', defaultValue: ''),
-          ),
-          CatalogCache.noop(),
-        ),
+  repository: _BibleRepoAdapter(
+    BibleRepositoryImpl(
+      LouvorjaApiImpl(
+        baseUrls: ApiConfig.databaseUrls(),
+        filesUrls: ApiConfig.filesUrls(),
+        apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
       ),
-    );
+      CatalogCache.noop(),
+    ),
+  ),
+);
 
 class _HymnRepoAdapter implements HymnRepositoryView {
   final HymnRepositoryImpl _repo;
@@ -166,6 +193,5 @@ class _BibleRepoAdapter implements BibleRepositoryView {
     int versionId,
     int bookId,
     int chapter,
-  ) =>
-      _repo.getChapter(versionId, bookId, chapter);
+  ) => _repo.getChapter(versionId, bookId, chapter);
 }

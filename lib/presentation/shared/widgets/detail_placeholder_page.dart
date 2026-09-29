@@ -19,9 +19,7 @@ class DetailPlaceholderPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text('${'common.id'.tr()}: $identifier'),
-      ),
+      body: Center(child: Text('${'common.id'.tr()}: $identifier')),
     );
   }
 }

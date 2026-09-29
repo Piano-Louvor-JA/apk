@@ -17,11 +17,15 @@ class _SlowRepo implements HymnRepository {
 
   @override
   Future<List<AlbumCategory>> getCategories() async => [
-        AlbumCategory(id: 1, name: 'Cat', albums: [
-          const Album(id: 10, name: 'Album 1'),
-          const Album(id: 11, name: 'Album 2'),
-        ]),
-      ];
+    AlbumCategory(
+      id: 1,
+      name: 'Cat',
+      albums: [
+        const Album(id: 10, name: 'Album 1'),
+        const Album(id: 11, name: 'Album 2'),
+      ],
+    ),
+  ];
 
   @override
   Future<List<Hymn>> getHymnsByAlbum(int albumId) async {
@@ -36,21 +40,27 @@ class _SlowRepo implements HymnRepository {
 }
 
 void main() {
-  test('HymnsLoaded NAO espera o sync do catalogo (loading infinito)', () async {
-    final repo = _SlowRepo();
-    final provider = HymnCatalogProvider();
-    final bloc = HymnsBloc(repo, catalogProvider: provider);
+  test(
+    'HymnsLoaded NAO espera o sync do catalogo (loading infinito)',
+    () async {
+      final repo = _SlowRepo();
+      final provider = HymnCatalogProvider();
+      final bloc = HymnsBloc(repo, catalogProvider: provider);
 
-    final states = <Type>[];
-    final sub = bloc.stream.listen((s) => states.add(s.runtimeType));
+      final states = <Type>[];
+      final sub = bloc.stream.listen((s) => states.add(s.runtimeType));
 
-    bloc.add(HymnsLoadRequested());
-    // Se o bloc esperasse o sync (30s por álbum), loaded nunca chegaria.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+      bloc.add(HymnsLoadRequested());
+      // Se o bloc esperasse o sync (30s por álbum), loaded nunca chegaria.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
 
-    expect(states, contains(HymnsLoaded),
-        reason: 'HymnsLoaded deve emitir ANTES do sync do catálogo completar');
-    await sub.cancel();
-    await bloc.close();
-  });
+      expect(
+        states,
+        contains(HymnsLoaded),
+        reason: 'HymnsLoaded deve emitir ANTES do sync do catálogo completar',
+      );
+      await sub.cancel();
+      await bloc.close();
+    },
+  );
 }

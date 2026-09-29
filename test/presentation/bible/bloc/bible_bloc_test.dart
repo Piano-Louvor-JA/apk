@@ -70,8 +70,20 @@ BibleRepository _repo({_MockApi? api}) {
 }
 
 const _defaultBooks = [
-  BibleBook(id: 1, name: 'Gênesis', abbreviation: 'Gn', chapters: 50, bookNumber: 1),
-  BibleBook(id: 40, name: 'Mateus', abbreviation: 'Mt', chapters: 28, bookNumber: 40),
+  BibleBook(
+    id: 1,
+    name: 'Gênesis',
+    abbreviation: 'Gn',
+    chapters: 50,
+    bookNumber: 1,
+  ),
+  BibleBook(
+    id: 40,
+    name: 'Mateus',
+    abbreviation: 'Mt',
+    chapters: 28,
+    bookNumber: 40,
+  ),
 ];
 
 const _defaultVersions = [
@@ -81,11 +93,13 @@ const _defaultVersions = [
 void main() {
   group('BibleBloc', () {
     test('bootstrap carrega livros, versoes e primeiro capitulo', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: _defaultVersions,
-        chapterVerses: {'1': 'No princípio', '2': 'E a terra'},
-      ));
+      final repo = _repo(
+        api: _MockApi(
+          books: _defaultBooks,
+          versions: _defaultVersions,
+          chapterVerses: {'1': 'No princípio', '2': 'E a terra'},
+        ),
+      );
       final bloc = BibleBloc(repo);
 
       bloc.add(BibleBootstrap());
@@ -112,11 +126,13 @@ void main() {
     });
 
     test('selectBook carrega capitulos do novo livro', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: _defaultVersions,
-        chapterVerses: {'1': 'v1'},
-      ));
+      final repo = _repo(
+        api: _MockApi(
+          books: _defaultBooks,
+          versions: _defaultVersions,
+          chapterVerses: {'1': 'v1'},
+        ),
+      );
       final bloc = BibleBloc(repo);
 
       bloc.add(BibleBootstrap());
@@ -132,11 +148,13 @@ void main() {
     });
 
     test('selectChapter carrega versiculos', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: _defaultVersions,
-        chapterVerses: {'1': 'cap3v1'},
-      ));
+      final repo = _repo(
+        api: _MockApi(
+          books: _defaultBooks,
+          versions: _defaultVersions,
+          chapterVerses: {'1': 'cap3v1'},
+        ),
+      );
       final bloc = BibleBloc(repo);
 
       bloc.add(BibleBootstrap());
@@ -152,11 +170,13 @@ void main() {
     });
 
     test('selectVerse adiciona versiculo a selecao', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: _defaultVersions,
-        chapterVerses: {'1': 'v1', '2': 'v2', '3': 'v3'},
-      ));
+      final repo = _repo(
+        api: _MockApi(
+          books: _defaultBooks,
+          versions: _defaultVersions,
+          chapterVerses: {'1': 'v1', '2': 'v2', '3': 'v3'},
+        ),
+      );
       final bloc = BibleBloc(repo);
 
       bloc.add(BibleBootstrap());
@@ -170,33 +190,40 @@ void main() {
       await bloc.close();
     });
 
-    test('selectVerse substitui selecao anterior (mobile = tap simples)', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: _defaultVersions,
-        chapterVerses: {'1': 'v1', '2': 'v2'},
-      ));
-      final bloc = BibleBloc(repo);
+    test(
+      'selectVerse substitui selecao anterior (mobile = tap simples)',
+      () async {
+        final repo = _repo(
+          api: _MockApi(
+            books: _defaultBooks,
+            versions: _defaultVersions,
+            chapterVerses: {'1': 'v1', '2': 'v2'},
+          ),
+        );
+        final bloc = BibleBloc(repo);
 
-      bloc.add(BibleBootstrap());
-      await Future.delayed(const Duration(milliseconds: 300));
+        bloc.add(BibleBootstrap());
+        await Future.delayed(const Duration(milliseconds: 300));
 
-      bloc.add(const BibleSelectVerse(1));
-      await Future.delayed(const Duration(milliseconds: 100));
-      bloc.add(const BibleSelectVerse(2));
-      await Future.delayed(const Duration(milliseconds: 100));
+        bloc.add(const BibleSelectVerse(1));
+        await Future.delayed(const Duration(milliseconds: 100));
+        bloc.add(const BibleSelectVerse(2));
+        await Future.delayed(const Duration(milliseconds: 100));
 
-      final state = bloc.state as BibleLoaded;
-      expect(state.selectedVerses, [2]); // substituiu, nao acumulou
-      await bloc.close();
-    });
+        final state = bloc.state as BibleLoaded;
+        expect(state.selectedVerses, [2]); // substituiu, nao acumulou
+        await bloc.close();
+      },
+    );
 
     test('clearSelection remove versiculos selecionados', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: _defaultVersions,
-        chapterVerses: {'1': 'v1'},
-      ));
+      final repo = _repo(
+        api: _MockApi(
+          books: _defaultBooks,
+          versions: _defaultVersions,
+          chapterVerses: {'1': 'v1'},
+        ),
+      );
       final bloc = BibleBloc(repo);
 
       bloc.add(BibleBootstrap());
@@ -213,14 +240,16 @@ void main() {
     });
 
     test('selectVersion muda versao e recarrega capitulo', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: [
-          const BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
-          const BibleVersion(id: 2, abbreviation: 'NVI', name: 'NVI'),
-        ],
-        chapterVerses: {'1': 'NVI text'},
-      ));
+      final repo = _repo(
+        api: _MockApi(
+          books: _defaultBooks,
+          versions: [
+            const BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
+            const BibleVersion(id: 2, abbreviation: 'NVI', name: 'NVI'),
+          ],
+          chapterVerses: {'1': 'NVI text'},
+        ),
+      );
       final bloc = BibleBloc(repo);
 
       bloc.add(BibleBootstrap());
@@ -236,11 +265,13 @@ void main() {
     });
 
     test('locationLabel formatado corretamente', () async {
-      final repo = _repo(api: _MockApi(
-        books: _defaultBooks,
-        versions: _defaultVersions,
-        chapterVerses: {'1': 'v1', '2': 'v2'},
-      ));
+      final repo = _repo(
+        api: _MockApi(
+          books: _defaultBooks,
+          versions: _defaultVersions,
+          chapterVerses: {'1': 'v1', '2': 'v2'},
+        ),
+      );
       final bloc = BibleBloc(repo);
 
       bloc.add(BibleBootstrap());

@@ -3,6 +3,7 @@
 /// Fonte: pianolouvorja/app/src/design-system/themes/accents.ts
 /// Paleta atual — tons mais suaves e convencionais.
 library;
+
 import 'package:flutter/material.dart';
 
 /// Representa um acento de cor.
@@ -22,7 +23,6 @@ class AccentColor {
 
 /// Todos os acentos disponíveis.
 abstract final class AppAccents {
-
   static const AccentColor defaultAccent = orange;
 
   static const AccentColor azure = AccentColor(
@@ -111,9 +111,6 @@ abstract final class AppAccents {
 
   /// Busca acento por ID.
   static AccentColor byId(String id) {
-    return all.firstWhere(
-      (a) => a.id == id,
-      orElse: () => defaultAccent,
-    );
+    return all.firstWhere((a) => a.id == id, orElse: () => defaultAccent);
   }
 }

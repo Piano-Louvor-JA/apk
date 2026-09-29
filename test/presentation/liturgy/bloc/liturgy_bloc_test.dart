@@ -41,7 +41,9 @@ void main() {
     });
 
     test('cloneDay copia itens e notas', () async {
-      const items = [LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'A')];
+      const items = [
+        LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'A'),
+      ];
       await repo.saveItems(LiturgyWeekday.monday, items);
       await repo.saveNotes(LiturgyWeekday.monday, 'Notas seg');
       await repo.cloneDay(LiturgyWeekday.monday, LiturgyWeekday.wednesday);
@@ -50,7 +52,9 @@ void main() {
     });
 
     test('clearDay remove itens e notas', () async {
-      await repo.saveItems(LiturgyWeekday.monday, const [LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'A')]);
+      await repo.saveItems(LiturgyWeekday.monday, const [
+        LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'A'),
+      ]);
       await repo.saveNotes(LiturgyWeekday.monday, 'Notas');
       await repo.clearDay(LiturgyWeekday.monday);
       expect(repo.loadItems(LiturgyWeekday.monday), isEmpty);
@@ -76,8 +80,11 @@ void main() {
     test('addItem adiciona item', () async {
       bloc.add(const LiturgyLoadRequested(LiturgyWeekday.monday));
       await Future.delayed(const Duration(milliseconds: 50));
-      bloc.add(const LiturgyAddItem(
-          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Hino')));
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Hino'),
+        ),
+      );
       await Future.delayed(const Duration(milliseconds: 50));
       final state = bloc.state as LiturgyLoaded;
       expect(state.items.length, 1);
@@ -86,10 +93,21 @@ void main() {
     test('deleteItem remove item e seus filhos', () async {
       bloc.add(const LiturgyLoadRequested(LiturgyWeekday.monday));
       await Future.delayed(const Duration(milliseconds: 50));
-      bloc.add(const LiturgyAddItem(
-          LiturgyItem(id: 'cat1', type: LiturgyItemType.category, name: 'Cat')));
-      bloc.add(const LiturgyAddItem(
-          LiturgyItem(id: 'item1', type: LiturgyItemType.music, name: 'Sub', categoryId: 'cat1')));
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(id: 'cat1', type: LiturgyItemType.category, name: 'Cat'),
+        ),
+      );
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(
+            id: 'item1',
+            type: LiturgyItemType.music,
+            name: 'Sub',
+            categoryId: 'cat1',
+          ),
+        ),
+      );
       await Future.delayed(const Duration(milliseconds: 50));
       bloc.add(const LiturgyDeleteItem('cat1'));
       await Future.delayed(const Duration(milliseconds: 50));
@@ -100,8 +118,11 @@ void main() {
     test('toggleDone inverte done', () async {
       bloc.add(const LiturgyLoadRequested(LiturgyWeekday.monday));
       await Future.delayed(const Duration(milliseconds: 50));
-      bloc.add(const LiturgyAddItem(
-          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'A')));
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'A'),
+        ),
+      );
       await Future.delayed(const Duration(milliseconds: 50));
       bloc.add(const LiturgyToggleDone('1'));
       await Future.delayed(const Duration(milliseconds: 50));
@@ -112,11 +133,17 @@ void main() {
     test('updateItem altera campos', () async {
       bloc.add(const LiturgyLoadRequested(LiturgyWeekday.monday));
       await Future.delayed(const Duration(milliseconds: 50));
-      bloc.add(const LiturgyAddItem(
-          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Original')));
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Original'),
+        ),
+      );
       await Future.delayed(const Duration(milliseconds: 50));
-      bloc.add(const LiturgyUpdateItem(
-          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Editado')));
+      bloc.add(
+        const LiturgyUpdateItem(
+          LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Editado'),
+        ),
+      );
       await Future.delayed(const Duration(milliseconds: 50));
       final state = bloc.state as LiturgyLoaded;
       expect(state.items.first.name, 'Editado');
@@ -125,8 +152,16 @@ void main() {
     test('reorderItems move item', () async {
       bloc.add(const LiturgyLoadRequested(LiturgyWeekday.monday));
       await Future.delayed(const Duration(milliseconds: 50));
-      bloc.add(const LiturgyAddItem(LiturgyItem(id: '1', type: LiturgyItemType.category, name: 'A')));
-      bloc.add(const LiturgyAddItem(LiturgyItem(id: '2', type: LiturgyItemType.category, name: 'B')));
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(id: '1', type: LiturgyItemType.category, name: 'A'),
+        ),
+      );
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(id: '2', type: LiturgyItemType.category, name: 'B'),
+        ),
+      );
       await Future.delayed(const Duration(milliseconds: 50));
       bloc.add(const LiturgyReorderItems(0, 2));
       await Future.delayed(const Duration(milliseconds: 50));
@@ -137,7 +172,11 @@ void main() {
     test('clearDay limpa tudo', () async {
       bloc.add(const LiturgyLoadRequested(LiturgyWeekday.monday));
       await Future.delayed(const Duration(milliseconds: 50));
-      bloc.add(const LiturgyAddItem(LiturgyItem(id: '1', type: LiturgyItemType.category, name: 'A')));
+      bloc.add(
+        const LiturgyAddItem(
+          LiturgyItem(id: '1', type: LiturgyItemType.category, name: 'A'),
+        ),
+      );
       await Future.delayed(const Duration(milliseconds: 50));
       bloc.add(LiturgyClearDay());
       await Future.delayed(const Duration(milliseconds: 50));

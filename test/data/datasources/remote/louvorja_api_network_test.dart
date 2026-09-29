@@ -26,24 +26,25 @@ class _MockAdapter implements HttpClientAdapter {
     if (result is int && result >= 400) {
       throw DioException(
         requestOptions: options,
-        response: Response(
-          requestOptions: options,
-          statusCode: result,
-        ),
+        response: Response(requestOptions: options, statusCode: result),
         type: DioExceptionType.badResponse,
       );
     }
     final json = result is String ? result : '{"data":true}';
     final bytes = Uint8List.fromList(json.codeUnits);
-    return ResponseBody(Stream.fromIterable([bytes]), 200, headers: {
-      Headers.contentTypeHeader: ['application/json'],
-    });
+    return ResponseBody(
+      Stream.fromIterable([bytes]),
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
   }
 }
 
 void main() {
   LouvorjaApiImpl createApi(_MockAdapter adapter) {
-    final api = LouvorjaApiImpl(
+    final api = LouvorjaApiImpl.single(
       baseUrl: 'https://api.example.com/json_db',
       filesUrl: 'https://api.example.com/file',
       apiToken: 'token',
@@ -55,9 +56,11 @@ void main() {
   }
 
   test('fetchCategories retorna lista parseada', () async {
-    final api = createApi(_MockAdapter((req) {
-      return '[{"id_category":1,"name":"Cat","albums":[]}]';
-    }));
+    final api = createApi(
+      _MockAdapter((req) {
+        return '[{"id_category":1,"name":"Cat","albums":[]}]';
+      }),
+    );
 
     final result = await api.fetchCategories();
     expect(result.length, 1);
@@ -65,9 +68,11 @@ void main() {
   });
 
   test('fetchAlbumHymns retorna hinos parseados', () async {
-    final api = createApi(_MockAdapter((req) {
-      return '{"musics":[{"id_music":1,"name":"Hino 1","track":1}]}';
-    }));
+    final api = createApi(
+      _MockAdapter((req) {
+        return '{"musics":[{"id_music":1,"name":"Hino 1","track":1}]}';
+      }),
+    );
 
     final result = await api.fetchAlbumHymns(100);
     expect(result.length, 1);
@@ -82,9 +87,11 @@ void main() {
   });
 
   test('fetchMusic retorna hino parseado', () async {
-    final api = createApi(_MockAdapter((req) {
-      return '{"id_music":42,"name":"Detalhe","url_music":"/musics/foo.mp3"}';
-    }));
+    final api = createApi(
+      _MockAdapter((req) {
+        return '{"id_music":42,"name":"Detalhe","url_music":"/musics/foo.mp3"}';
+      }),
+    );
 
     final result = await api.fetchMusic(42);
     expect(result.id, 42);
@@ -93,18 +100,22 @@ void main() {
   });
 
   test('fetchHymnal retorna lista', () async {
-    final api = createApi(_MockAdapter((req) {
-      return '[{"id_music":1,"name":"H1"},{"id_music":2,"name":"H2"}]';
-    }));
+    final api = createApi(
+      _MockAdapter((req) {
+        return '[{"id_music":1,"name":"H1"},{"id_music":2,"name":"H2"}]';
+      }),
+    );
 
     final result = await api.fetchHymnal();
     expect(result.length, 2);
   });
 
   test('fetchMusicIndex retorna lista', () async {
-    final api = createApi(_MockAdapter((req) {
-      return '[{"id_music":1,"name":"H1"}]';
-    }));
+    final api = createApi(
+      _MockAdapter((req) {
+        return '[{"id_music":1,"name":"H1"}]';
+      }),
+    );
 
     final result = await api.fetchMusicIndex();
     expect(result.length, 1);
@@ -112,10 +123,12 @@ void main() {
 
   test('languagePrefix muda endpoint', () async {
     String? requestedUrl;
-    final api = createApi(_MockAdapter((req) {
-      requestedUrl = req.path;
-      return '[]';
-    }));
+    final api = createApi(
+      _MockAdapter((req) {
+        requestedUrl = req.path;
+        return '[]';
+      }),
+    );
     api.languagePrefix = 'en';
 
     await api.fetchCategories();
@@ -124,10 +137,12 @@ void main() {
 
   test('cacheBuster usa data atual na URL', () async {
     String? requestedUrl;
-    final api = createApi(_MockAdapter((req) {
-      requestedUrl = req.path;
-      return '[]';
-    }));
+    final api = createApi(
+      _MockAdapter((req) {
+        requestedUrl = req.path;
+        return '[]';
+      }),
+    );
 
     await api.fetchCategories();
     expect(requestedUrl, contains('20260810'));
@@ -138,8 +153,11 @@ void main() {
 
     expect(
       () => api.fetchCategories(),
-      throwsA(predicate((e) =>
-          e is LouvorjaApiException && e.code == 'errors.authFailed')),
+      throwsA(
+        predicate(
+          (e) => e is LouvorjaApiException && e.code == 'errors.authFailed',
+        ),
+      ),
     );
   });
 
@@ -148,8 +166,11 @@ void main() {
 
     expect(
       () => api.fetchCategories(),
-      throwsA(predicate((e) =>
-          e is LouvorjaApiException && e.code == 'errors.authFailed')),
+      throwsA(
+        predicate(
+          (e) => e is LouvorjaApiException && e.code == 'errors.authFailed',
+        ),
+      ),
     );
   });
 
@@ -158,8 +179,11 @@ void main() {
 
     expect(
       () => api.fetchCategories(),
-      throwsA(predicate((e) =>
-          e is LouvorjaApiException && e.code == 'errors.notFound')),
+      throwsA(
+        predicate(
+          (e) => e is LouvorjaApiException && e.code == 'errors.notFound',
+        ),
+      ),
     );
   });
 }

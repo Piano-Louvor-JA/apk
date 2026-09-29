@@ -8,5 +8,7 @@ library;
 import 'dart:io' show Directory;
 
 Future<Directory> getApplicationDocumentsDirectory() async {
-  throw UnsupportedError('getApplicationDocumentsDirectory is not available on Web');
+  throw UnsupportedError(
+    'getApplicationDocumentsDirectory is not available on Web',
+  );
 }

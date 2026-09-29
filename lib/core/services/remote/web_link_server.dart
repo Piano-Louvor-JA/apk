@@ -48,8 +48,7 @@ class WebLinkServer {
     _server!.listen((request) async {
       // Auth no handshake: ?t=TOKEN obrigatório e exato.
       final provided = request.uri.queryParameters['t'];
-      if (provided == null ||
-          !RemotePairing.matches(_token ?? '', provided)) {
+      if (provided == null || !RemotePairing.matches(_token ?? '', provided)) {
         request.response.statusCode = HttpStatus.unauthorized;
         await request.response.close();
         return;

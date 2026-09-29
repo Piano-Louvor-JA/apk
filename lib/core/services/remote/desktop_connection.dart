@@ -5,7 +5,14 @@ import 'dart:io';
 
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 
-enum DesktopConnectionStatus { disconnected, connecting, connected }
+enum DesktopConnectionStatus {
+  disconnected,
+  connecting,
+  connected,
+
+  /// Peer sumiu e todas as tentativas de reconexão falharam.
+  closed,
+}
 
 /// Cliente WebSocket do APK → servidor do desktop (Electron).
 ///
@@ -76,6 +83,11 @@ class DesktopConnection {
     return true;
   }
 
+  /// Envia a identificação do aparelho ao desktop (logo após conectar).
+  void sendHello({required String device, String? appVersion}) {
+    _ws?.add(RemoteHello(device: device, appVersion: appVersion).encode());
+  }
+
   void _listen() {
     _ws!.listen(
       (data) {
@@ -93,6 +105,8 @@ class DesktopConnection {
             _ws?.add(const RemotePong().encode());
           case RemotePong():
             break;
+          case RemoteHello():
+            break; // servidor não envia hello; resposta do APK é no connect
           case RemoteCommand():
             break; // cliente não recebe comandos no v1
         }
@@ -115,7 +129,10 @@ class DesktopConnection {
     final delay = _attempt < reconnectDelays.length
         ? reconnectDelays[_attempt]
         : null;
-    if (delay == null) return; // esgotou tentativas
+    if (delay == null) {
+      _statusCtrl.add(DesktopConnectionStatus.closed);
+      return;
+    }
     _attempt++;
     await Future<void>.delayed(delay);
     if (_closingByUser || _host == null) return;
@@ -138,8 +155,7 @@ class DesktopConnection {
     _stopHeartbeat();
     _heartbeatTimer = Timer.periodic(heartbeat, (_) {
       final last = _lastPeerActivity;
-      if (last != null &&
-          DateTime.now().difference(last) > heartbeat * 2) {
+      if (last != null && DateTime.now().difference(last) > heartbeat * 2) {
         _ws?.close(); // dispara onDone → reconexão
         return;
       }
@@ -154,18 +170,22 @@ class DesktopConnection {
 
   /// Envia comando. Token vai na primeira mensagem de cada conexão
   /// (auth implícito); depois, dispensável mas barato.
+  ///
+  /// Se o socket caiu (reconexão em curso), espera até 2s pela
+  /// reconexão antes de desistir — comando de operador nunca é
+  /// descartado silenciosamente (bug: botões "não faziam nada").
   Future<void> send(RemoteCommand command) async {
+    if (!isConnected) {
+      for (var i = 0; i < 10 && !isConnected; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+    }
     if (!isConnected) return;
     if (_token != null && command.token == null) {
-      command = RemoteCommand(
-        id: command.id,
-        action: command.action,
-        token: _attempt == 0 ? _token : _token,
-        volume: command.volume,
-        position: command.position,
-        mode: command.mode,
-        hymnId: command.hymnId,
-      );
+      // token NÃO é final no RemoteCommand — injeta sem reconstruir
+      // (reconstruir dropava os campos v2: bible.open chegava sem
+      // bookId, media.search sem query — bug de 3 horas de caça).
+      command.token = _token;
     }
     _ws?.add(command.encode());
   }

@@ -14,11 +14,8 @@ void main() {
     await SyncTimestamps.init();
   });
 
-  LiturgyItem item(String t) => LiturgyItem(
-        id: 'x',
-        type: LiturgyItemType.music,
-        name: t,
-      );
+  LiturgyItem item(String t) =>
+      LiturgyItem(id: 'x', type: LiturgyItemType.music, name: t);
 
   test('export contém liturgia com dados de todos os dias tocados', () async {
     final prefs = await SharedPreferences.getInstance();
@@ -32,37 +29,40 @@ void main() {
     expect(lit.modified, isNotNull);
   });
 
-  test('import aplicado: liturgia remota mais nova SOBRESCREVE local', () async {
-    final prefs = await SharedPreferences.getInstance();
-    final repo = LiturgyRepository(prefs);
-    await repo.saveItems(LiturgyWeekday.sunday, [item('antiga local')]);
+  test(
+    'import aplicado: liturgia remota mais nova SOBRESCREVE local',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LiturgyRepository(prefs);
+      await repo.saveItems(LiturgyWeekday.sunday, [item('antiga local')]);
 
-    final remoto = SyncPackage(
-      appVersion: '0.1.17',
-      platform: 'web',
-      exportedAt: DateTime.now().toUtc(),
-      entities: {
-        'liturgy': SyncEntity(
-          type: 'liturgy',
-          modified: DateTime.now().toUtc().add(const Duration(hours: 1)),
-          data: {
-            'sunday': {
-              'items': [
-                {'id': 'y', 'type': 'music', 'name': 'nova remota'}
-              ],
-              'notes': 'nota remota',
-            }
-          },
-        )
-      },
-    );
+      final remoto = SyncPackage(
+        appVersion: '0.1.17',
+        platform: 'web',
+        exportedAt: DateTime.now().toUtc(),
+        entities: {
+          'liturgy': SyncEntity(
+            type: 'liturgy',
+            modified: DateTime.now().toUtc().add(const Duration(hours: 1)),
+            data: {
+              'sunday': {
+                'items': [
+                  {'id': 'y', 'type': 'music', 'name': 'nova remota'},
+                ],
+                'notes': 'nota remota',
+              },
+            },
+          ),
+        },
+      );
 
-    final r = await SyncAdapter(prefs).importPackage(remoto);
-    expect(r.applied, contains('liturgy'));
-    final carregada = repo.loadItems(LiturgyWeekday.sunday);
-    expect(carregada.single.name, 'nova remota');
-    expect(repo.loadNotes(LiturgyWeekday.sunday), 'nota remota');
-  });
+      final r = await SyncAdapter(prefs).importPackage(remoto);
+      expect(r.applied, contains('liturgy'));
+      final carregada = repo.loadItems(LiturgyWeekday.sunday);
+      expect(carregada.single.name, 'nova remota');
+      expect(repo.loadNotes(LiturgyWeekday.sunday), 'nota remota');
+    },
+  );
 
   test('import NÃO sobrescreve quando local é mais novo (LWW)', () async {
     final prefs = await SharedPreferences.getInstance();
@@ -80,12 +80,12 @@ void main() {
           data: {
             'saturday': {
               'items': [
-                {'id': 'z', 'type': 'music', 'name': 'remota velha'}
+                {'id': 'z', 'type': 'music', 'name': 'remota velha'},
               ],
               'notes': '',
-            }
+            },
           },
-        )
+        ),
       },
     );
 
@@ -105,7 +105,7 @@ void main() {
           type: 'schedule',
           modified: DateTime.now().toUtc(),
           data: {'x': 1},
-        )
+        ),
       },
     );
     final r = await SyncAdapter(prefs).importPackage(pkg);
@@ -144,6 +144,9 @@ void main() {
     expect(r.applied, containsAll(['settings', 'timerPresets']));
     expect(prefsB.getString('themeMode'), 'dark');
     expect(prefsB.getInt('glassIntensity'), 80);
-    expect(prefsB.getString('timer.countdown.presets.v1'), '[{"name":"culto"}]');
+    expect(
+      prefsB.getString('timer.countdown.presets.v1'),
+      '[{"name":"culto"}]',
+    );
   });
 }

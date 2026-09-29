@@ -22,7 +22,11 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<AlbumCategory>> fetchCategories() async {
     if (fail) throw Exception('network');
     return [
-      AlbumCategory(id: 1, name: 'Cat', albums: const [Album(id: 1, name: 'A')]),
+      AlbumCategory(
+        id: 1,
+        name: 'Cat',
+        albums: const [Album(id: 1, name: 'A')],
+      ),
     ];
   }
 
@@ -39,12 +43,13 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchMusicIndex() async => const [];
   @override
   String resolveMediaUrl(String p) => p;
-@override
+  @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 void main() {
@@ -64,7 +69,10 @@ void main() {
     final sub = bloc.stream.listen(states.add);
 
     bloc.add(HymnsLoadRequested());
-    await expectLater(bloc.stream, emitsInOrder([isA<HymnsLoading>(), isA<HymnsLoaded>()]));
+    await expectLater(
+      bloc.stream,
+      emitsInOrder([isA<HymnsLoading>(), isA<HymnsLoaded>()]),
+    );
     sub.cancel();
   });
 
@@ -75,7 +83,10 @@ void main() {
     final errorBloc = HymnsBloc(HymnRepositoryImpl(api, cache));
 
     errorBloc.add(HymnsLoadRequested());
-    await expectLater(errorBloc.stream, emitsInOrder([isA<HymnsLoading>(), isA<HymnsError>()]));
+    await expectLater(
+      errorBloc.stream,
+      emitsInOrder([isA<HymnsLoading>(), isA<HymnsError>()]),
+    );
     await errorBloc.close();
   });
 

@@ -25,10 +25,7 @@ class _FakeOffline implements OfflineMusicPort {
   int maxConcurrent = 0;
   final List<int> order = [];
 
-  _FakeOffline({
-    this.alreadyDownloaded = const {},
-    this.failIds = const {},
-  });
+  _FakeOffline({this.alreadyDownloaded = const {}, this.failIds = const {}});
 
   @override
   bool get isSupported => true;
@@ -67,11 +64,8 @@ class _FakeOffline implements OfflineMusicPort {
   }
 }
 
-DownloadQueueItem _item(int id) => DownloadQueueItem(
-      musicId: id,
-      title: 'Hino $id',
-      url: 'https://x/$id.mp3',
-    );
+DownloadQueueItem _item(int id) =>
+    DownloadQueueItem(musicId: id, title: 'Hino $id', url: 'https://x/$id.mp3');
 
 /// Simula API em rate limit: todo download falha com serverBusy (429).
 class _RateLimitedOffline implements OfflineMusicPort {
@@ -81,7 +75,10 @@ class _RateLimitedOffline implements OfflineMusicPort {
   bool get isSupported => true;
 
   @override
-  Future<String?> localPathFor(int musicId, {bool instrumental = false}) async => null;
+  Future<String?> localPathFor(
+    int musicId, {
+    bool instrumental = false,
+  }) async => null;
 
   @override
   Future<String> download({
@@ -133,8 +130,10 @@ void main() {
     );
     q2.enqueue([_item(3)]);
     await q2.done;
-    expect(offline2.downloaded, {2, 3},
-        reason: 'item 2 persistido retomado + item 3 novo');
+    expect(offline2.downloaded, {
+      2,
+      3,
+    }, reason: 'item 2 persistido retomado + item 3 novo');
   });
 
   test('itens ja baixados sao pulados', () async {
@@ -170,6 +169,29 @@ void main() {
     expect(byTrack[2]?.received, 100, reason: 'faixa 2 reporta progresso');
   });
 
+  test('progresso reporta posição na fila (12/75)', () async {
+    final offline = _FakeOffline();
+    final queue = DownloadQueue(
+      offline: offline,
+      storage: _MemStorage(),
+      interItemDelay: Duration.zero,
+    );
+    final updates = <DownloadQueueProgress>[];
+    queue.notifier.addListener(() {
+      final p = queue.notifier.value;
+      if (p != null) updates.add(p);
+    });
+    queue.enqueue([_item(1), _item(2), _item(3)]);
+    await queue.done;
+
+    final byTrack = {for (final u in updates) u.musicId: u};
+    expect(byTrack[1]?.queueIndex, 1, reason: 'faixa 1 = posição 1');
+    expect(byTrack[1]?.queueTotal, 3, reason: 'lote de 3');
+    expect(byTrack[2]?.queueIndex, 2, reason: 'faixa 2 = posição 2');
+    expect(byTrack[2]?.queueTotal, 3);
+    expect(byTrack[3]?.queueIndex, 3, reason: 'faixa 3 = posição 3');
+  });
+
   test('enqueue duplicado nao reprocessa', () async {
     final offline = _FakeOffline();
     final queue = DownloadQueue(
@@ -185,11 +207,13 @@ void main() {
 
   test('estado inicial carrega pendencias do disco', () async {
     final storage = _MemStorage();
-    storage.write(jsonEncode({
-      'pending': [
-        {'musicId': 7, 'title': 'H7', 'url': 'https://x/7.mp3'},
-      ],
-    }));
+    storage.write(
+      jsonEncode({
+        'pending': [
+          {'musicId': 7, 'title': 'H7', 'url': 'https://x/7.mp3'},
+        ],
+      }),
+    );
     final offline = _FakeOffline();
     final queue = DownloadQueue(
       offline: offline,
@@ -200,40 +224,52 @@ void main() {
     expect(offline.downloaded, {7}, reason: 'pendencia do disco retomada');
   });
 
-  test('failedCount reporta falhas do drain; reseta no proximo drain', () async {
-    final offline = _FakeOffline(failIds: {2, 3});
-    final queue = DownloadQueue(
-      offline: offline,
-      storage: _MemStorage(),
-      interItemDelay: Duration.zero,
-    );
-    queue.enqueue([_item(1), _item(2), _item(3)]);
-    await queue.done;
-    expect(queue.failedCount, 2, reason: '2 faixas falharam neste drain');
-    expect(offline.order, [1], reason: 'so a faixa bem-sucedida contou');
+  test(
+    'failedCount reporta falhas do drain; reseta no proximo drain',
+    () async {
+      final offline = _FakeOffline(failIds: {2, 3});
+      final queue = DownloadQueue(
+        offline: offline,
+        storage: _MemStorage(),
+        interItemDelay: Duration.zero,
+      );
+      queue.enqueue([_item(1), _item(2), _item(3)]);
+      await queue.done;
+      expect(queue.failedCount, 2, reason: '2 faixas falharam neste drain');
+      expect(offline.order, [1], reason: 'so a faixa bem-sucedida contou');
 
-    // Proximo drain: as mesmas pendencias sao retomadas do disco e agora
-    // baixam com sucesso (failIds so afetou o primeiro drain).
-    offline.failIds = {};
-    queue.enqueue([_item(9)]);
-    await queue.done;
-    expect(queue.failedCount, 0, reason: 'novo drain zera o contador');
-    expect(offline.downloaded, {1, 2, 3, 9});
-  });
+      // Proximo drain: as mesmas pendencias sao retomadas do disco e agora
+      // baixam com sucesso (failIds so afetou o primeiro drain).
+      offline.failIds = {};
+      queue.enqueue([_item(9)]);
+      await queue.done;
+      expect(queue.failedCount, 0, reason: 'novo drain zera o contador');
+      expect(offline.downloaded, {1, 2, 3, 9});
+    },
+  );
 
-  test('circuit breaker: 429 seguidos param o drain (nao martela a API)', () async {
-    final offline = _RateLimitedOffline();
-    final queue = DownloadQueue(
-      offline: offline,
-      storage: _MemStorage(),
-      interItemDelay: Duration.zero,
-    );
-    queue.enqueue(List.generate(50, _item));
-    await queue.done;
+  test(
+    'circuit breaker: 429 seguidos param o drain (nao martela a API)',
+    () async {
+      final offline = _RateLimitedOffline();
+      final queue = DownloadQueue(
+        offline: offline,
+        storage: _MemStorage(),
+        interItemDelay: Duration.zero,
+      );
+      queue.enqueue(List.generate(50, _item));
+      await queue.done;
 
-    expect(offline.calls, lessThanOrEqualTo(4),
-        reason: 'drain deve PARAR apos poucos 429 seguidos, nao tentar 50');
-    expect(queue.failedCount, 50,
-        reason: 'todas as 50 contam como falha (feedback ao usuario)');
-  });
+      expect(
+        offline.calls,
+        lessThanOrEqualTo(4),
+        reason: 'drain deve PARAR apos poucos 429 seguidos, nao tentar 50',
+      );
+      expect(
+        queue.failedCount,
+        50,
+        reason: 'todas as 50 contam como falha (feedback ao usuario)',
+      );
+    },
+  );
 }

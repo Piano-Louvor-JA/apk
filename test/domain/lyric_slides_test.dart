@@ -86,8 +86,10 @@ void main() {
 
     test('parseTime aceita formatos da API e rejeita lixo', () {
       expect(LyricSlide.parseTime('00:00:34'), const Duration(seconds: 34));
-      expect(LyricSlide.parseTime('00:02:17'),
-          const Duration(minutes: 2, seconds: 17));
+      expect(
+        LyricSlide.parseTime('00:02:17'),
+        const Duration(minutes: 2, seconds: 17),
+      );
       expect(LyricSlide.parseTime(null), isNull);
       expect(LyricSlide.parseTime(''), isNull);
       expect(LyricSlide.parseTime('abc'), isNull);

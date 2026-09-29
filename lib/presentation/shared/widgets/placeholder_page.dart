@@ -1,5 +1,6 @@
 /// Página placeholder genérica para tabs ainda não implementadas.
 library;
+
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
@@ -31,12 +32,14 @@ class PlaceholderPage extends StatelessWidget {
                 child: Text(
                   title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-            Expanded(child: EmptyState(icon: icon, title: title, message: message)),
+            Expanded(
+              child: EmptyState(icon: icon, title: title, message: message),
+            ),
           ],
         ),
       ),

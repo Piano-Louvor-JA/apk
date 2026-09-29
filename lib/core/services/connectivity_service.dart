@@ -12,7 +12,7 @@ class ConnectivityService {
   final Connectivity _connectivity;
 
   ConnectivityService({Connectivity? connectivity})
-      : _connectivity = connectivity ?? Connectivity();
+    : _connectivity = connectivity ?? Connectivity();
 
   Stream<bool> get onConnectionChanged =>
       _connectivity.onConnectivityChanged.map(_isConnected).distinct();
@@ -40,7 +40,7 @@ class ConnectivityController {
   final StreamController<bool> _state = StreamController<bool>.broadcast();
 
   ConnectivityController({ConnectivityService? service})
-      : _service = service ?? ConnectivityService();
+    : _service = service ?? ConnectivityService();
 
   Stream<bool> get state => _state.stream;
 

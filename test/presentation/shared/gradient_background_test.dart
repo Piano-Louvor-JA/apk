@@ -21,9 +21,7 @@ void main() {
     testWidgets('usa Container com LinearGradient', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: GradientBackground(child: SizedBox.expand()),
-          ),
+          home: Scaffold(body: GradientBackground(child: SizedBox.expand())),
         ),
       );
 

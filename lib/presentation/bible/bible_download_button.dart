@@ -13,6 +13,7 @@ import 'package:louvorja_piano_mobile/data/datasources/local/catalog_cache.dart'
 import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.dart';
 import 'package:louvorja_piano_mobile/data/repositories/bible_repository_impl.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bloc/bible_bloc.dart';
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
 /// Indica se uma versão da Bíblia já foi baixada completamente.
 class BibleVersionDownloadMark {
@@ -35,8 +36,9 @@ class BibleVersionDownloadMark {
   static Future<void> markDownloaded(int versionId) async {
     if (kIsWeb) return;
     final dir = await _dir();
-    File('$dir/catalog_bible_version_downloaded_$versionId.json')
-        .writeAsStringSync('{"versionId": $versionId}');
+    File(
+      '$dir/catalog_bible_version_downloaded_$versionId.json',
+    ).writeAsStringSync('{"versionId": $versionId}');
   }
 
   static void warmUp() {
@@ -78,8 +80,8 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
     setState(() => _downloading = true);
     try {
       final api = LouvorjaApiImpl(
-        baseUrl: 'https://api.louvorja.com.br/json_db',
-        filesUrl: 'https://api.louvorja.com.br/file',
+        baseUrls: ApiConfig.databaseUrls(),
+        filesUrls: ApiConfig.filesUrls(),
         apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
       );
       final dir = await getApplicationDocumentsDirectory();
@@ -90,7 +92,11 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
         versionId: versionId,
         books: books,
         onProgress: (d, t) {
-          if (mounted) setState(() { _done = d; _total = t; });
+          if (mounted)
+            setState(() {
+              _done = d;
+              _total = t;
+            });
         },
       );
       // Marca a versão como baixada: offline o dropdown mostra só as que
@@ -100,16 +106,19 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
         if (mounted) setState(() => _downloadedVersion = versionId);
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              '$ok capítulos disponíveis offline${failed > 0 ? ' ($failed falhas)' : ''}'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$ok capítulos disponíveis offline${failed > 0 ? ' ($failed falhas)' : ''}',
+            ),
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('errors.connection'.tr())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('errors.connection'.tr())));
       }
     } finally {
       if (mounted) setState(() => _downloading = false);
@@ -120,8 +129,9 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = context.read<BibleBloc>().state;
-    final currentVersion =
-        state is BibleLoaded ? state.selectedVersionId : null;
+    final currentVersion = state is BibleLoaded
+        ? state.selectedVersionId
+        : null;
     final downloaded = _downloadedVersion != null
         ? _downloadedVersion == currentVersion
         : BibleVersionDownloadMark.isDownloaded(currentVersion ?? -1);
@@ -141,12 +151,12 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
               ),
             )
           : downloaded
-              ? Icon(
-                  TablerIcons.circleCheck,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                )
-              : const Icon(TablerIcons.cloudDownload),
+          ? Icon(
+              TablerIcons.circleCheck,
+              size: 20,
+              color: theme.colorScheme.primary,
+            )
+          : const Icon(TablerIcons.cloudDownload),
       onPressed: downloaded || _downloading
           ? null
           : () => _start(context.read<BibleBloc>().state),

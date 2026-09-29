@@ -40,13 +40,19 @@ void main() {
     ]);
 
     final categories = [
-      const AlbumCategory(id: 1, name: 'Coletâneas', albums: [
-        Album(id: 100, name: 'Louvor JA 2026'),
-        Album(id: 200, name: 'Vozes Femininas'), // sem downloads
-      ]),
-      const AlbumCategory(id: 2, name: 'Vazia', albums: [
-        Album(id: 300, name: 'Nada baixado'),
-      ]),
+      const AlbumCategory(
+        id: 1,
+        name: 'Coletâneas',
+        albums: [
+          Album(id: 100, name: 'Louvor JA 2026'),
+          Album(id: 200, name: 'Vozes Femininas'), // sem downloads
+        ],
+      ),
+      const AlbumCategory(
+        id: 2,
+        name: 'Vazia',
+        albums: [Album(id: 300, name: 'Nada baixado')],
+      ),
     ];
 
     final filtered = await OfflineLibraryFilter.filterCategories(
@@ -85,7 +91,11 @@ void main() {
   test('sem biblioteca (port antigo): mantém catálogo do cache', () async {
     final offline = _NoLibraryOffline();
     final categories = const [
-      AlbumCategory(id: 1, name: 'Cat', albums: [Album(id: 1, name: 'A')]),
+      AlbumCategory(
+        id: 1,
+        name: 'Cat',
+        albums: [Album(id: 1, name: 'A')],
+      ),
     ];
     final filtered = await OfflineLibraryFilter.filterCategories(
       categories: categories,

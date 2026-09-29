@@ -49,22 +49,25 @@ void main() {
       expect(all, hasLength(1));
     });
 
-    test(' indice v1 (path puro) continua legivel: play funciona, titulo fallback', () async {
-      // Formato antigo: {"12_vocal": "/caminho/12.mp3"}
-      final oldFile = File('${tmp.path}/12_vocal.mp3');
-      oldFile.createSync(recursive: true);
-      indexFile.writeAsStringSync(jsonEncode({'12_vocal': oldFile.path}));
+    test(
+      ' indice v1 (path puro) continua legivel: play funciona, titulo fallback',
+      () async {
+        // Formato antigo: {"12_vocal": "/caminho/12.mp3"}
+        final oldFile = File('${tmp.path}/12_vocal.mp3');
+        oldFile.createSync(recursive: true);
+        indexFile.writeAsStringSync(jsonEncode({'12_vocal': oldFile.path}));
 
-      final repo = MusicOfflineRepository(_dio(), tmp.path);
+        final repo = MusicOfflineRepository(_dio(), tmp.path);
 
-      final path = await repo.localPathFor(12);
-      expect(path, oldFile.path); // play continua funcionando
+        final path = await repo.localPathFor(12);
+        expect(path, oldFile.path); // play continua funcionando
 
-      final all = await repo.listDownloaded();
-      expect(all, hasLength(1));
-      expect(all.first.title, 'Hino #12'); // fallback sem metadados
-      expect(all.first.albumId, isNull);
-    });
+        final all = await repo.listDownloaded();
+        expect(all, hasLength(1));
+        expect(all.first.title, 'Hino #12'); // fallback sem metadados
+        expect(all.first.albumId, isNull);
+      },
+    );
 
     test('remove apaga do indice v2', () async {
       final repo = MusicOfflineRepository(_dio(), tmp.path);
@@ -82,9 +85,13 @@ void main() {
 
 Dio _dio() {
   final dio = _MockDio();
-  when(() => dio.download(any(), any(),
-          onReceiveProgress: any(named: 'onReceiveProgress')))
-      .thenAnswer((inv) async {
+  when(
+    () => dio.download(
+      any(),
+      any(),
+      onReceiveProgress: any(named: 'onReceiveProgress'),
+    ),
+  ).thenAnswer((inv) async {
     final String path = inv.positionalArguments[1];
     File(path).writeAsBytesSync([1, 2, 3]);
     return Response<dynamic>(

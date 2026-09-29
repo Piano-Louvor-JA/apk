@@ -41,17 +41,21 @@ class OfflineLibraryFilter {
       for (final a in category.albums) {
         final count = downloadedByAlbum[a.id];
         if (count == null) continue;
-        albums.add(Album(
-          id: a.id,
-          name: a.name,
-          subtitle: '$count baixadas',
-          coverUrl: a.coverUrl,
-          trackCount: count,
-          colorHex: a.colorHex,
-        ));
+        albums.add(
+          Album(
+            id: a.id,
+            name: a.name,
+            subtitle: '$count baixadas',
+            coverUrl: a.coverUrl,
+            trackCount: count,
+            colorHex: a.colorHex,
+          ),
+        );
       }
       if (albums.isNotEmpty) {
-        result.add(AlbumCategory(id: category.id, name: category.name, albums: albums));
+        result.add(
+          AlbumCategory(id: category.id, name: category.name, albums: albums),
+        );
       }
     }
     return result;
@@ -65,15 +69,18 @@ class OfflineLibraryFilter {
     required OfflineMusicPort offline,
   }) async {
     if (offline is! OfflineLibraryPort) return null;
-    final downloaded =
-        await (offline as OfflineLibraryPort).listDownloaded(albumId: albumId);
+    final downloaded = await (offline as OfflineLibraryPort).listDownloaded(
+      albumId: albumId,
+    );
     if (downloaded.isEmpty) return null;
     return downloaded
-        .map((t) => Hymn(
-              id: t.musicId,
-              title: t.title,
-              number: int.tryParse(t.number ?? ''),
-            ))
+        .map(
+          (t) => Hymn(
+            id: t.musicId,
+            title: t.title,
+            number: int.tryParse(t.number ?? ''),
+          ),
+        )
         .toList();
   }
 }

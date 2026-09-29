@@ -22,8 +22,11 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<AlbumCategory>> fetchCategories() async {
     callCount++;
     if (fail || (refreshFails && callCount > 1)) throw Exception('fail');
-    return [AlbumCategory(id: 1, albums: const [Album(id: 1)])];
+    return [
+      AlbumCategory(id: 1, albums: const [Album(id: 1)]),
+    ];
   }
+
   @override
   Future<List<Hymn>> fetchAlbumHymns(int albumId) async => const [];
   @override
@@ -36,12 +39,13 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchMusicIndex() async => const [];
   @override
   String resolveMediaUrl(String relativePath) => '';
-@override
+  @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 void main() {

@@ -24,10 +24,24 @@ class _MockApi implements LouvorjaApiClient {
   _MockApi({
     this.fail = false,
     this.books = const [
-      BibleBook(id: 1, name: 'Gen', abbreviation: 'Gn', chapters: 50, bookNumber: 1),
-      BibleBook(id: 2, name: 'Exo', abbreviation: 'Ex', chapters: 40, bookNumber: 2),
+      BibleBook(
+        id: 1,
+        name: 'Gen',
+        abbreviation: 'Gn',
+        chapters: 50,
+        bookNumber: 1,
+      ),
+      BibleBook(
+        id: 2,
+        name: 'Exo',
+        abbreviation: 'Ex',
+        chapters: 40,
+        bookNumber: 2,
+      ),
     ],
-    this.versions = const [BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA')],
+    this.versions = const [
+      BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
+    ],
     this.chapterVerses = const {'1': 'v1', '2': 'v2'},
   });
 
@@ -75,15 +89,34 @@ void main() {
   });
 
   tearDown(() {
-    try { tempDir.deleteSync(recursive: true); } catch (_) {}
+    try {
+      tempDir.deleteSync(recursive: true);
+    } catch (_) {}
   });
 
   group('getBooks', () {
     test('busca livros da API e ordena por bookNumber', () async {
-      final repo = BibleRepositoryImpl(_MockApi(books: const [
-        BibleBook(id: 40, name: 'Mt', abbreviation: 'Mt', chapters: 28, bookNumber: 40),
-        BibleBook(id: 1, name: 'Gn', abbreviation: 'Gn', chapters: 50, bookNumber: 1),
-      ]), cache);
+      final repo = BibleRepositoryImpl(
+        _MockApi(
+          books: const [
+            BibleBook(
+              id: 40,
+              name: 'Mt',
+              abbreviation: 'Mt',
+              chapters: 28,
+              bookNumber: 40,
+            ),
+            BibleBook(
+              id: 1,
+              name: 'Gn',
+              abbreviation: 'Gn',
+              chapters: 50,
+              bookNumber: 1,
+            ),
+          ],
+        ),
+        cache,
+      );
       final result = await repo.getBooks();
       expect(result.length, 2);
       expect(result[0].bookNumber, 1); // ordenado
@@ -92,7 +125,13 @@ void main() {
 
     test('le do cache quando API falha', () async {
       cache.write('bible_books', [
-        {'id_bible_book': 1, 'name': 'Cached', 'abbreviation': 'C', 'chapters': 10, 'book_number': 1}
+        {
+          'id_bible_book': 1,
+          'name': 'Cached',
+          'abbreviation': 'C',
+          'chapters': 10,
+          'book_number': 1,
+        },
       ]);
       final repo = BibleRepositoryImpl(_MockApi(fail: true), cache);
       final result = await repo.getBooks();
@@ -107,7 +146,13 @@ void main() {
 
     test('le do cache valido sem chamar API', () async {
       cache.write('bible_books', [
-        {'id_bible_book': 1, 'name': 'FromCache', 'abbreviation': 'FC', 'chapters': 10, 'book_number': 1}
+        {
+          'id_bible_book': 1,
+          'name': 'FromCache',
+          'abbreviation': 'FC',
+          'chapters': 10,
+          'book_number': 1,
+        },
       ]);
       final repo = BibleRepositoryImpl(_MockApi(), cache);
       final result = await repo.getBooks();
@@ -125,7 +170,7 @@ void main() {
 
     test('le do cache quando API falha', () async {
       cache.write('bible_versions', [
-        {'id_bible_version': 2, 'abbreviation': 'NVI', 'name': 'NVI'}
+        {'id_bible_version': 2, 'abbreviation': 'NVI', 'name': 'NVI'},
       ]);
       final repo = BibleRepositoryImpl(_MockApi(fail: true), cache);
       final result = await repo.getVersions();
@@ -139,7 +184,7 @@ void main() {
 
     test('le do cache valido sem chamar API', () async {
       cache.write('bible_versions', [
-        {'id_bible_version': 1, 'abbreviation': 'ACF', 'name': 'ACF'}
+        {'id_bible_version': 1, 'abbreviation': 'ACF', 'name': 'ACF'},
       ]);
       final repo = BibleRepositoryImpl(_MockApi(), cache);
       final result = await repo.getVersions();

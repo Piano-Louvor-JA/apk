@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:louvorja_piano_mobile/core/services/remote/desktop_connection.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_device_name.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/web_link_server.dart';
 
 enum RemoteMode { idle, desktop, web }
@@ -24,6 +25,9 @@ class RemoteSession {
 
   DesktopConnection? _desktop;
   WebLinkServer? _web;
+  StreamSubscription<RemotePlayerState>? _desktopStateSub;
+  StreamSubscription<DesktopConnectionStatus>? _desktopStatusSub;
+  StreamSubscription<RemoteError>? _desktopErrorSub;
   RemoteMode _mode = RemoteMode.idle;
 
   final _statesCtrl = StreamController<RemotePlayerState>.broadcast();
@@ -34,6 +38,21 @@ class RemoteSession {
 
   RemoteMode get mode => _mode;
 
+  RemoteSessionStatus _lastStatus = RemoteSessionStatus.disconnected;
+
+  /// Status mais recente (mantido em sync com o stream [status]).
+  RemoteSessionStatus get currentStatus => _lastStatus;
+
+  /// true quando o APK está efetivamente controlando um alvo:
+  /// - desktop: conexão estabelecida com o Electron;
+  /// - web: servidor de pé E o browser conectou nele.
+  ///
+  /// É ESTE getter (não `mode != idle`) que a UI deve usar para decidir
+  /// se mostra a ferramenta/espelho — no modo web o servidor fica escutando
+  /// sem cliente, e isso NÃO é "conectado".
+  bool get isControlling =>
+      _mode != RemoteMode.idle && _lastStatus == RemoteSessionStatus.connected;
+
   /// Conecta no desktop (Electron). Reconexão automática é da connection.
   Future<bool> connectDesktop({
     required String host,
@@ -41,20 +60,45 @@ class RemoteSession {
     required String token,
   }) async {
     await _teardown();
+    lastState = null;
     final conn = DesktopConnection();
+
+    // Assina ANTES de abrir o socket. O desktop manda state imediatamente
+    // no upgrade WS; assinar depois perde esse frame em Stream.broadcast.
+    _desktopStateSub = conn.states.listen((s) {
+      lastState = s;
+      _statesCtrl.add(s);
+    });
+    _desktopStatusSub = conn.status.listen((s) {
+      if (s == DesktopConnectionStatus.closed) {
+        unawaited(_dropDesktop());
+        return;
+      }
+      _emitStatus(s.toSessionStatus());
+    });
+    _desktopErrorSub = conn.errors.listen((error) {
+      // Fechamento normal do Electron: derruba UI remota imediatamente.
+      if (error.code == 'desktop_closed') unawaited(_dropDesktop());
+    });
+
     final ok = await conn.connect(host: host, port: port, token: token);
     if (!ok) {
+      await _desktopStateSub?.cancel();
+      await _desktopStatusSub?.cancel();
+      await _desktopErrorSub?.cancel();
+      _desktopStateSub = null;
+      _desktopStatusSub = null;
+      _desktopErrorSub = null;
       await conn.dispose();
       return false;
     }
     _desktop = conn;
     _mode = RemoteMode.desktop;
-    conn.states.listen((s) {
-      lastState = s;
-      _statesCtrl.add(s);
-    });
-    conn.status.listen((s) => _statusCtrl.add(s.toSessionStatus()));
-    _statusCtrl.add(RemoteSessionStatus.connected);
+    _emitStatus(RemoteSessionStatus.connected);
+    // Identifica o aparelho para o desktop mostrar quem conectou.
+    final device = await RemoteDeviceName.get() ?? 'Piano LouvorJA';
+    final version = await RemoteDeviceName.appVersion();
+    conn.sendHello(device: device, appVersion: version);
     return true;
   }
 
@@ -75,11 +119,11 @@ class RemoteSession {
       _statesCtrl.add(s);
     });
     server.clientEvents.listen((up) {
-      _statusCtrl.add(
+      _emitStatus(
         up ? RemoteSessionStatus.connected : RemoteSessionStatus.listening,
       );
     });
-    _statusCtrl.add(RemoteSessionStatus.listening);
+    _emitStatus(RemoteSessionStatus.listening);
     return url;
   }
 
@@ -99,8 +143,8 @@ class RemoteSession {
   /// Estado mais recente vindo do alvo (desktop push ou web push).
   /// Usado pela UI e como cache para resync em reconexão.
   RemotePlayerState? lastState;
-  
-// (v1: o APK é controlador — estado flui alvo→APK. pushState reservado v2.)
+
+  // (v1: o APK é controlador — estado flui alvo→APK. pushState reservado v2.)
 
   /// Hook de teste: injeta um estado como se tivesse vindo do alvo.
   void debugInjectStateForTest({
@@ -127,12 +171,29 @@ class RemoteSession {
   }
 
   Future<void> disconnect() async {
+    await _dropDesktop();
+  }
+
+  /// Limpa imediatamente UI/estado remoto quando o desktop encerra.
+  Future<void> _dropDesktop() async {
     await _teardown();
+    lastState = null;
     _mode = RemoteMode.idle;
-    _statusCtrl.add(RemoteSessionStatus.disconnected);
+    _emitStatus(RemoteSessionStatus.disconnected);
+  }
+
+  void _emitStatus(RemoteSessionStatus s) {
+    _lastStatus = s;
+    _statusCtrl.add(s);
   }
 
   Future<void> _teardown() async {
+    await _desktopStateSub?.cancel();
+    await _desktopStatusSub?.cancel();
+    await _desktopErrorSub?.cancel();
+    _desktopStateSub = null;
+    _desktopStatusSub = null;
+    _desktopErrorSub = null;
     await _desktop?.dispose();
     _desktop = null;
     await _web?.stop();
@@ -144,7 +205,7 @@ class RemoteSession {
     // transporte — conexões podem ser refeitas depois.
     await _teardown();
     _mode = RemoteMode.idle;
-    _statusCtrl.add(RemoteSessionStatus.disconnected);
+    _emitStatus(RemoteSessionStatus.disconnected);
   }
 }
 
@@ -152,8 +213,9 @@ enum RemoteSessionStatus { disconnected, connecting, connected, listening }
 
 extension on DesktopConnectionStatus {
   RemoteSessionStatus toSessionStatus() => switch (this) {
-        DesktopConnectionStatus.disconnected => RemoteSessionStatus.disconnected,
-        DesktopConnectionStatus.connecting => RemoteSessionStatus.connecting,
-        DesktopConnectionStatus.connected => RemoteSessionStatus.connected,
-      };
+    DesktopConnectionStatus.disconnected => RemoteSessionStatus.disconnected,
+    DesktopConnectionStatus.connecting => RemoteSessionStatus.connecting,
+    DesktopConnectionStatus.connected => RemoteSessionStatus.connected,
+    DesktopConnectionStatus.closed => RemoteSessionStatus.disconnected,
+  };
 }

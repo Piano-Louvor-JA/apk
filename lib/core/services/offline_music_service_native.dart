@@ -23,11 +23,13 @@ class OfflineMusicService implements OfflineMusicPort, OfflineLibraryPort {
   }
 
   @override
-  Future<String?> localPathFor(int musicId, {bool instrumental = false}) async =>
-      (await _repositoryForApp()).localPathFor(
-        musicId,
-        instrumental: instrumental,
-      );
+  Future<String?> localPathFor(
+    int musicId, {
+    bool instrumental = false,
+  }) async => (await _repositoryForApp()).localPathFor(
+    musicId,
+    instrumental: instrumental,
+  );
 
   @override
   Future<List<OfflineListedTrack>> listDownloaded({int? albumId}) async {
@@ -79,13 +81,12 @@ class OfflineMusicService implements OfflineMusicPort, OfflineLibraryPort {
     required String url,
     bool instrumental = false,
     ProgressCallback? onReceiveProgress,
-  }) async =>
-      (await _repositoryForApp()).download(
-        musicId: musicId,
-        url: url,
-        instrumental: instrumental,
-        onReceiveProgress: onReceiveProgress,
-      );
+  }) async => (await _repositoryForApp()).download(
+    musicId: musicId,
+    url: url,
+    instrumental: instrumental,
+    onReceiveProgress: onReceiveProgress,
+  );
 }
 
 OfflineMusicService createOfflineMusicService() => OfflineMusicService();

@@ -49,8 +49,10 @@ class HymnSearchDelegate extends SearchDelegate<Hymn?> {
         final filtered = filter(snapshot.data!, query);
         if (filtered.isEmpty) {
           return Center(
-            child: Text('Nenhum hino encontrado',
-                style: theme.textTheme.bodyLarge),
+            child: Text(
+              'Nenhum hino encontrado',
+              style: theme.textTheme.bodyLarge,
+            ),
           );
         }
         return ListView.builder(
@@ -61,15 +63,17 @@ class HymnSearchDelegate extends SearchDelegate<Hymn?> {
               leading: h.number != null
                   ? CircleAvatar(
                       backgroundColor: theme.colorScheme.primaryContainer,
-                      child: Text('${h.number}',
-                          style: theme.textTheme.labelMedium
-                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      child: Text(
+                        '${h.number}',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     )
                   : null,
               title: Text(h.title ?? 'Hino ${h.id}'),
               subtitle: h.durationMs != null && h.durationMs! > 0
-                  ? Text(h.formattedDuration,
-                      style: theme.textTheme.bodySmall)
+                  ? Text(h.formattedDuration, style: theme.textTheme.bodySmall)
                   : null,
               trailing: const Icon(Icons.chevron_right, size: 20),
               onTap: () => close(context, h),

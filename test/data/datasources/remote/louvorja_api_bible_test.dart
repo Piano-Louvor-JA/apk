@@ -20,15 +20,19 @@ class _OkAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     final bytes = Uint8List.fromList(json.codeUnits);
-    return ResponseBody(Stream.fromIterable([bytes]), 200, headers: {
-      Headers.contentTypeHeader: ['application/json'],
-    });
+    return ResponseBody(
+      Stream.fromIterable([bytes]),
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
   }
 }
 
 void main() {
   LouvorjaApiImpl createApi(String json) {
-    final api = LouvorjaApiImpl(
+    final api = LouvorjaApiImpl.single(
       baseUrl: 'https://api.example.com/json_db',
       filesUrl: 'https://api.example.com/file',
       apiToken: 'token',

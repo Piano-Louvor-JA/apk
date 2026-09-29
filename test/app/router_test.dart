@@ -22,14 +22,17 @@ void main() {
     // Mock PackageInfo para Settings nao pendurar em FutureBuilder
     const channel = MethodChannel('dev.fluttercommunity.plus/package_info');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (_) async => <String, dynamic>{
-              'appName': 'LouvorJA PIANO',
-              'packageName': 'com.louvorja.piano.mobile',
-              'version': '1.0.0',
-              'buildNumber': '1',
-              'buildSignature': '',
-              'installerStore': null,
-            });
+        .setMockMethodCallHandler(
+          channel,
+          (_) async => <String, dynamic>{
+            'appName': 'LouvorJA PIANO',
+            'packageName': 'com.louvorja.piano.mobile',
+            'version': '1.0.0',
+            'buildNumber': '1',
+            'buildSignature': '',
+            'installerStore': null,
+          },
+        );
   });
 
   testWidgets('rota raiz resolve Home', (tester) async {
@@ -78,16 +81,21 @@ void main() {
     appRouter.go('/hymns/123');
     await tester.pumpWidget(_wrapRouter());
     await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump(const Duration(seconds: 3)); // consome timeout do indice offline
+    await tester.pump(
+      const Duration(seconds: 3),
+    ); // consome timeout do indice offline
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 
-  testWidgets('deep link de hino resolve /hymns/:albumId/:hymnId',
-      (tester) async {
+  testWidgets('deep link de hino resolve /hymns/:albumId/:hymnId', (
+    tester,
+  ) async {
     appRouter.go('/hymns/123/456');
     await tester.pumpWidget(MaterialApp.router(routerConfig: appRouter));
     await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump(const Duration(seconds: 3)); // consome timeout do indice offline
+    await tester.pump(
+      const Duration(seconds: 3),
+    ); // consome timeout do indice offline
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

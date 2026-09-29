@@ -27,8 +27,11 @@ void main() {
       ]) {
         final fixed = ensureReadableOnLight(c);
         final ratio = contrastRatio(fixed, const Color(0xFFF8F9FF));
-        expect(ratio, greaterThanOrEqualTo(4.5),
-            reason: 'cor ${c.toARGB32().toRadixString(16)} ficou $ratio');
+        expect(
+          ratio,
+          greaterThanOrEqualTo(4.5),
+          reason: 'cor ${c.toARGB32().toRadixString(16)} ficou $ratio',
+        );
       }
     });
 

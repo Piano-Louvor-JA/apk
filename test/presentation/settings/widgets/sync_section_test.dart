@@ -6,26 +6,30 @@ import 'package:louvorja_piano_mobile/presentation/settings/widgets/sync_section
 
 void main() {
   Widget subject({bool busy = false}) => MaterialApp(
-        home: Scaffold(
-          body: SyncSection(
-            busy: busy,
-            onExport: () async {},
-            onImport: () async {},
-          ),
-        ),
-      );
+    home: Scaffold(
+      body: SyncSection(
+        busy: busy,
+        onExport: () async {},
+        onImport: () async {},
+      ),
+    ),
+  );
 
-  testWidgets('renderiza botões de export/import e dispara handlers', (tester) async {
+  testWidgets('renderiza botões de export/import e dispara handlers', (
+    tester,
+  ) async {
     var exported = false;
     var imported = false;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: SyncSection(
-          onExport: () async => exported = true,
-          onImport: () async => imported = true,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SyncSection(
+            onExport: () async => exported = true,
+            onImport: () async => imported = true,
+          ),
         ),
       ),
-    ));
+    );
 
     expect(find.byKey(const Key('sync-export')), findsOneWidget);
     expect(find.byKey(const Key('sync-import')), findsOneWidget);

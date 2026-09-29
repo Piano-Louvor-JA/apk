@@ -128,6 +128,47 @@
     "messages": {
       "confirmDelete": "Remove this item?",
       "toggleCollapse": "Expand or collapse"
+    },
+    "importJa": "Import liturgy (.ja)",
+    "importJaInvalid": "Invalid .ja file",
+    "importJaDone": "Imported: {added} added, {skipped} duplicates",
+    "lock": "Lock liturgy",
+    "unlock": "Unlock liturgy",
+    "deleteDay": "Delete day liturgy",
+    "deleteDayTitle": "Delete liturgy",
+    "deleteDayConfirm": "Delete all liturgy items of {count}?",
+    "avulsa": {
+      "title": "Standalone Liturgy",
+      "changeDate": "Change date",
+      "empty": "No liturgy for this date. Tap + to start.",
+      "deleteConfirm": "Delete the standalone liturgy of this date?",
+      "openAvulsa": "Standalone liturgy"
+    },
+    "importJaOverwriteTitle": "Duplicate items",
+    "importJaOverwriteAsk": "{count} item(s) already exist. Overwrite the affected days with the file contents?",
+    "importJaKeep": "Keep and add new",
+    "importJaOverwrite": "Overwrite days",
+    "importJaOverwritten": "Liturgy overwritten: {added} items",
+    "scheduled": {
+      "import": "Import scheduled items (Delphi)",
+      "title": "Scheduled items for this date",
+      "noCategory": "No category",
+      "notes": "Notes",
+      "addToLiturgy": "Add to liturgy",
+      "imported": "Imported {count} scheduled items",
+      "invalidXml": "Invalid .xml file",
+      "notPorted": "LouvorJA Delphi file recognized ({name}), but this feature is not ported yet — coming in a future version."
+    },
+    "p2p": {
+      "title": "P2P control (QR)",
+      "hintScan": "Point the camera at the QR shown on the web (Settings → Remote → P2P)",
+      "hintShow": "Show this QR to the web's webcam — or copy the text below and paste it there",
+      "negotiating": "Negotiating connection…",
+      "badOffer": "Invalid QR (not a web offer)",
+      "connected": "Connected!",
+      "disconnected": "Disconnected",
+      "scannerUnavailable": "Scanner unavailable on this platform",
+      "copyFallback": "If the QR doesn't fit/read, copy and paste on the web:"
     }
   },
   "bible": {
@@ -165,7 +206,15 @@
       "loadChapterFailed": "Could not load the selected chapter."
     },
     "previousChapter": "Previous chapter",
-    "nextChapter": "Next chapter"
+    "nextChapter": "Next chapter",
+    "referenceHint": "e.g. gen 1:1-3 or john 2:3,5",
+    "referenceInvalid": "Invalid reference",
+    "bookNotFound": "Book not found",
+    "filterVersesHint": "Filter text or verses: love, 3, 1-3, 1,3-5",
+    "globalResults": "Results in the Bible",
+    "globalSearching": "Searching the Bible…",
+    "quickSearchHint": "Reference (gn 1:1-3) or text...",
+    "goToReference": "Go to reference"
   },
   "settings": {
     "title": "Settings",
@@ -187,7 +236,8 @@
     "languagePortuguese": "Portuguese (BR)",
     "languageEnglish": "English",
     "languageSpanish": "Espanol",
-    "version": "Version"
+    "version": "Version",
+    "privacyPolicy": "Privacy Policy"
   },
   "timer": {
     "title": "Timer",
@@ -214,7 +264,9 @@
     "bible": "Bible",
     "bibleSubtitle": "Books, chapters and verses",
     "timer": "Timer",
-    "timerSubtitle": "Stopwatch and countdown"
+    "timerSubtitle": "Stopwatch and countdown",
+    "remoteControl": "Remote Control",
+    "remoteControlSubtitle": "Control the desktop liturgy and player"
   },
   "search": {
     "title": "Search",
@@ -245,7 +297,13 @@
     "customizeHint": "Colors, font, size",
     "turnOff": "Turn stage off",
     "castOn": "Stage active",
-    "castOff": "Cast to TV"
+    "castOff": "Cast to TV",
+    "yourIp": "Your IP (enter on TV)",
+    "ipHint": "Open Palco app on TV → enter this IP",
+    "dlnaSection": "DLNA TVs (hymns/slides)",
+    "palcoSection": "Palco LouvorJA (webOS receiver)",
+    "palcoManual": "Connect Palco manually",
+    "palcoManualHint": "IP of TV where receiver is already open"
   },
   "sync": {
     "sectionTitle": "Synchronization",
@@ -262,30 +320,104 @@
   },
   "remote": {
     "title": "Remote Control",
-    "subtitle": "Control Piano on the desktop or browser from your phone",
-    "mode_idle": "Disconnected",
-    "mode_desktop": "Desktop (Electron)",
-    "mode_web": "Browser (web)",
-    "desktop_host": "Desktop address",
-    "desktop_hint": "IP:port (e.g. 192.168.1.50:7070)",
-    "token_label": "Pairing token",
+    "palcoOff": "Turn on the Palco first — control uses the same connection.",
+    "noTargets": "No desktop/web connected.",
+    "noTargetsHint": "Open LouvorJA on the desktop on the same network and connect to the Palco.",
+    "desktop": "Desktop",
+    "playing": "Playing",
+    "paused": "Paused",
+    "volume": "Volume",
+    "web": "Web",
+    "subtitle": "Control the LouvorJA desktop from here",
+    "desktop_host": "Desktop (IP:port)",
+    "desktop_hint": "e.g. 192.168.1.50:7081",
     "connect": "Connect",
     "disconnect": "Disconnect",
-    "start_weblink": "Control the browser",
-    "weblink_url": "Open on the desktop browser:",
-    "weblink_waiting": "Waiting for the browser to connect…",
-    "connected_to": "Connected to {target}",
-    "status_disconnected": "Disconnected",
-    "status_connecting": "Connecting…",
+    "mode_desktop": "Desktop mode",
+    "mode_web": "Web link mode",
+    "start_weblink": "Start web link",
+    "weblink_url": "Web link address",
+    "weblink_waiting": "Waiting for connection…",
+    "no_state": "No player state",
     "status_connected": "Connected",
-    "status_listening": "Waiting for browser",
-    "no_state": "No media playing on the target",
-    "cmd_failed": "Target did not acknowledge the command",
+    "status_connecting": "Connecting…",
+    "status_listening": "Waiting for desktop…",
+    "status_disconnected": "Disconnected",
     "play": "Play",
     "pause": "Pause",
-    "previous": "Previous",
-    "next": "Next",
     "stop": "Stop",
-    "volume": "Volume"
+    "next": "Next",
+    "previous": "Previous",
+    "liturgy": "Desktop liturgy",
+    "token": "Pairing token",
+    "scanQr": "Scan QR",
+    "qrInvalid": "Invalid QR — generate a new one in desktop Settings",
+    "torch": "Flashlight",
+    "cameraError": "Could not open the camera. Check the permission in Android Settings > Apps > LouvorJA > Permissions.",
+    "connectFirst": "Connect first in Settings → Remote Control",
+    "noLiturgy": "No liturgy on the desktop",
+    "mirroring": "Mirrored from desktop — tap to run",
+    "controlsMoved": "Controls are in Tools → Remote Control",
+    "liturgyInLiturgyModule": "Mirrored liturgy: {count} items",
+    "openLiturgyModule": "Open in Liturgy module",
+    "mirroringLocked": "Mirrored from desktop (locked)",
+    "wsDetected": "Desktop connection detected — connecting…",
+    "p2pDetected": "Web P2P pairing detected — generating answer…",
+    "unknownQr": "Unrecognized QR — trying P2P…",
+    "tabLiturgy": "Liturgy",
+    "tabBible": "Bible",
+    "tabTime": "Time",
+    "bible": {
+      "hint": "Enter book (number), chapter and verse and project on the desktop.",
+      "book": "Book (no.)",
+      "chapter": "Chapter",
+      "verse": "Verse",
+      "open": "Open and project",
+      "close": "Close projection",
+      "waiting": "Loading Bible catalog…",
+      "version": "Version"
+    },
+    "timer": {
+      "title": "Stopwatch"
+    },
+    "countdown": {
+      "title": "Countdown",
+      "edit": "Edit duration",
+      "apply": "Apply duration",
+      "minutes": "Min",
+      "seconds": "Sec"
+    },
+    "marks": "Marks",
+    "mark": "Mark",
+    "reset": "Reset",
+    "tabMore": "More",
+    "clock": {
+      "title": "Clock"
+    },
+    "random": {
+      "title": "Draw",
+      "generateNumbers": "Generate numbers 1–100",
+      "numbers": "Numbers",
+      "names": "Names",
+      "min": "Min",
+      "max": "Max",
+      "applyRange": "Apply range",
+      "namesHint": "Names (one per line)",
+      "importNames": "Import names",
+      "drawing": "Drawing…",
+      "drawnList": "Drawn",
+      "returnName": "Return"
+    },
+    "project": "Project",
+    "draw": "Draw",
+    "tabHymns": "Hymns",
+    "hymns": {
+      "search": "Search hymn",
+      "empty": "Search by number or name"
+    },
+    "stopProjection": "Stop projection"
+  },
+  "albums": {
+    "playAll": "Play all"
   }
 }

@@ -33,8 +33,13 @@ class DlnaRendererClient {
       req.write(body);
       final res = await req.close();
       final responseBody = await res.transform(const Utf8Decoder()).join();
+      debugPrint(
+        '[DLNA] SOAP $action -> HTTP ${res.statusCode} '
+        '(${responseBody.length} bytes)',
+      );
       if (res.statusCode != 200) {
-        lastError = 'HTTP ${res.statusCode}: ${responseBody.substring(0, responseBody.length.clamp(0, 200))}';
+        lastError =
+            'HTTP ${res.statusCode}: ${responseBody.substring(0, responseBody.length.clamp(0, 200))}';
         return false;
       }
       return true;
@@ -46,8 +51,11 @@ class DlnaRendererClient {
   }
 
   /// Manda a TV exibir [imageUrl] (PNG ou JPEG conforme o sink aceita).
-  Future<bool> projectImage(String imageUrl,
-      {String title = 'Slide', bool jpeg = false}) async {
+  Future<bool> projectImage(
+    String imageUrl, {
+    String title = 'Slide',
+    bool jpeg = false,
+  }) async {
     final didl = _didlImage(imageUrl, title, jpeg: jpeg);
     final set = await _soap(
       'SetAVTransportURI',
@@ -69,12 +77,12 @@ class DlnaRendererClient {
   }
 
   Future<bool> stop() => _soap(
-        'Stop',
-        _envelope('''
+    'Stop',
+    _envelope('''
 <u:Stop xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
 <InstanceID>0</InstanceID>
 </u:Stop>'''),
-      );
+  );
 
   /// DIDL-Lite mínimo que a LG aceita para imagem (descoberta no PoC).
   @visibleForTesting

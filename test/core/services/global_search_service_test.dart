@@ -5,21 +5,19 @@ import 'package:louvorja_piano_mobile/core/services/global_search_service.dart';
 import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 
 Hymn _hymn(int id, String? title, {int? number, String? lyric}) => Hymn(
-      id: id,
-      title: title,
-      number: number,
-      lyric: lyric,
-      hasInstrumental: false,
-    );
+  id: id,
+  title: title,
+  number: number,
+  lyric: lyric,
+  hasInstrumental: false,
+);
 
 void main() {
   group('GlobalSearchService.fuzzyScore', () {
     test('pontua 0 quando query vazia', () {
       final score = GlobalSearchService.fuzzyScore('', 'Qualquer Coisa');
       expect(score, 0);
-    }
-
-    );
+    });
 
     test('pontua 0 quando alvo vazio', () {
       final score = GlobalSearchService.fuzzyScore('amor', '');
@@ -27,8 +25,14 @@ void main() {
     });
 
     test('match exato de titulo tem score maior que match parcial', () {
-      final exato = GlobalSearchService.fuzzyScore('Cheio de Amor', 'Cheio de Amor');
-      final parcial = GlobalSearchService.fuzzyScore('Cheio de Amor', 'Cheio de Amor (Reprise)');
+      final exato = GlobalSearchService.fuzzyScore(
+        'Cheio de Amor',
+        'Cheio de Amor',
+      );
+      final parcial = GlobalSearchService.fuzzyScore(
+        'Cheio de Amor',
+        'Cheio de Amor (Reprise)',
+      );
       expect(exato, greaterThan(parcial));
     });
 
@@ -39,7 +43,10 @@ void main() {
     });
 
     test('ignora acentos e caixa', () {
-      final comAcento = GlobalSearchService.fuzzyScore('coracao', 'Coração Sagrado');
+      final comAcento = GlobalSearchService.fuzzyScore(
+        'coracao',
+        'Coração Sagrado',
+      );
       expect(comAcento, greaterThan(0));
     });
   });
@@ -78,10 +85,7 @@ void main() {
 
     test('resultados ordenados por score desc', () {
       final service = GlobalSearchService();
-      final hymns = [
-        _hymn(5, 'Grande Amor'),
-        _hymn(6, 'Amor'),
-      ];
+      final hymns = [_hymn(5, 'Grande Amor'), _hymn(6, 'Amor')];
       final results = service.searchHymns('Amor', hymns: hymns);
       expect((results.first.item as Hymn).id, 6);
     });
@@ -133,7 +137,10 @@ void main() {
           text: 'O Senhor é o meu pastor',
         ),
       ];
-      final results = service.searchBible('senhor e o meu pastor', verses: verses);
+      final results = service.searchBible(
+        'senhor e o meu pastor',
+        verses: verses,
+      );
       expect(results, hasLength(1));
     });
   });

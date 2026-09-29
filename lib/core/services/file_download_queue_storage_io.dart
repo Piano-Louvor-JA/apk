@@ -33,5 +33,4 @@ class FileDownloadQueueStorage implements DownloadQueueStorage {
   }
 }
 
-DownloadQueueStorage createDownloadQueueStorage() =>
-    FileDownloadQueueStorage();
+DownloadQueueStorage createDownloadQueueStorage() => FileDownloadQueueStorage();

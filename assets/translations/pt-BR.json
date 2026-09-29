@@ -127,7 +127,48 @@
       "scheduledFor": "Agendado para"
     },
     "totalDuration": "Duracao total",
-    "setStartTime": "Definir inicio"
+    "setStartTime": "Definir inicio",
+    "importJa": "Importar liturgia (.ja)",
+    "importJaInvalid": "Arquivo .ja inválido",
+    "importJaDone": "Importado: {added} adicionados, {skipped} duplicados",
+    "lock": "Bloquear liturgia",
+    "unlock": "Desbloquear liturgia",
+    "deleteDay": "Excluir liturgia do dia",
+    "deleteDayTitle": "Excluir liturgia",
+    "deleteDayConfirm": "Excluir todos os itens da liturgia de {count}?",
+    "avulsa": {
+      "title": "Liturgia Avulsa",
+      "changeDate": "Alterar data",
+      "empty": "Nenhuma liturgia para esta data. Toque em + para começar.",
+      "deleteConfirm": "Excluir a liturgia avulsa desta data?",
+      "openAvulsa": "Liturgia avulsa"
+    },
+    "importJaOverwriteTitle": "Itens duplicados",
+    "importJaOverwriteAsk": "{count} item(ns) do arquivo já existem na liturgia. Sobrescrever os dias afetados com o conteúdo do arquivo?",
+    "importJaKeep": "Manter e adicionar novos",
+    "importJaOverwrite": "Sobrescrever dias",
+    "importJaOverwritten": "Liturgia sobrescrita: {added} itens",
+    "scheduled": {
+      "import": "Importar itens agendados (Delphi)",
+      "title": "Itens agendados desta data",
+      "noCategory": "Sem categoria",
+      "notes": "Observações",
+      "addToLiturgy": "Adicionar à liturgia",
+      "imported": "Importados {count} itens agendados",
+      "invalidXml": "Arquivo .xml inválido",
+      "notPorted": "Arquivo do LouvorJA Delphi reconhecido ({name}), mas este recurso ainda não foi portado — será suportado numa próxima versão."
+    },
+    "p2p": {
+      "title": "Controle P2P (QR)",
+      "hintScan": "Aponte a câmera pro QR exibido no web (Configurações → Controle → P2P)",
+      "hintShow": "Mostre este QR pra webcam do web — ou copie o texto abaixo e cole lá",
+      "negotiating": "Negociando conexão…",
+      "badOffer": "QR inválido (não é um offer do web)",
+      "connected": "Conectado!",
+      "disconnected": "Desconectado",
+      "scannerUnavailable": "Scanner indisponível nesta plataforma",
+      "copyFallback": "Se o QR não couber/ler, copie e cole no web:"
+    }
   },
   "bible": {
     "title": "Bíblia",
@@ -164,7 +205,15 @@
       "loadChapterFailed": "Não foi possível carregar o capítulo selecionado."
     },
     "previousChapter": "Capítulo anterior",
-    "nextChapter": "Próximo capítulo"
+    "nextChapter": "Próximo capítulo",
+    "referenceHint": "Ex: gn 1:1-3 ou genesis 2:3,5",
+    "referenceInvalid": "Referência inválida",
+    "bookNotFound": "Livro não encontrado",
+    "filterVersesHint": "Filtrar texto ou versos: amor, 3, 1-3, 1,3-5",
+    "globalResults": "Resultados na Bíblia",
+    "globalSearching": "Buscando na Bíblia…",
+    "quickSearchHint": "Referência (gn 1:1-3) ou texto...",
+    "goToReference": "Ir para referência"
   },
   "settings": {
     "title": "Configurações",
@@ -186,7 +235,8 @@
     "languagePortuguese": "Portugues (BR)",
     "languageEnglish": "English",
     "languageSpanish": "Espanol",
-    "version": "Versao"
+    "version": "Versao",
+    "privacyPolicy": "Política de Privacidade"
   },
   "timer": {
     "title": "Cronômetro",
@@ -213,7 +263,9 @@
     "bible": "Biblia",
     "bibleSubtitle": "Livros, capitulos e versiculos",
     "timer": "Cronometro",
-    "timerSubtitle": "Stopwatch e contagem regressiva"
+    "timerSubtitle": "Stopwatch e contagem regressiva",
+    "remoteControl": "Controle Remoto",
+    "remoteControlSubtitle": "Comande a liturgia e o player do desktop"
   },
   "search": {
     "title": "Busca",
@@ -244,7 +296,13 @@
     "customizeHint": "Cores, fonte, tamanho",
     "turnOff": "Desligar palco",
     "castOn": "Palco ativo",
-    "castOff": "Transmitir para TV"
+    "castOff": "Transmitir para TV",
+    "yourIp": "Seu IP (digite na TV)",
+    "ipHint": "Abra o app Palco na TV → digite este IP",
+    "dlnaSection": "TVs DLNA (hinos/slides)",
+    "palcoSection": "Palco LouvorJA (receiver webOS)",
+    "palcoManual": "Conectar Palco manual",
+    "palcoManualHint": "IP da TV onde o receiver já está aberto"
   },
   "sync": {
     "sectionTitle": "Sincronização",
@@ -261,30 +319,104 @@
   },
   "remote": {
     "title": "Controle Remoto",
-    "subtitle": "Controle o Piano no desktop ou no navegador pelo celular",
-    "mode_idle": "Desconectado",
-    "mode_desktop": "Desktop (Electron)",
-    "mode_web": "Navegador (web)",
-    "desktop_host": "Endereço do desktop",
-    "desktop_hint": "IP:porta (ex.: 192.168.1.50:7070)",
-    "token_label": "Token de emparelhamento",
+    "palcoOff": "Ligue o Palco primeiro — o controle usa a mesma conexão.",
+    "noTargets": "Nenhum desktop/web conectado.",
+    "noTargetsHint": "Abra o LouvorJA no desktop na mesma rede e conecte ao Palco.",
+    "desktop": "Desktop",
+    "playing": "Tocando",
+    "paused": "Pausado",
+    "volume": "Volume",
+    "web": "Web",
+    "subtitle": "Comande o LouvorJA do desktop a partir daqui",
+    "desktop_host": "Desktop (IP:porta)",
+    "desktop_hint": "ex: 192.168.1.50:7081",
     "connect": "Conectar",
     "disconnect": "Desconectar",
-    "start_weblink": "Controlar o navegador",
-    "weblink_url": "Abra no navegador do desktop:",
-    "weblink_waiting": "Aguardando o navegador conectar…",
-    "connected_to": "Conectado a {target}",
-    "status_disconnected": "Desconectado",
-    "status_connecting": "Conectando…",
+    "mode_desktop": "Modo desktop",
+    "mode_web": "Modo web link",
+    "start_weblink": "Iniciar web link",
+    "weblink_url": "Endereço do web link",
+    "weblink_waiting": "Aguardando conexão…",
+    "no_state": "Sem estado do player",
     "status_connected": "Conectado",
-    "status_listening": "Aguardando navegador",
-    "no_state": "Nenhuma mídia em execução no alvo",
-    "cmd_failed": "O alvo não confirmou o comando",
+    "status_connecting": "Conectando…",
+    "status_listening": "Aguardando desktop…",
+    "status_disconnected": "Desconectado",
     "play": "Tocar",
     "pause": "Pausar",
-    "previous": "Anterior",
-    "next": "Próximo",
     "stop": "Parar",
-    "volume": "Volume"
+    "next": "Próxima",
+    "previous": "Anterior",
+    "liturgy": "Liturgia do desktop",
+    "token": "Token de emparelhamento",
+    "scanQr": "Escanear QR",
+    "qrInvalid": "QR inválido — gere um novo nas Configurações do desktop",
+    "torch": "Lanterna",
+    "cameraError": "Não foi possível abrir a câmera. Verifique a permissão em Configurações do Android > Apps > LouvorJA > Permissões.",
+    "connectFirst": "Conecte primeiro em Configurações → Controle Remoto",
+    "noLiturgy": "Nenhuma liturgia no desktop",
+    "mirroring": "Espelhado do desktop — toque para executar",
+    "controlsMoved": "Os controles estão em Ferramentas → Controle Remoto",
+    "liturgyInLiturgyModule": "Liturgia espelhada: {count} itens",
+    "openLiturgyModule": "Ver no módulo de Liturgia",
+    "mirroringLocked": "Liturgia espelhada do desktop (bloqueada)",
+    "wsDetected": "Conexão desktop detectada — conectando…",
+    "p2pDetected": "Pareamento web P2P detectado — gere a resposta…",
+    "unknownQr": "QR não reconhecido — tentando P2P…",
+    "tabLiturgy": "Liturgia",
+    "tabBible": "Bíblia",
+    "tabTime": "Tempo",
+    "bible": {
+      "hint": "Digite livro (número), capítulo e versículo e projete no desktop.",
+      "book": "Livro (nº)",
+      "chapter": "Capítulo",
+      "verse": "Versículo",
+      "open": "Abrir e projetar",
+      "close": "Fechar projeção",
+      "waiting": "Carregando catálogo da Bíblia…",
+      "version": "Versão"
+    },
+    "timer": {
+      "title": "Cronômetro"
+    },
+    "countdown": {
+      "title": "Contagem regressiva",
+      "edit": "Editar duração",
+      "apply": "Aplicar duração",
+      "minutes": "Min",
+      "seconds": "Seg"
+    },
+    "marks": "Marcas",
+    "mark": "Marcar",
+    "reset": "Zerar",
+    "tabMore": "Mais",
+    "clock": {
+      "title": "Relógio"
+    },
+    "random": {
+      "title": "Sorteio",
+      "generateNumbers": "Gerar números 1–100",
+      "numbers": "Números",
+      "names": "Nomes",
+      "min": "Mín",
+      "max": "Máx",
+      "applyRange": "Aplicar intervalo",
+      "namesHint": "Nomes (um por linha)",
+      "importNames": "Importar nomes",
+      "drawing": "Sorteando…",
+      "drawnList": "Sorteados",
+      "returnName": "Devolver"
+    },
+    "project": "Projetar",
+    "draw": "Sortear",
+    "tabHymns": "Hinos",
+    "hymns": {
+      "search": "Buscar hino",
+      "empty": "Busque pelo número ou nome"
+    },
+    "stopProjection": "Parar projeção"
+  },
+  "albums": {
+    "playAll": "Tocar tudo"
   }
 }

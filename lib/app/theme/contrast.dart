@@ -15,11 +15,15 @@ import 'package:flutter/painting.dart' show HSVColor;
 double _luminance(Color c) {
   double lin(int v) {
     final s = v / 255.0;
-    return s <= 0.04045 ? s / 12.92 : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
+    return s <= 0.04045
+        ? s / 12.92
+        : math.pow((s + 0.055) / 1.055, 2.4).toDouble();
   }
 
   int chan(double d) => (d * 255.0).round().clamp(0, 255);
-  return 0.2126 * lin(chan(c.r)) + 0.7152 * lin(chan(c.g)) + 0.0722 * lin(chan(c.b));
+  return 0.2126 * lin(chan(c.r)) +
+      0.7152 * lin(chan(c.g)) +
+      0.0722 * lin(chan(c.b));
 }
 
 /// Razao de contraste WCAG entre duas cores (1..21).

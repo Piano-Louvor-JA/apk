@@ -73,7 +73,10 @@ class HymnsBloc extends Bloc<HymnsEvent, HymnsState> {
   /// Exposto para páginas filhas (AlbumDetailPage) buscarem hinos.
   HymnRepository get repository => _repository;
 
-  Future<void> _onLoad(HymnsLoadRequested event, Emitter<HymnsState> emit) async {
+  Future<void> _onLoad(
+    HymnsLoadRequested event,
+    Emitter<HymnsState> emit,
+  ) async {
     emit(HymnsLoading());
     try {
       final categories = await _repository.getCategories();
@@ -89,7 +92,10 @@ class HymnsBloc extends Bloc<HymnsEvent, HymnsState> {
     }
   }
 
-  Future<void> _onRefresh(HymnsRefreshRequested event, Emitter<HymnsState> emit) async {
+  Future<void> _onRefresh(
+    HymnsRefreshRequested event,
+    Emitter<HymnsState> emit,
+  ) async {
     try {
       final categories = await _repository.getCategories();
       unawaited(_syncCatalog(categories));

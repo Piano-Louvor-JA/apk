@@ -46,6 +46,7 @@ Todos servidos de `{VITE_URL_DATABASE}/{filename}?{YYYYMMDD}`
 | `pt_hymnal_1996` | Hinário | `Array<HymnalRow>` | Hinário Adventista Edição 1996 |
 | `pt_categories` | Álbuns | `Array<Category>` | Categorias + coletâneas |
 | `album_{id}` | Álbuns | `AlbumRecord` | Músicas de uma coletânea |
+| `music_{id}` | Detalhe | `MusicRecord` | Metadados completos, URLs de áudio e letra estruturada |
 | `pt_musics` | Busca | `Array<MusicIndexRow>` | Índice global de todas as músicas |
 | `pt_bible_book` | Bíblia | `Array<BibleBookRow>` | 66 livros da Bíblia |
 | `pt_bible_version` | Bíblia | `Array<BibleVersionRow>` | Versões disponíveis (ARA, NVI, etc.) |

@@ -17,6 +17,7 @@ class BibleBook {
   final int chapters;
   final int bookNumber;
   final String languageId;
+
   /// Cor canonica fornecida pela API/web para manter paridade visual.
   final String? color;
 
@@ -43,13 +44,13 @@ class BibleBook {
   }
 
   Map<String, dynamic> toJson() => {
-        'id_bible_book': id,
-        'name': name,
-        'abbreviation': abbreviation,
-        'chapters': chapters,
-        'book_number': bookNumber,
-        'id_language': languageId,
-      };
+    'id_bible_book': id,
+    'name': name,
+    'abbreviation': abbreviation,
+    'chapters': chapters,
+    'book_number': bookNumber,
+    'id_language': languageId,
+  };
 
   /// Testamento baseado no bookNumber (1-39 = OT, 40-66 = NT).
   BibleTestament get testament =>

@@ -32,7 +32,13 @@ class ScheduledDateTimeCard extends StatelessWidget {
       initialTime: TimeOfDay.fromDateTime(initial),
     );
     if (time == null) return;
-    value.value = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    value.value = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     onChanged();
   }
 
@@ -57,21 +63,29 @@ class ScheduledDateTimeCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  Icon(TablerIcons.calendarTime, color: theme.colorScheme.primary),
+                  Icon(
+                    TablerIcons.calendarTime,
+                    color: theme.colorScheme.primary,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('liturgy.fields.scheduledFor'.tr(),
-                            style: theme.textTheme.labelSmall),
+                        Text(
+                          'liturgy.fields.scheduledFor'.tr(),
+                          style: theme.textTheme.labelSmall,
+                        ),
                         const SizedBox(height: 2),
                         Text(label, style: theme.textTheme.bodyMedium),
                       ],
                     ),
                   ),
-                  Icon(TablerIcons.chevronRight,
-                      size: 20, color: theme.colorScheme.onSurfaceVariant),
+                  Icon(
+                    TablerIcons.chevronRight,
+                    size: 20,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ],
               ),
             ),

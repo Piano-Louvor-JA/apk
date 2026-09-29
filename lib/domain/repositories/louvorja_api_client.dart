@@ -47,5 +47,8 @@ abstract interface class LouvorjaApiClient {
 
   /// GET json_db/bible_{versionId}_{bookId}_{chapter} → versículos.
   Future<Map<String, String>> fetchBibleChapter(
-      int versionId, int bookId, int chapter);
+    int versionId,
+    int bookId,
+    int chapter,
+  );
 }

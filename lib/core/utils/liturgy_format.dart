@@ -23,7 +23,9 @@ abstract final class LiturgyFormat {
   /// Normaliza horario HH:MM (aceita HH:MM:SS).
   static String? normalizeTimeHHmm(String? raw) {
     if (raw == null) return null;
-    final match = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(raw.trim());
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$',
+    ).firstMatch(raw.trim());
     if (match == null) return null;
     final hours = int.tryParse(match.group(1)!);
     final minutes = int.tryParse(match.group(2)!);

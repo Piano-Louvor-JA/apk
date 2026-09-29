@@ -71,61 +71,121 @@ void main() {
 
     test('tone: law para bookNumber 1-5', () {
       const genesis = BibleBook(
-          id: 1, name: 'Gn', abbreviation: 'Gn', chapters: 50, bookNumber: 1);
+        id: 1,
+        name: 'Gn',
+        abbreviation: 'Gn',
+        chapters: 50,
+        bookNumber: 1,
+      );
       expect(genesis.tone, BibleBookTone.law);
     });
 
     test('tone: history para bookNumber 6-17', () {
       const joshua = BibleBook(
-          id: 6, name: 'Js', abbreviation: 'Js', chapters: 24, bookNumber: 6);
+        id: 6,
+        name: 'Js',
+        abbreviation: 'Js',
+        chapters: 24,
+        bookNumber: 6,
+      );
       expect(joshua.tone, BibleBookTone.history);
     });
 
     test('tone: prophets para bookNumber 18-39', () {
       const job = BibleBook(
-          id: 18, name: 'Jó', abbreviation: 'Jó', chapters: 42, bookNumber: 18);
+        id: 18,
+        name: 'Jó',
+        abbreviation: 'Jó',
+        chapters: 42,
+        bookNumber: 18,
+      );
       expect(job.tone, BibleBookTone.prophets);
     });
 
     test('tone: gospels para bookNumber 40-43', () {
       const matthew = BibleBook(
-          id: 40, name: 'Mt', abbreviation: 'Mt', chapters: 28, bookNumber: 40);
+        id: 40,
+        name: 'Mt',
+        abbreviation: 'Mt',
+        chapters: 28,
+        bookNumber: 40,
+      );
       expect(matthew.tone, BibleBookTone.gospels);
     });
 
     test('tone: letters para bookNumber 44-66', () {
       const acts = BibleBook(
-          id: 44, name: 'At', abbreviation: 'At', chapters: 28, bookNumber: 44);
+        id: 44,
+        name: 'At',
+        abbreviation: 'At',
+        chapters: 28,
+        bookNumber: 44,
+      );
       expect(acts.tone, BibleBookTone.letters);
     });
 
     test('== por id', () {
       const a = BibleBook(
-          id: 1, name: 'A', abbreviation: 'a', chapters: 1, bookNumber: 1);
+        id: 1,
+        name: 'A',
+        abbreviation: 'a',
+        chapters: 1,
+        bookNumber: 1,
+      );
       const b = BibleBook(
-          id: 1, name: 'B', abbreviation: 'b', chapters: 2, bookNumber: 2);
+        id: 1,
+        name: 'B',
+        abbreviation: 'b',
+        chapters: 2,
+        bookNumber: 2,
+      );
       expect(a == b, true);
     });
 
     test('!= por id diferente', () {
       const a = BibleBook(
-          id: 1, name: 'A', abbreviation: 'a', chapters: 1, bookNumber: 1);
+        id: 1,
+        name: 'A',
+        abbreviation: 'a',
+        chapters: 1,
+        bookNumber: 1,
+      );
       const b = BibleBook(
-          id: 2, name: 'A', abbreviation: 'a', chapters: 1, bookNumber: 1);
+        id: 2,
+        name: 'A',
+        abbreviation: 'a',
+        chapters: 1,
+        bookNumber: 1,
+      );
       expect(a == b, false);
     });
 
     test('hashCode consistente', () {
       const a = BibleBook(
-          id: 1, name: 'A', abbreviation: 'a', chapters: 1, bookNumber: 1);
+        id: 1,
+        name: 'A',
+        abbreviation: 'a',
+        chapters: 1,
+        bookNumber: 1,
+      );
       const b = BibleBook(
-          id: 1, name: 'B', abbreviation: 'b', chapters: 2, bookNumber: 2);
+        id: 1,
+        name: 'B',
+        abbreviation: 'b',
+        chapters: 2,
+        bookNumber: 2,
+      );
       expect(a.hashCode, b.hashCode);
     });
 
     test('toString contem id e name', () {
       const book = BibleBook(
-          id: 43, name: 'João', abbreviation: 'Jo', chapters: 21, bookNumber: 43);
+        id: 43,
+        name: 'João',
+        abbreviation: 'Jo',
+        chapters: 21,
+        bookNumber: 43,
+      );
       expect(book.toString(), contains('João'));
     });
   });
@@ -179,8 +239,14 @@ void main() {
     });
 
     test('== tipo diferente', () {
-      expect(const BibleVersion(id: 1, abbreviation: 'A', name: 'X') == 'str', false);
-      expect(const BibleVersion(id: 1, abbreviation: 'A', name: 'X') == 42, false);
+      expect(
+        const BibleVersion(id: 1, abbreviation: 'A', name: 'X') == 'str',
+        false,
+      );
+      expect(
+        const BibleVersion(id: 1, abbreviation: 'A', name: 'X') == 42,
+        false,
+      );
     });
 
     test('identical', () {
@@ -197,11 +263,7 @@ void main() {
     });
 
     test('sortedVerses retorna em ordem numerica', () {
-      final ch = BibleChapter(verses: {
-        '3': 'C',
-        '1': 'A',
-        '2': 'B',
-      });
+      final ch = BibleChapter(verses: {'3': 'C', '1': 'A', '2': 'B'});
       final sorted = ch.sortedVerseEntries;
       expect(sorted[0].number, 1);
       expect(sorted[1].number, 2);

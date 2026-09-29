@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
 
 void main() {
@@ -17,7 +18,8 @@ void main() {
 
     test('preserva barras separadoras do path', () {
       final url = DownloadUrlBuilder.build('/musics/pt/pasta/arquivo.mp3');
-      expect(url, 'https://api.louvorja.com.br/file/musics/pt/pasta/arquivo.mp3');
+      // Base vem de ApiConfig.urlFiles (--dart-define); sem env = ''.
+      expect(url, '${ApiConfig.urlFiles}/musics/pt/pasta/arquivo.mp3');
     });
 
     test('URL absoluta http retorna inalterada', () {
@@ -27,7 +29,7 @@ void main() {
 
     test('remove barras iniciais duplicadas', () {
       final url = DownloadUrlBuilder.build('//musics/a.mp3');
-      expect(url, 'https://api.louvorja.com.br/file/musics/a.mp3');
+      expect(url, '${ApiConfig.urlFiles}/musics/a.mp3');
     });
 
     test('path vazio nao quebra', () {

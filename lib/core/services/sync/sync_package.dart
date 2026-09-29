@@ -35,13 +35,12 @@ class SyncPackage {
     String? platform,
     DateTime? exportedAt,
     Map<String, SyncEntity>? entities,
-  }) =>
-      SyncPackage(
-        appVersion: appVersion ?? this.appVersion,
-        platform: platform ?? this.platform,
-        exportedAt: exportedAt ?? this.exportedAt,
-        entities: entities ?? this.entities,
-      );
+  }) => SyncPackage(
+    appVersion: appVersion ?? this.appVersion,
+    platform: platform ?? this.platform,
+    exportedAt: exportedAt ?? this.exportedAt,
+    entities: entities ?? this.entities,
+  );
 
   String encode() => jsonEncode(toJson());
 
@@ -60,18 +59,18 @@ class SyncPackage {
       platform: j['platform'] as String? ?? '',
       exportedAt:
           DateTime.tryParse(j['exportedAt'] as String? ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0),
+          DateTime.fromMillisecondsSinceEpoch(0),
       entities: ents,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'schema': schemaVersion,
-        'appVersion': appVersion,
-        'platform': platform,
-        'exportedAt': exportedAt.toIso8601String(),
-        'entities': entities.map((k, v) => MapEntry(k, v.toJson())),
-      };
+    'schema': schemaVersion,
+    'appVersion': appVersion,
+    'platform': platform,
+    'exportedAt': exportedAt.toIso8601String(),
+    'entities': entities.map((k, v) => MapEntry(k, v.toJson())),
+  };
 
   /// Merge LWW: mantém, por entidade, a versão com `modified` mais recente.
   /// Retorna um NOVO pacote (imutável).
@@ -105,15 +104,18 @@ class SyncEntity {
   });
 
   factory SyncEntity.fromJson(Map<String, dynamic> j) => SyncEntity(
-        type: j['type'] as String? ?? '',
-        modified:
-            DateTime.tryParse(j['modified'] as String? ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0),
-        data: (j['data'] as Map<String, dynamic>? ?? {}).cast<String, dynamic>(),
-      );
+    type: j['type'] as String? ?? '',
+    modified:
+        DateTime.tryParse(j['modified'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0),
+    data: (j['data'] as Map<String, dynamic>? ?? {}).cast<String, dynamic>(),
+  );
 
-  Map<String, dynamic> toJson() =>
-      {'type': type, 'modified': modified.toIso8601String(), 'data': data};
+  Map<String, dynamic> toJson() => {
+    'type': type,
+    'modified': modified.toIso8601String(),
+    'data': data,
+  };
 }
 
 /// Schema incompatível: importador antigo recebeu pacote do futuro.

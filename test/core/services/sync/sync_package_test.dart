@@ -18,7 +18,9 @@ void main() {
         exportedAt: t1,
         entities: {
           'liturgy:2026-08-22': ent('liturgy', t1, {'weekday': 'sabado'}),
-          'favorites': ent('favorites', t2, {'ids': [1, 2]}),
+          'favorites': ent('favorites', t2, {
+            'ids': [1, 2],
+          }),
         },
       );
       final raw = pkg.encode();
@@ -30,15 +32,23 @@ void main() {
 
     test('merge LWW mantém versão mais recente por entidade', () {
       final a = SyncPackage(
-          appVersion: 'a', platform: 'mobile', exportedAt: t1, entities: {
-        'liturgy:2026-08-22': ent('liturgy', t2, {'v': 'nova'}),
-        'favorites': ent('favorites', t1, {'v': 'antiga'}),
-      });
+        appVersion: 'a',
+        platform: 'mobile',
+        exportedAt: t1,
+        entities: {
+          'liturgy:2026-08-22': ent('liturgy', t2, {'v': 'nova'}),
+          'favorites': ent('favorites', t1, {'v': 'antiga'}),
+        },
+      );
       final b = SyncPackage(
-          appVersion: 'b', platform: 'web', exportedAt: t2, entities: {
-        'liturgy:2026-Vue.': ent('liturgy', t2, {'v': 'velha'}),
-        'favorites': ent('favorites', t2, {'v': 'nova'}),
-      });
+        appVersion: 'b',
+        platform: 'web',
+        exportedAt: t2,
+        entities: {
+          'liturgy:2026-Vue.': ent('liturgy', t2, {'v': 'velha'}),
+          'favorites': ent('favorites', t2, {'v': 'nova'}),
+        },
+      );
       // liturgia: a tem t2 14:00 == b tem t2 14:00 — isAfter false → mantém a
       final m = a.merge(b);
       expect(m.entities['favorites']!.data['v'], 'nova'); // b ganhou (t2>t1)
@@ -47,13 +57,21 @@ void main() {
 
     test('merge LWW: mesma entidade com timestamps iguais mantém local', () {
       final a = SyncPackage(
-          appVersion: 'a', platform: 'mobile', exportedAt: t1, entities: {
-        'liturgy:d': ent('liturgy', t2, {'v': 'local'}),
-      });
+        appVersion: 'a',
+        platform: 'mobile',
+        exportedAt: t1,
+        entities: {
+          'liturgy:d': ent('liturgy', t2, {'v': 'local'}),
+        },
+      );
       final b = SyncPackage(
-          appVersion: 'b', platform: 'web', exportedAt: t2, entities: {
-        'liturgy:d': ent('liturgy', t2, {'v': 'remoto'}),
-      });
+        appVersion: 'b',
+        platform: 'web',
+        exportedAt: t2,
+        entities: {
+          'liturgy:d': ent('liturgy', t2, {'v': 'remoto'}),
+        },
+      );
       final m = a.merge(b);
       expect(m.entities['liturgy:d']!.data['v'], 'local');
     });

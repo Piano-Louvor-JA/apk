@@ -5,6 +5,8 @@ library;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
+
+import 'package:louvorja_piano_mobile/core/services/liturgy/media_duration_reader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
@@ -15,6 +17,7 @@ import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/bloc/liturgy_bloc.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/scheduled_datetime_card.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/hymn_search_delegate.dart';
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
 /// Converte camelCase enum para snake_case i18n key.
 String _typeToKey(dynamic type) {
@@ -29,13 +32,24 @@ String _typeToKey(dynamic type) {
 const _typeGroups = <_TypeGroup>[
   _TypeGroup(
     labelKey: 'liturgy.dialog.groups.default',
-    types: [LiturgyItemType.music, LiturgyItemType.annotation, LiturgyItemType.notice,
-            LiturgyItemType.scheduled, LiturgyItemType.prayer, LiturgyItemType.verse],
+    types: [
+      LiturgyItemType.music,
+      LiturgyItemType.annotation,
+      LiturgyItemType.notice,
+      LiturgyItemType.scheduled,
+      LiturgyItemType.prayer,
+      LiturgyItemType.verse,
+    ],
   ),
   _TypeGroup(
     labelKey: 'liturgy.dialog.groups.internal',
-    types: [LiturgyItemType.video, LiturgyItemType.images, LiturgyItemType.pdf,
-            LiturgyItemType.presentation, LiturgyItemType.otherFiles],
+    types: [
+      LiturgyItemType.video,
+      LiturgyItemType.images,
+      LiturgyItemType.pdf,
+      LiturgyItemType.presentation,
+      LiturgyItemType.otherFiles,
+    ],
   ),
   _TypeGroup(
     labelKey: 'liturgy.dialog.groups.external',
@@ -51,8 +65,11 @@ class _TypeGroup {
 
 const _urlTypes = {LiturgyItemType.onlineVideo, LiturgyItemType.site};
 const _fileTypes = {
-  LiturgyItemType.video, LiturgyItemType.images, LiturgyItemType.pdf,
-  LiturgyItemType.presentation, LiturgyItemType.otherFiles,
+  LiturgyItemType.video,
+  LiturgyItemType.images,
+  LiturgyItemType.pdf,
+  LiturgyItemType.presentation,
+  LiturgyItemType.otherFiles,
 };
 
 /// Builder helper para um chip de tipo.
@@ -82,19 +99,26 @@ Widget _buildTypeChip(
             ? meta.color.withValues(alpha: 0.2)
             : Theme.of(ctx).colorScheme.surfaceContainerHighest,
         borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+          topLeft: Radius.circular(8),
+          bottomRight: Radius.circular(8),
+        ),
         border: selected
             ? Border.all(color: meta.color, width: 1.5)
             : Border.all(color: Colors.transparent, width: 1.5),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(meta.icon, size: 14, color: meta.color),
-        const SizedBox(width: 4),
-        Text('liturgy.types.${_typeToKey(t)}'.tr(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(meta.icon, size: 14, color: meta.color),
+          const SizedBox(width: 4),
+          Text(
+            'liturgy.types.${_typeToKey(t)}'.tr(),
             style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                )),
-      ]),
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -104,6 +128,7 @@ void showLiturgyItemDialog(
   LiturgyItem? existing,
   String? parentCategoryId,
   bool isCategory = false,
+  void Function(LiturgyItem item)? onSubmit,
 }) {
   final isEditing = existing != null;
   final nameCtrl = TextEditingController(text: existing?.name ?? '');
@@ -112,12 +137,15 @@ void showLiturgyItemDialog(
   final notesCtrl = TextEditingController(text: existing?.notes ?? '');
   final filePathCtrl = TextEditingController(text: existing?.filePath ?? '');
   final scheduledAt = ValueNotifier<DateTime?>(
-    existing?.scheduledAt == null ? null : DateTime.tryParse(existing!.scheduledAt!),
+    existing?.scheduledAt == null
+        ? null
+        : DateTime.tryParse(existing!.scheduledAt!),
   );
   // null = nenhum tipo selecionado (usuario precisa escolher)
   final type = ValueNotifier<LiturgyItemType?>(existing?.type);
   final durationMinutes = ValueNotifier<int>(
-      existing != null ? existing.durationMs ~/ 60000 : 0);
+    existing != null ? existing.durationMs ~/ 60000 : 0,
+  );
   final selectedMusicId = ValueNotifier<int?>(existing?.musicId);
   final selectedMusicLabel = ValueNotifier<String>(existing?.name ?? '');
 
@@ -142,15 +170,19 @@ void showLiturgyItemDialog(
                 Row(
                   children: [
                     Container(
-                      width: 32, height: 32,
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
                         color: Theme.of(ctx).colorScheme.primaryContainer,
                         borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                          topLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
                       ),
                       child: Icon(
                         isEditing ? TablerIcons.pencil : TablerIcons.plus,
-                        size: 18, color: Theme.of(ctx).colorScheme.primary,
+                        size: 18,
+                        color: Theme.of(ctx).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -159,10 +191,11 @@ void showLiturgyItemDialog(
                         isEditing
                             ? 'liturgy.actions.edit'.tr()
                             : parentCategoryId != null
-                                ? 'liturgy.actions.addSubItem'.tr()
-                                : 'liturgy.addItem'.tr(),
-                        style: Theme.of(ctx).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                            ? 'liturgy.actions.addSubItem'.tr()
+                            : 'liturgy.addItem'.tr(),
+                        style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -177,29 +210,48 @@ void showLiturgyItemDialog(
                 // -- Seletor de tipo em grupos --
                 // Sempre mostra a menos que seja categoria forçada (isCategory)
                 if (!isCategory) ...[
-                  Text('liturgy.dialog.itemType'.tr(),
-                      style: Theme.of(ctx).textTheme.labelSmall),
+                  Text(
+                    'liturgy.dialog.itemType'.tr(),
+                    style: Theme.of(ctx).textTheme.labelSmall,
+                  ),
                   const SizedBox(height: AppSpacing.s2),
 
                   // Se nao tem parentCategoryId, mostra Categoria como primeira opcao
                   if (parentCategoryId == null) ...[
-                    Wrap(spacing: 6, runSpacing: 6, children: [
-                      _buildTypeChip(ctx, LiturgyItemType.category, type, setModalState,
-                        selectedMusicId, selectedMusicLabel),
-                    ]),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _buildTypeChip(
+                          ctx,
+                          LiturgyItemType.category,
+                          type,
+                          setModalState,
+                          selectedMusicId,
+                          selectedMusicLabel,
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: AppSpacing.s2),
                   ],
 
                   // Grupos de chips
                   for (final group in _typeGroups) ...[
-                    if (group.types.any((t) => type.value == t ||
-                        LiturgyTypeRegistry.allTypes.contains(t))) ...[
-                      Text(group.labelKey.tr(),
-                          style: Theme.of(ctx).textTheme.labelSmall
-                              ?.copyWith(color: Theme.of(ctx).colorScheme.primary)),
+                    if (group.types.any(
+                      (t) =>
+                          type.value == t ||
+                          LiturgyTypeRegistry.allTypes.contains(t),
+                    )) ...[
+                      Text(
+                        group.labelKey.tr(),
+                        style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.primary,
+                        ),
+                      ),
                       const SizedBox(height: AppSpacing.s1),
                       Wrap(
-                        spacing: 6, runSpacing: 6,
+                        spacing: 6,
+                        runSpacing: 6,
                         children: group.types.map((t) {
                           final meta = LiturgyTypeRegistry.metaFor(t);
                           final selected = type.value == t;
@@ -213,26 +265,43 @@ void showLiturgyItemDialog(
                             }),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: selected
                                     ? meta.color.withValues(alpha: 0.2)
-                                    : Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                                    : Theme.of(
+                                        ctx,
+                                      ).colorScheme.surfaceContainerHighest,
                                 borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(8),
-                                    bottomRight: Radius.circular(8)),
+                                  topLeft: Radius.circular(8),
+                                  bottomRight: Radius.circular(8),
+                                ),
                                 border: selected
                                     ? Border.all(color: meta.color, width: 1.5)
-                                    : Border.all(color: Colors.transparent, width: 1.5),
+                                    : Border.all(
+                                        color: Colors.transparent,
+                                        width: 1.5,
+                                      ),
                               ),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                Icon(meta.icon, size: 14, color: meta.color),
-                                const SizedBox(width: 4),
-                                Text('liturgy.types.${_typeToKey(t)}'.tr(),
-                                    style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                    )),
-                              ]),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(meta.icon, size: 14, color: meta.color),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'liturgy.types.${_typeToKey(t)}'.tr(),
+                                    style: Theme.of(ctx).textTheme.labelSmall
+                                        ?.copyWith(
+                                          fontWeight: selected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         }).toList(),
@@ -243,7 +312,8 @@ void showLiturgyItemDialog(
                 ],
 
                 // -- Campos dinamicos (so aparece apos escolher tipo) --
-                if (type.value != null && type.value != LiturgyItemType.category) ...[
+                if (type.value != null &&
+                    type.value != LiturgyItemType.category) ...[
                   // Musica: buscar hino
                   if (type.value == LiturgyItemType.music) ...[
                     _MusicSelectorCard(
@@ -254,9 +324,12 @@ void showLiturgyItemDialog(
                           context: context,
                           delegate: HymnSearchDelegate(() async {
                             final api = LouvorjaApiImpl(
-                              baseUrl: 'https://api.louvorja.com.br/json_db',
-                              filesUrl: 'https://api.louvorja.com.br/file',
-                              apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
+                              baseUrls: ApiConfig.databaseUrls(),
+                              filesUrls: ApiConfig.filesUrls(),
+                              apiToken: const String.fromEnvironment(
+                                'API_TOKEN',
+                                defaultValue: '',
+                              ),
                             );
                             return await api.fetchHymnal();
                           }),
@@ -264,10 +337,15 @@ void showLiturgyItemDialog(
                         if (result != null) {
                           setModalState(() {
                             selectedMusicId.value = result.id;
-                            selectedMusicLabel.value = result.title ?? 'Hino ${result.id}';
-                            if (nameCtrl.text.isEmpty) nameCtrl.text = result.title ?? '';
-                            if (result.durationMs != null && result.durationMs! > 0) {
-                              durationMinutes.value = result.durationMs! ~/ 60000;
+                            selectedMusicLabel.value =
+                                result.title ?? 'Hino ${result.id}';
+                            if (nameCtrl.text.isEmpty) {
+                              nameCtrl.text = result.title ?? '';
+                            }
+                            if (result.durationMs != null &&
+                                result.durationMs! > 0) {
+                              durationMinutes.value =
+                                  result.durationMs! ~/ 60000;
                             }
                           });
                         }
@@ -295,7 +373,9 @@ void showLiturgyItemDialog(
                         prefixIcon: const Icon(TablerIcons.link, size: 18),
                         border: const OutlineInputBorder(
                           borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                            topLeft: Radius.circular(8),
+                            bottomRight: Radius.circular(8),
+                          ),
                         ),
                       ),
                       keyboardType: TextInputType.url,
@@ -312,16 +392,27 @@ void showLiturgyItemDialog(
                           type: type.value == LiturgyItemType.images
                               ? FileType.image
                               : type.value == LiturgyItemType.video
-                                  ? FileType.video
-                                  : type.value == LiturgyItemType.pdf
-                                      ? FileType.custom
-                                      : FileType.any,
+                              ? FileType.video
+                              : type.value == LiturgyItemType.pdf
+                              ? FileType.custom
+                              : FileType.any,
                           allowMultiple: type.value == LiturgyItemType.images,
                         );
                         if (result != null && result.files.isNotEmpty) {
+                          final path = result.files.first.path;
+                          // Duração automática de vídeo/áudio local (MP4).
+                          var probed = 0;
+                          if (path != null) {
+                            probed = await MediaDurationReader.readMs(path);
+                          }
                           setModalState(() {
-                            filePathCtrl.text = result.files.first.path ?? '';
-                            if (nameCtrl.text.isEmpty) nameCtrl.text = result.files.first.name;
+                            filePathCtrl.text = path ?? '';
+                            if (nameCtrl.text.isEmpty) {
+                              nameCtrl.text = result.files.first.name;
+                            }
+                            if (probed > 0) {
+                              durationMinutes.value = probed ~/ 60000;
+                            }
                           });
                         }
                       },
@@ -330,27 +421,33 @@ void showLiturgyItemDialog(
                   ],
 
                   // Duracao (stepper)
-                  Row(children: [
-                    Text('liturgy.dialog.duration'.tr(),
-                        style: Theme.of(ctx).textTheme.labelSmall),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: 'common.decrease'.tr(),
-                      icon: const Icon(TablerIcons.minus, size: 18),
-                      onPressed: durationMinutes.value > 0
-                          ? () => setModalState(() => durationMinutes.value--)
-                          : null,
-                    ),
-                    Text('${durationMinutes.value} ${'liturgy.durationMin'.tr()}',
-                        style: Theme.of(ctx).textTheme.bodyMedium),
-                    IconButton(
-                      tooltip: 'common.increase'.tr(),
-                      icon: const Icon(TablerIcons.plus, size: 18),
-                      onPressed: durationMinutes.value < 99
-                          ? () => setModalState(() => durationMinutes.value++)
-                          : null,
-                    ),
-                  ]),
+                  Row(
+                    children: [
+                      Text(
+                        'liturgy.dialog.duration'.tr(),
+                        style: Theme.of(ctx).textTheme.labelSmall,
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: 'common.decrease'.tr(),
+                        icon: const Icon(TablerIcons.minus, size: 18),
+                        onPressed: durationMinutes.value > 0
+                            ? () => setModalState(() => durationMinutes.value--)
+                            : null,
+                      ),
+                      Text(
+                        '${durationMinutes.value} ${'liturgy.durationMin'.tr()}',
+                        style: Theme.of(ctx).textTheme.bodyMedium,
+                      ),
+                      IconButton(
+                        tooltip: 'common.increase'.tr(),
+                        icon: const Icon(TablerIcons.plus, size: 18),
+                        onPressed: durationMinutes.value < 99
+                            ? () => setModalState(() => durationMinutes.value++)
+                            : null,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.s3),
                 ],
 
@@ -367,7 +464,9 @@ void showLiturgyItemDialog(
                       hintText: 'liturgy.categoryPlaceholder'.tr(),
                       border: const OutlineInputBorder(
                         borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                          topLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
                       ),
                     ),
                   ),
@@ -378,7 +477,9 @@ void showLiturgyItemDialog(
                       labelText: 'liturgy.dialog.complementaryTitle'.tr(),
                       border: const OutlineInputBorder(
                         borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                          topLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
                       ),
                     ),
                   ),
@@ -390,7 +491,9 @@ void showLiturgyItemDialog(
                       labelText: 'liturgy.notes'.tr(),
                       border: const OutlineInputBorder(
                         borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                          topLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
                       ),
                     ),
                   ),
@@ -417,33 +520,54 @@ void showLiturgyItemDialog(
                             return;
                           }
                           final item = LiturgyItem(
-                            id: existing?.id ??
-                                DateTime.now().millisecondsSinceEpoch.toString(),
+                            id:
+                                existing?.id ??
+                                DateTime.now().millisecondsSinceEpoch
+                                    .toString(),
                             type: type.value!,
-                            name: name.isNotEmpty ? name : selectedMusicLabel.value,
+                            name: name.isNotEmpty
+                                ? name
+                                : selectedMusicLabel.value,
                             subtitle: subtitleCtrl.text.trim(),
                             durationMs: durationMinutes.value * 60000,
-                            categoryId: parentCategoryId ?? existing?.categoryId,
+                            categoryId:
+                                parentCategoryId ?? existing?.categoryId,
                             accentColor: existing?.accentColor ?? '',
                             musicId: selectedMusicId.value,
-                            url: urlCtrl.text.trim().isNotEmpty ? urlCtrl.text.trim() : null,
-                            filePath: filePathCtrl.text.trim().isNotEmpty ? filePathCtrl.text.trim() : null,
-                            notes: notesCtrl.text.trim().isNotEmpty ? notesCtrl.text.trim() : null,
-                            scheduledAt: type.value == LiturgyItemType.scheduled && scheduledAt.value != null
+                            url: urlCtrl.text.trim().isNotEmpty
+                                ? urlCtrl.text.trim()
+                                : null,
+                            filePath: filePathCtrl.text.trim().isNotEmpty
+                                ? filePathCtrl.text.trim()
+                                : null,
+                            notes: notesCtrl.text.trim().isNotEmpty
+                                ? notesCtrl.text.trim()
+                                : null,
+                            scheduledAt:
+                                type.value == LiturgyItemType.scheduled &&
+                                    scheduledAt.value != null
                                 ? scheduledAt.value!.toIso8601String()
                                 : null,
                           );
-                          if (isEditing) {
-                            context.read<LiturgyBloc>().add(LiturgyUpdateItem(item));
+                          if (onSubmit != null) {
+                            onSubmit(item);
+                          } else if (isEditing) {
+                            context.read<LiturgyBloc>().add(
+                              LiturgyUpdateItem(item),
+                            );
                           } else {
-                            context.read<LiturgyBloc>().add(LiturgyAddItem(item));
+                            context.read<LiturgyBloc>().add(
+                              LiturgyAddItem(item),
+                            );
                           }
                           Navigator.pop(ctx);
                         },
                         icon: const Icon(TablerIcons.check, size: 18),
-                        label: Text(isEditing
-                            ? 'liturgy.actions.save'.tr()
-                            : 'liturgy.actions.addToService'.tr()),
+                        label: Text(
+                          isEditing
+                              ? 'liturgy.actions.save'.tr()
+                              : 'liturgy.actions.addToService'.tr(),
+                        ),
                       ),
                     ],
                   ),
@@ -484,26 +608,53 @@ class _MusicSelectorCard extends StatelessWidget {
               child: InkWell(
                 onTap: onSearch,
                 borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+                  topLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Row(children: [
-                    Icon(id != null ? TablerIcons.musicCheck : TablerIcons.musicSearch,
-                        size: 22, color: theme.colorScheme.primary),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          id != null ? 'liturgy.fields.selectMusic'.tr() : 'liturgy.fields.searchMusic'.tr(),
-                          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        id != null
+                            ? TablerIcons.musicCheck
+                            : TablerIcons.musicSearch,
+                        size: 22,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              id != null
+                                  ? 'liturgy.fields.selectMusic'.tr()
+                                  : 'liturgy.fields.searchMusic'.tr(),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            if (label.isNotEmpty)
+                              Text(
+                                label,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
                         ),
-                        if (label.isNotEmpty)
-                          Text(label, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-                      ],
-                    )),
-                    Icon(TablerIcons.chevronRight, size: 20, color: theme.colorScheme.onSurfaceVariant),
-                  ]),
+                      ),
+                      Icon(
+                        TablerIcons.chevronRight,
+                        size: 20,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -531,27 +682,43 @@ class _FileSelectorCard extends StatelessWidget {
       child: InkWell(
         onTap: onPick,
         borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+          topLeft: Radius.circular(12),
+          bottomRight: Radius.circular(12),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(children: [
-            Icon(hasFile ? TablerIcons.fileCheck : TablerIcons.fileUpload,
-                size: 22, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hasFile ? 'liturgy.fields.changeFileButton'.tr() : 'liturgy.fields.selectFileButton'.tr(),
-                  style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          child: Row(
+            children: [
+              Icon(
+                hasFile ? TablerIcons.fileCheck : TablerIcons.fileUpload,
+                size: 22,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasFile
+                          ? 'liturgy.fields.changeFileButton'.tr()
+                          : 'liturgy.fields.selectFileButton'.tr(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (hasFile)
+                      Text(
+                        filePath.text.split('/').last,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
-                if (hasFile)
-                  Text(filePath.text.split('/').last,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-            )),
-          ]),
+              ),
+            ],
+          ),
         ),
       ),
     );

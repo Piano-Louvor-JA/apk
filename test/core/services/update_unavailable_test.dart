@@ -6,11 +6,11 @@ import 'package:louvorja_piano_mobile/core/services/update_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 PackageInfo _pkg(String version) => PackageInfo(
-      appName: 'test',
-      packageName: 'test',
-      version: version,
-      buildNumber: '1',
-    );
+  appName: 'test',
+  packageName: 'test',
+  version: version,
+  buildNumber: '1',
+);
 
 class _ErrorAdapter implements HttpClientAdapter {
   final Object error;
@@ -50,34 +50,44 @@ void main() {
     });
   });
 
-  test('404 (repo privado sem token) retorna unavailable unauthorized',
-      () async {
-    final service = UpdateService(
-      dio: _dioFailingWith(DioException(
-        requestOptions: RequestOptions(path: '/x'),
-        response: Response(
-          statusCode: 404,
-          requestOptions: RequestOptions(path: '/x'),
+  test(
+    '404 (repo privado sem token) retorna unavailable unauthorized',
+    () async {
+      final service = UpdateService(
+        dio: _dioFailingWith(
+          DioException(
+            requestOptions: RequestOptions(path: '/x'),
+            response: Response(
+              statusCode: 404,
+              requestOptions: RequestOptions(path: '/x'),
+            ),
+            type: DioExceptionType.badResponse,
+          ),
         ),
-        type: DioExceptionType.badResponse,
-      )),
-      packageInfoProvider: () async => _pkg('0.1.2'),
-    );
+        packageInfoProvider: () async => _pkg('0.1.2'),
+      );
 
-    final result = await service.checkForUpdates();
+      final result = await service.checkForUpdates();
 
-    expect(result.isUnavailable, isTrue,
-        reason: '404 em repo privado deve sinalizar indisponibilidade, '
-            'nao "atualizado"');
-    expect(result.failure, UpdateCheckFailure.unauthorized);
-  });
+      expect(
+        result.isUnavailable,
+        isTrue,
+        reason:
+            '404 em repo privado deve sinalizar indisponibilidade, '
+            'nao "atualizado"',
+      );
+      expect(result.failure, UpdateCheckFailure.unauthorized);
+    },
+  );
 
   test('timeout de rede retorna unavailable network', () async {
     final service = UpdateService(
-      dio: _dioFailingWith(DioException(
-        requestOptions: RequestOptions(path: '/x'),
-        type: DioExceptionType.connectionTimeout,
-      )),
+      dio: _dioFailingWith(
+        DioException(
+          requestOptions: RequestOptions(path: '/x'),
+          type: DioExceptionType.connectionTimeout,
+        ),
+      ),
       packageInfoProvider: () async => _pkg('0.1.2'),
     );
 

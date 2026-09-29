@@ -19,11 +19,12 @@ class BibleChapter {
 
   /// Entradas ordenadas por numero do versículo.
   List<BibleVerseEntry> get sortedVerseEntries {
-    final entries = verses.entries
-        .map((e) => MapEntry(int.tryParse(e.key) ?? 0, e.value))
-        .where((e) => e.key > 0)
-        .toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final entries =
+        verses.entries
+            .map((e) => MapEntry(int.tryParse(e.key) ?? 0, e.value))
+            .where((e) => e.key > 0)
+            .toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
     return entries
         .map((e) => BibleVerseEntry(number: e.key, text: e.value))
         .toList();

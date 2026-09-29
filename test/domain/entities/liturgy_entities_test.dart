@@ -16,23 +16,38 @@ void main() {
 
   group('LiturgyTypeRegistry', () {
     test('category tem cor amarela', () {
-      expect(LiturgyTypeRegistry.colorFor(LiturgyItemType.category).toARGB32(), 0xFFFFD600);
+      expect(
+        LiturgyTypeRegistry.colorFor(LiturgyItemType.category).toARGB32(),
+        0xFFFFD600,
+      );
     });
 
     test('music tem cor verde neon', () {
-      expect(LiturgyTypeRegistry.colorFor(LiturgyItemType.music).toARGB32(), 0xFF00E676);
+      expect(
+        LiturgyTypeRegistry.colorFor(LiturgyItemType.music).toARGB32(),
+        0xFF00E676,
+      );
     });
 
     test('annotation tem cor laranja', () {
-      expect(LiturgyTypeRegistry.colorFor(LiturgyItemType.annotation).toARGB32(), 0xFFFF6D00);
+      expect(
+        LiturgyTypeRegistry.colorFor(LiturgyItemType.annotation).toARGB32(),
+        0xFFFF6D00,
+      );
     });
 
     test('prayer tem cor azul', () {
-      expect(LiturgyTypeRegistry.colorFor(LiturgyItemType.prayer).toARGB32(), 0xFF42A5F5);
+      expect(
+        LiturgyTypeRegistry.colorFor(LiturgyItemType.prayer).toARGB32(),
+        0xFF42A5F5,
+      );
     });
 
     test('verse tem cor roxa', () {
-      expect(LiturgyTypeRegistry.colorFor(LiturgyItemType.verse).toARGB32(), 0xFFAB47BC);
+      expect(
+        LiturgyTypeRegistry.colorFor(LiturgyItemType.verse).toARGB32(),
+        0xFFAB47BC,
+      );
     });
 
     test('allTypes tem todos os tipos suportados', () {
@@ -111,13 +126,21 @@ void main() {
     });
 
     test('toString contem id e name', () {
-      const item = LiturgyItem(id: '42', type: LiturgyItemType.music, name: 'Hino');
+      const item = LiturgyItem(
+        id: '42',
+        type: LiturgyItemType.music,
+        name: 'Hino',
+      );
       expect(item.toString(), contains('42'));
       expect(item.toString(), contains('Hino'));
     });
 
     test('copyWith altera apenas campos especificados', () {
-      const original = LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Original');
+      const original = LiturgyItem(
+        id: '1',
+        type: LiturgyItemType.music,
+        name: 'Original',
+      );
       final copy = original.copyWith(name: 'Editado', done: true);
       expect(copy.id, '1');
       expect(copy.name, 'Editado');
@@ -126,7 +149,12 @@ void main() {
     });
 
     test('copyWith sem done preserva done original', () {
-      const original = LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Original', done: true);
+      const original = LiturgyItem(
+        id: '1',
+        type: LiturgyItemType.music,
+        name: 'Original',
+        done: true,
+      );
       final copy = original.copyWith(name: 'Trocou');
       expect(copy.done, true);
     });
@@ -153,10 +181,18 @@ void main() {
     });
 
     test('toJson mapeia other_files e online_video para wire format', () {
-      const item1 = LiturgyItem(id: '1', type: LiturgyItemType.otherFiles, name: 'Doc');
+      const item1 = LiturgyItem(
+        id: '1',
+        type: LiturgyItemType.otherFiles,
+        name: 'Doc',
+      );
       expect(item1.toJson()['type'], 'other_files');
 
-      const item2 = LiturgyItem(id: '2', type: LiturgyItemType.onlineVideo, name: 'Video');
+      const item2 = LiturgyItem(
+        id: '2',
+        type: LiturgyItemType.onlineVideo,
+        name: 'Video',
+      );
       expect(item2.toJson()['type'], 'online_video');
     });
 

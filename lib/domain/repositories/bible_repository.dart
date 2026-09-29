@@ -13,5 +13,8 @@ abstract interface class BibleRepository {
 
   /// Versículos de um capítulo: Map de string para string.
   Future<Map<String, String>> getChapter(
-      int versionId, int bookId, int chapter);
+    int versionId,
+    int bookId,
+    int chapter,
+  );
 }

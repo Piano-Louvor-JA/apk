@@ -10,14 +10,17 @@ void main() {
   setUpAll(() {
     const channel = MethodChannel('dev.fluttercommunity.plus/package_info');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (_) async => <String, dynamic>{
-              'appName': 'LouvorJA PIANO',
-              'packageName': 'com.louvorja.piano.mobile',
-              'version': '1.2.3',
-              'buildNumber': '9',
-              'buildSignature': '',
-              'installerStore': null,
-            });
+        .setMockMethodCallHandler(
+          channel,
+          (_) async => <String, dynamic>{
+            'appName': 'LouvorJA PIANO',
+            'packageName': 'com.louvorja.piano.mobile',
+            'version': '1.2.3',
+            'buildNumber': '9',
+            'buildSignature': '',
+            'installerStore': null,
+          },
+        );
   });
 
   test('formata versão para exibição', () async {

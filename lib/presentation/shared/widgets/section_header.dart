@@ -1,5 +1,6 @@
 /// SectionHeader — cabeçalho de seção com título e ação opcional.
 library;
+
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 

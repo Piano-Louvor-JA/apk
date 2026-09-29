@@ -128,62 +128,61 @@ void main() {
     final closed = Completer<void>();
     conn.status.listen((st) {
       statusChanges.add(st);
-      if (st == DesktopConnectionStatus.disconnected &&
-          !closed.isCompleted) {
+      if (st == DesktopConnectionStatus.disconnected && !closed.isCompleted) {
         closed.complete();
       }
     });
 
     await conn.send(RemoteCommand(id: 'x', action: RemoteAction.play));
     await closed.future.timeout(const Duration(seconds: 5));
-    expect(
-      statusChanges,
-      contains(DesktopConnectionStatus.disconnected),
-    );
+    expect(statusChanges, contains(DesktopConnectionStatus.disconnected));
   });
 
-  test('reconexão automática após queda (3 tentativas, backoff curto)', () async {
-    // servidor derruba a primeira conexão; a segunda fica de pé
-    var connections = 0;
-    late StreamSubscription<HttpRequest> sub;
-    sub = server.listen((req) async {
-      connections++;
-      serverSide = await WebSocketTransformer.upgrade(req);
-      if (connections == 1) {
-        await serverSide!.close();
-        return;
-      }
-      serverSide!.listen((data) {
-        final msg = RemoteProtocol.parse(data as String);
-        if (msg is RemoteCommand) {
-          serverSide!.add(RemoteAck(id: msg.id, ok: true).encode());
+  test(
+    'reconexão automática após queda (3 tentativas, backoff curto)',
+    () async {
+      // servidor derruba a primeira conexão; a segunda fica de pé
+      var connections = 0;
+      late StreamSubscription<HttpRequest> sub;
+      sub = server.listen((req) async {
+        connections++;
+        serverSide = await WebSocketTransformer.upgrade(req);
+        if (connections == 1) {
+          await serverSide!.close();
+          return;
+        }
+        serverSide!.listen((data) {
+          final msg = RemoteProtocol.parse(data as String);
+          if (msg is RemoteCommand) {
+            serverSide!.add(RemoteAck(id: msg.id, ok: true).encode());
+          }
+        });
+      });
+
+      final conn = DesktopConnection(
+        heartbeat: const Duration(milliseconds: 300),
+        reconnectDelays: const [
+          Duration(milliseconds: 100),
+          Duration(milliseconds: 100),
+        ],
+      );
+      expect(
+        await conn.connect(host: '127.0.0.1', port: server.port, token: 'T'),
+        isTrue,
+      );
+      final reconnected = Completer<void>();
+      conn.status.listen((s) {
+        if (s == DesktopConnectionStatus.connected &&
+            !reconnected.isCompleted) {
+          // ignora a primeira (connect inicial)
         }
       });
-    });
-
-    final conn = DesktopConnection(
-      heartbeat: const Duration(milliseconds: 300),
-      reconnectDelays: const [
-        Duration(milliseconds: 100),
-        Duration(milliseconds: 100),
-      ],
-    );
-    expect(
-      await conn.connect(host: '127.0.0.1', port: server.port, token: 'T'),
-      isTrue,
-    );
-    final reconnected = Completer<void>();
-    conn.status.listen((s) {
-      if (s == DesktopConnectionStatus.connected &&
-          !reconnected.isCompleted) {
-        // ignora a primeira (connect inicial)
-      }
-    });
-    // aguarda queda + reconexão
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    expect(connections, greaterThanOrEqualTo(2));
-    await sub.cancel();
-  });
+      // aguarda queda + reconexão
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      expect(connections, greaterThanOrEqualTo(2));
+      await sub.cancel();
+    },
+  );
 
   test('ping do servidor recebe pong do cliente', () async {
     final received = <String>[];
@@ -199,8 +198,7 @@ void main() {
     serverSide!.add(const RemotePing().encode());
     final gotPong = Completer<void>();
     Timer.periodic(const Duration(milliseconds: 50), (t) {
-      if (received.any((m) => m.contains('"pong"')) &&
-          !gotPong.isCompleted) {
+      if (received.any((m) => m.contains('"pong"')) && !gotPong.isCompleted) {
         gotPong.complete();
         t.cancel();
       }

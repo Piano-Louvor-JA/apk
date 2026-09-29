@@ -26,7 +26,8 @@ class BibleRepositoryImpl implements BibleRepository {
 
     try {
       final books = await _api.fetchBibleBooks();
-      final sorted = [...books]..sort((a, b) => a.bookNumber.compareTo(b.bookNumber));
+      final sorted = [...books]
+        ..sort((a, b) => a.bookNumber.compareTo(b.bookNumber));
       _cache.write('bible_books', sorted.map((b) => b.toJson()).toList());
       return sorted;
     } catch (_) {
@@ -51,8 +52,7 @@ class BibleRepositoryImpl implements BibleRepository {
 
     try {
       final versions = await _api.fetchBibleVersions();
-      _cache.write(
-          'bible_versions', versions.map((v) => v.toJson()).toList());
+      _cache.write('bible_versions', versions.map((v) => v.toJson()).toList());
       return versions;
     } catch (_) {
       if (cached != null && cached is List) {
@@ -66,7 +66,10 @@ class BibleRepositoryImpl implements BibleRepository {
 
   @override
   Future<Map<String, String>> getChapter(
-      int versionId, int bookId, int chapter) async {
+    int versionId,
+    int bookId,
+    int chapter,
+  ) async {
     final cacheKey = 'bible_${versionId}_${bookId}_$chapter';
 
     final cached = _cache.read(cacheKey);

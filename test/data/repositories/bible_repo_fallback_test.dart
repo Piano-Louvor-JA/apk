@@ -22,7 +22,15 @@ class _MockApi implements LouvorjaApiClient {
   @override
   Future<List<BibleBook>> fetchBibleBooks() async {
     if (fail) throw Exception('network');
-    return const [BibleBook(id: 1, name: 'Gen', abbreviation: 'Gn', chapters: 50, bookNumber: 1)];
+    return const [
+      BibleBook(
+        id: 1,
+        name: 'Gen',
+        abbreviation: 'Gn',
+        chapters: 50,
+        bookNumber: 1,
+      ),
+    ];
   }
 
   @override
@@ -63,7 +71,9 @@ void main() {
   });
 
   tearDown(() {
-    try { tempDir.deleteSync(recursive: true); } catch (_) {}
+    try {
+      tempDir.deleteSync(recursive: true);
+    } catch (_) {}
   });
 
   // Testes do catch fallback: cache invalido + API falha
@@ -89,14 +99,17 @@ void main() {
 
   // Testes do catch fallback: cache valido (List vazia) + API falha
   group('fallback: cache valido mas vazio + API falha', () {
-    test('getBooks: cache List vazia + API falha = retorna do catch vazio', () async {
-      cache.write('bible_books', <Map<String, dynamic>>[]);
-      final repo = BibleRepositoryImpl(_MockApi(fail: true), cache);
-      // cache e List mas parsed e vazio -> tenta API -> falha
-      // catch: cached is List -> map -> [] (cached era []) -> retorno
-      final result = await repo.getBooks();
-      expect(result, isEmpty);
-    });
+    test(
+      'getBooks: cache List vazia + API falha = retorna do catch vazio',
+      () async {
+        cache.write('bible_books', <Map<String, dynamic>>[]);
+        final repo = BibleRepositoryImpl(_MockApi(fail: true), cache);
+        // cache e List mas parsed e vazio -> tenta API -> falha
+        // catch: cached is List -> map -> [] (cached era []) -> retorno
+        final result = await repo.getBooks();
+        expect(result, isEmpty);
+      },
+    );
 
     test('getVersions: cache List vazia + API falha', () async {
       cache.write('bible_versions', <Map<String, dynamic>>[]);

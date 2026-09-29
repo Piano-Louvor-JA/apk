@@ -7,13 +7,13 @@ import 'package:louvorja_piano_mobile/domain/entities/bible_book.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/book_colors.dart';
 
 BibleBook _book(int number, {String? color}) => BibleBook(
-      id: number,
-      name: 'Livro $number',
-      abbreviation: 'Lv',
-      chapters: 10,
-      bookNumber: number,
-      color: color,
-    );
+  id: number,
+  name: 'Livro $number',
+  abbreviation: 'Lv',
+  chapters: 10,
+  bookNumber: number,
+  color: color,
+);
 
 void main() {
   final light = ThemeData(brightness: Brightness.light);
@@ -50,8 +50,10 @@ void main() {
 
     test('selecionado mantem highlight ambar (contraste)', () {
       final mateus = _book(40, color: '#ff6766');
-      expect(BookColors.tone(mateus, dark, selected: true),
-          const Color(0xFFFEF08A));
+      expect(
+        BookColors.tone(mateus, dark, selected: true),
+        const Color(0xFFFEF08A),
+      );
     });
   });
 }

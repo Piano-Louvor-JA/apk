@@ -16,9 +16,11 @@ class Hymn {
   final String? urlMusic;
   final String? urlInstrumental;
   final String? lyric;
+
   /// Lyric estruturado (endpoint music_{id}): slides com times e imagens.
   /// Catálogo (lista) não traz — null nesse caso.
   final List<Map<String, dynamic>>? lyricRaw;
+
   /// Imagem de capa da música (url_image do detail).
   final String? imageUrl;
 
@@ -47,24 +49,24 @@ class Hymn {
       lyric: _parseLyric(json['lyric']),
       lyricRaw: json['lyric'] is List
           ? (json['lyric'] as List)
-              .whereType<Map>()
-              .map((e) => e.cast<String, dynamic>())
-              .toList()
+                .whereType<Map>()
+                .map((e) => e.cast<String, dynamic>())
+                .toList()
           : null,
       imageUrl: json['url_image'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id_music': id,
-        if (title != null) 'name': title,
-        if (number != null) 'track': number,
-        if (durationMs != null) 'duration': durationMs,
-        'has_instrumental_music': hasInstrumental ? 1 : 0,
-        if (urlMusic != null) 'url_music': urlMusic,
-        if (urlInstrumental != null) 'url_instrumental_music': urlInstrumental,
-        if (lyric != null) 'lyric': lyric,
-      };
+    'id_music': id,
+    if (title != null) 'name': title,
+    if (number != null) 'track': number,
+    if (durationMs != null) 'duration': durationMs,
+    'has_instrumental_music': hasInstrumental ? 1 : 0,
+    if (urlMusic != null) 'url_music': urlMusic,
+    if (urlInstrumental != null) 'url_instrumental_music': urlInstrumental,
+    if (lyric != null) 'lyric': lyric,
+  };
 
   /// Formata duração em "M:SS" ou "H:MM:SS".
   String get formattedDuration {
@@ -74,7 +76,8 @@ class Hymn {
     final h = totalSec ~/ 3600;
     final m = (totalSec % 3600) ~/ 60;
     final s = totalSec % 60;
-    if (h > 0) return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    if (h > 0)
+      return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
@@ -145,16 +148,22 @@ class Hymn {
     if (raw is String) return raw.isEmpty ? null : raw;
     if (raw is! List) return null;
 
-    final verses = raw
-        .whereType<Map>()
-        .map((entry) => {
-              'order': _parseInt(entry['order']),
-              'show': _parseBool(entry['show_slide']),
-              'text': (entry['lyric'] ?? '').toString().trim(),
-            })
-        .where((entry) => entry['show'] == true && (entry['text'] as String).isNotEmpty)
-        .toList()
-      ..sort((a, b) => (a['order'] as int).compareTo(b['order'] as int));
+    final verses =
+        raw
+            .whereType<Map>()
+            .map(
+              (entry) => {
+                'order': _parseInt(entry['order']),
+                'show': _parseBool(entry['show_slide']),
+                'text': (entry['lyric'] ?? '').toString().trim(),
+              },
+            )
+            .where(
+              (entry) =>
+                  entry['show'] == true && (entry['text'] as String).isNotEmpty,
+            )
+            .toList()
+          ..sort((a, b) => (a['order'] as int).compareTo(b['order'] as int));
 
     if (verses.isEmpty) return null;
     return verses.map((entry) => entry['text'] as String).join('\n\n');

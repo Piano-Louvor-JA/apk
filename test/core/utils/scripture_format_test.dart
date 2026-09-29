@@ -22,7 +22,10 @@ void main() {
     });
 
     test('multiplos intervalos', () {
-      expect(ScriptureFormat.formatVerseIntervals([1, 2, 3, 5, 6, 7]), '1-3,5-7');
+      expect(
+        ScriptureFormat.formatVerseIntervals([1, 2, 3, 5, 6, 7]),
+        '1-3,5-7',
+      );
     });
 
     test('numeros desordenados sao ordenados', () {
@@ -72,25 +75,23 @@ void main() {
     });
 
     test('sem bookName retorna vazio', () {
-      final ref = ScriptureFormat.formatReference(
-        bookName: '',
-        chapter: 3,
-      );
+      final ref = ScriptureFormat.formatReference(bookName: '', chapter: 3);
       expect(ref, '');
     });
 
     test('chapter 0 retorna vazio', () {
-      final ref = ScriptureFormat.formatReference(
-        bookName: 'João',
-        chapter: 0,
-      );
+      final ref = ScriptureFormat.formatReference(bookName: 'João', chapter: 0);
       expect(ref, '');
     });
   });
 
   group('parseVerseQuery', () {
     final verses = <String, String>{
-      '1': 'v1', '2': 'v2', '3': 'v3', '4': 'v4', '5': 'v5',
+      '1': 'v1',
+      '2': 'v2',
+      '3': 'v3',
+      '4': 'v4',
+      '5': 'v5',
     };
 
     test('numero unico', () {

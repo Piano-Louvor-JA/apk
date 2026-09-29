@@ -34,14 +34,16 @@ void main() {
   testWidgets('Conectar fica desabilitado sem IP:porta', (tester) async {
     await pumpSection(tester);
     expect(
-      tester.widget<OutlinedButton>(find.byKey(const Key('remote-connect')))
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('remote-connect')))
           .onPressed,
       isNull,
     );
   });
 
-  testWidgets('IP:porta válido habilita Conectar; valor inválido não',
-      (tester) async {
+  testWidgets('IP:porta válido habilita Conectar; valor inválido não', (
+    tester,
+  ) async {
     await pumpSection(tester);
     await tester.enterText(
       find.byKey(const Key('remote-host')),
@@ -49,7 +51,8 @@ void main() {
     );
     await tester.pump();
     expect(
-      tester.widget<OutlinedButton>(find.byKey(const Key('remote-connect')))
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('remote-connect')))
           .onPressed,
       isNotNull,
     );
@@ -57,7 +60,8 @@ void main() {
     await tester.enterText(find.byKey(const Key('remote-host')), 'abc');
     await tester.pump();
     expect(
-      tester.widget<OutlinedButton>(find.byKey(const Key('remote-connect')))
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('remote-connect')))
           .onPressed,
       isNull,
     );

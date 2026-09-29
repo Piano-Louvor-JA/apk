@@ -9,9 +9,7 @@ void main() {
     testWidgets('renderiza child corretamente', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: GlassCard(child: Text('Conteúdo do card')),
-          ),
+          home: Scaffold(body: GlassCard(child: Text('Conteúdo do card'))),
         ),
       );
 
@@ -30,8 +28,9 @@ void main() {
       expect(find.byType(BackdropFilter), findsOneWidget);
     });
 
-    testWidgets('usa ClipRRect (clipping para bordas assimétricas)',
-        (tester) async {
+    testWidgets('usa ClipRRect (clipping para bordas assimétricas)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -48,10 +47,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: GlassCard(
-              padding: customPadding,
-              child: Text('Teste'),
-            ),
+            body: GlassCard(padding: customPadding, child: Text('Teste')),
           ),
         ),
       );

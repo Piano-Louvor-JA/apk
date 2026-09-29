@@ -13,11 +13,16 @@ class PlayerTimeline extends StatefulWidget {
   final Stream<Duration> durationStream;
   final Future<void> Function(Duration) onSeek;
 
+  /// Duração do catálogo. Fallback para MP3s cujo decoder Android toca,
+  /// mas não emite onDurationChanged (caso dos hinários legados).
+  final Duration fallbackDuration;
+
   const PlayerTimeline({
     super.key,
     required this.positionStream,
     required this.durationStream,
     required this.onSeek,
+    this.fallbackDuration = Duration.zero,
   });
 
   @override
@@ -35,11 +40,14 @@ class _PlayerTimelineState extends State<PlayerTimeline> {
   @override
   void initState() {
     super.initState();
+    _duration = widget.fallbackDuration;
     _posSub = widget.positionStream.listen((p) {
       if (mounted && !_dragging) setState(() => _position = p);
     });
     _durSub = widget.durationStream.listen((d) {
-      if (mounted) setState(() => _duration = d);
+      // Alguns MP3s legados emitem Duration.zero após abrir. Não pode
+      // apagar duração do catálogo usada como fallback.
+      if (mounted && d > Duration.zero) setState(() => _duration = d);
     });
   }
 
@@ -60,8 +68,9 @@ class _PlayerTimelineState extends State<PlayerTimeline> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final totalMs = _duration.inMilliseconds;
-    final value =
-        _dragging ? _dragValue! : (totalMs > 0 ? _position.inMilliseconds / totalMs : 0.0);
+    final value = _dragging
+        ? _dragValue!
+        : (totalMs > 0 ? _position.inMilliseconds / totalMs : 0.0);
 
     return Row(
       children: [

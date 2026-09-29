@@ -2,6 +2,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'dlna_renderer_client.dart';
 import 'multicast_lock.dart';
 import 'slide_http_server.dart';
@@ -47,7 +49,17 @@ class CastController {
   /// Conecta num renderer: sobe o HTTP server local.
   Future<bool> connect(DlnaRenderer renderer) async {
     final base = await _server.start();
-    if (base == null) return false;
+    if (base == null) {
+      debugPrint(
+        '[DLNA] connect() FALHOU: SlideHttpServer.start() = null '
+        '(bind ou _localIp falhou)',
+      );
+      return false;
+    }
+    debugPrint(
+      '[DLNA] connect OK: server em $base, controlURL='
+      '${renderer.avTransportControlUrl}',
+    );
     _renderer = renderer;
     _client = DlnaRendererClient(renderer.avTransportControlUrl!);
     _format = renderer.preferredImageFormat;
@@ -60,7 +72,10 @@ class CastController {
 
   /// Projeta os bytes do slide atual. Retorna false se falhou o SOAP
   /// (TV desligou/mudou de rede) — chamador pode sugerir reconexão.
-  Future<bool> projectSlide(Uint8List pngBytes, {String title = 'Slide'}) async {
+  Future<bool> projectSlide(
+    Uint8List pngBytes, {
+    String title = 'Slide',
+  }) async {
     if (!_connected || _client == null) return false;
     final url = await _server.serveSlide(pngBytes);
     if (url == null) return false;
@@ -70,9 +85,7 @@ class CastController {
     final now = DateTime.now();
     final sinceLast = now.difference(_lastProjectAt);
     if (sinceLast < const Duration(milliseconds: 250)) {
-      await Future<void>.delayed(
-        const Duration(milliseconds: 250) - sinceLast,
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 250) - sinceLast);
     }
     _lastProjectAt = DateTime.now();
 

@@ -1,5 +1,7 @@
 library;
 
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
+
 /// Monta a URL de download de faixa a partir do path relativo da API.
 ///
 /// Bug real: a API retorna paths com espacos e acentos
@@ -7,7 +9,7 @@ library;
 /// quebra com caracteres nao-escapados — TODOS os downloads falhavam.
 /// Cada segmento do path e encodado preservando as barras.
 abstract final class DownloadUrlBuilder {
-  static const _filesBase = 'https://api.louvorja.com.br/file';
+  static const _filesBase = ApiConfig.urlFiles;
 
   static String build(String relativeUrl) {
     final cleaned = relativeUrl.replaceFirst(RegExp(r'^/+'), '');

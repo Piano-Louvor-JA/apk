@@ -51,7 +51,8 @@ class _ApiGenericException implements LouvorjaApiClient {
   @override
   Future<List<BibleBook>> fetchBibleBooks() async => throw Exception('boom');
   @override
-  Future<List<BibleVersion>> fetchBibleVersions() async => throw Exception('boom');
+  Future<List<BibleVersion>> fetchBibleVersions() async =>
+      throw Exception('boom');
   @override
   Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
       throw Exception('boom');
@@ -79,12 +80,18 @@ class _ApiChapterFail implements LouvorjaApiClient {
 
   @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [
-        BibleBook(id: 1, name: 'Gen', abbreviation: 'Gn', chapters: 50, bookNumber: 1),
-      ];
+    BibleBook(
+      id: 1,
+      name: 'Gen',
+      abbreviation: 'Gn',
+      chapters: 50,
+      bookNumber: 1,
+    ),
+  ];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [
-        BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
-      ];
+    BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
+  ];
   @override
   Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
       throw const LouvorjaApiException('errors.connection', 'chapter fail');
@@ -114,10 +121,11 @@ class _MockApiEmptyBooks implements LouvorjaApiClient {
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [
-        BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
-      ];
+    BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
+  ];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => const {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      const {};
 
   @override
   Future<List<AlbumCategory>> fetchCategories() async => const [];
@@ -142,12 +150,19 @@ class _MockApiEmptyVersions implements LouvorjaApiClient {
 
   @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [
-        BibleBook(id: 1, name: 'Gen', abbreviation: 'Gn', chapters: 50, bookNumber: 1),
-      ];
+    BibleBook(
+      id: 1,
+      name: 'Gen',
+      abbreviation: 'Gn',
+      chapters: 50,
+      bookNumber: 1,
+    ),
+  ];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => const {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      const {};
 
   @override
   Future<List<AlbumCategory>> fetchCategories() async => const [];
@@ -173,13 +188,19 @@ class _ApiChapterLouvorjaFail implements LouvorjaApiClient {
 
   @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [
-        BibleBook(id: 1, name: 'Gen', abbreviation: 'Gn', chapters: 50, bookNumber: 1),
-      ];
+    BibleBook(
+      id: 1,
+      name: 'Gen',
+      abbreviation: 'Gn',
+      chapters: 50,
+      bookNumber: 1,
+    ),
+  ];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [
-        BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
-        BibleVersion(id: 2, abbreviation: 'NVI', name: 'NVI'),
-      ];
+    BibleVersion(id: 1, abbreviation: 'ARA', name: 'ARA'),
+    BibleVersion(id: 2, abbreviation: 'NVI', name: 'NVI'),
+  ];
 
   int _chapterCallCount = 0;
 
@@ -226,9 +247,7 @@ void main() {
 
     test('bootstrap com books vazios emite loadCatalogFailed', () async {
       final api = _MockApiEmptyBooks();
-      final bloc = BibleBloc(
-        BibleRepositoryImpl(api, CatalogCache.noop()),
-      );
+      final bloc = BibleBloc(BibleRepositoryImpl(api, CatalogCache.noop()));
       bloc.add(BibleBootstrap());
       await Future.delayed(const Duration(milliseconds: 300));
       expect(bloc.state, isA<BibleError>());
@@ -238,9 +257,7 @@ void main() {
 
     test('bootstrap com versions vazios emite loadCatalogFailed', () async {
       final api = _MockApiEmptyVersions();
-      final bloc = BibleBloc(
-        BibleRepositoryImpl(api, CatalogCache.noop()),
-      );
+      final bloc = BibleBloc(BibleRepositoryImpl(api, CatalogCache.noop()));
       bloc.add(BibleBootstrap());
       await Future.delayed(const Duration(milliseconds: 300));
       expect(bloc.state, isA<BibleError>());
@@ -251,9 +268,7 @@ void main() {
   group('BibleBloc ramos de erro em selectVersion/Book/Chapter', () {
     test('selectVersion com LouvorjaApiException emite BibleError', () async {
       final api = _ApiChapterLouvorjaFail();
-      final bloc = BibleBloc(
-        BibleRepositoryImpl(api, CatalogCache.noop()),
-      );
+      final bloc = BibleBloc(BibleRepositoryImpl(api, CatalogCache.noop()));
       bloc.add(BibleBootstrap());
       await Future.delayed(const Duration(milliseconds: 300));
       expect(bloc.state, isA<BibleLoaded>());
@@ -268,9 +283,7 @@ void main() {
 
     test('selectBook com LouvorjaApiException emite BibleError', () async {
       final api = _ApiChapterLouvorjaFail();
-      final bloc = BibleBloc(
-        BibleRepositoryImpl(api, CatalogCache.noop()),
-      );
+      final bloc = BibleBloc(BibleRepositoryImpl(api, CatalogCache.noop()));
       bloc.add(BibleBootstrap());
       await Future.delayed(const Duration(milliseconds: 300));
       expect(bloc.state, isA<BibleLoaded>());
@@ -284,9 +297,7 @@ void main() {
 
     test('selectChapter com LouvorjaApiException emite BibleError', () async {
       final api = _ApiChapterLouvorjaFail();
-      final bloc = BibleBloc(
-        BibleRepositoryImpl(api, CatalogCache.noop()),
-      );
+      final bloc = BibleBloc(BibleRepositoryImpl(api, CatalogCache.noop()));
       bloc.add(BibleBootstrap());
       await Future.delayed(const Duration(milliseconds: 300));
       expect(bloc.state, isA<BibleLoaded>());

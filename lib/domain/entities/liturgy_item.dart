@@ -14,6 +14,22 @@ enum LiturgyWeekday {
   saturday,
 }
 
+extension LiturgyWeekdayJa on LiturgyWeekday {
+  /// Dia do formato .ja do Delphi (1=domingo .. 7=sábado).
+  /// Confirmedo no fonte Delphi: NOMES_DIAS[1]='Domingo'...[7]='Sábado'
+  /// (fmCopiaLiturgiaDia.pas). Chave 7 = Escola Sabatina (sábado manhã).
+  static LiturgyWeekday? fromJaDay(int day) => switch (day) {
+    1 => LiturgyWeekday.sunday,
+    2 => LiturgyWeekday.monday,
+    3 => LiturgyWeekday.tuesday,
+    4 => LiturgyWeekday.wednesday,
+    5 => LiturgyWeekday.thursday,
+    6 => LiturgyWeekday.friday,
+    7 => LiturgyWeekday.saturday,
+    _ => null,
+  };
+}
+
 /// Ordem das tabs: dom, seg, ter, qua, qui, sex, sab.
 const liturgyDayTabOrder = [
   LiturgyWeekday.sunday,
@@ -165,6 +181,7 @@ class LiturgyItem {
   final String? filePath;
   final List<String> filePaths;
   final String? url;
+
   /// Data/hora ISO 8601 do item agendado, quando type == scheduled.
   final String? scheduledAt;
   final String? startTime;
@@ -240,27 +257,27 @@ class LiturgyItem {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': _typeToWire(type),
-        'name': name,
-        'subtitle': subtitle,
-        'done': done,
-        'durationMs': durationMs,
-        'accentColor': accentColor,
-        if (categoryId != null) 'categoryId': categoryId,
-        if (notes != null) 'notes': notes,
-        if (musicId != null) 'musicId': musicId,
-        if (musicMode != null) 'musicMode': musicMode,
-        if (verseBookId != null) 'verseBookId': verseBookId,
-        if (verseChapter != null) 'verseChapter': verseChapter,
-        if (verseNumbers != null) 'verseNumbers': verseNumbers,
-        if (filePath != null) 'filePath': filePath,
-        if (filePaths.isNotEmpty) 'filePaths': filePaths,
-        if (url != null) 'url': url,
-        if (scheduledAt != null) 'scheduledAt': scheduledAt,
-        if (startTime != null) 'startTime': startTime,
-        if (endTime != null) 'endTime': endTime,
-      };
+    'id': id,
+    'type': _typeToWire(type),
+    'name': name,
+    'subtitle': subtitle,
+    'done': done,
+    'durationMs': durationMs,
+    'accentColor': accentColor,
+    if (categoryId != null) 'categoryId': categoryId,
+    if (notes != null) 'notes': notes,
+    if (musicId != null) 'musicId': musicId,
+    if (musicMode != null) 'musicMode': musicMode,
+    if (verseBookId != null) 'verseBookId': verseBookId,
+    if (verseChapter != null) 'verseChapter': verseChapter,
+    if (verseNumbers != null) 'verseNumbers': verseNumbers,
+    if (filePath != null) 'filePath': filePath,
+    if (filePaths.isNotEmpty) 'filePaths': filePaths,
+    if (url != null) 'url': url,
+    if (scheduledAt != null) 'scheduledAt': scheduledAt,
+    if (startTime != null) 'startTime': startTime,
+    if (endTime != null) 'endTime': endTime,
+  };
 
   factory LiturgyItem.fromJson(Map<String, dynamic> json) {
     return LiturgyItem(
@@ -279,7 +296,8 @@ class LiturgyItem {
       verseChapter: (json['verseChapter'] as num?)?.toInt(),
       verseNumbers: json['verseNumbers'] as String?,
       filePath: json['filePath'] as String?,
-      filePaths: (json['filePaths'] as List<dynamic>?)
+      filePaths:
+          (json['filePaths'] as List<dynamic>?)
               ?.map((value) => value.toString())
               .toList() ??
           const [],
@@ -291,24 +309,23 @@ class LiturgyItem {
   }
 
   static String _typeToWire(LiturgyItemType type) => switch (type) {
-        LiturgyItemType.otherFiles => 'other_files',
-        LiturgyItemType.onlineVideo => 'online_video',
-        _ => type.name,
-      };
+    LiturgyItemType.otherFiles => 'other_files',
+    LiturgyItemType.onlineVideo => 'online_video',
+    _ => type.name,
+  };
 
   static LiturgyItemType _typeFromWire(String value) => switch (value) {
-        'other_files' => LiturgyItemType.otherFiles,
-        'online_video' => LiturgyItemType.onlineVideo,
-        _ => LiturgyItemType.values.firstWhere(
-            (type) => type.name == value,
-            orElse: () => LiturgyItemType.annotation,
-          ),
-      };
+    'other_files' => LiturgyItemType.otherFiles,
+    'online_video' => LiturgyItemType.onlineVideo,
+    _ => LiturgyItemType.values.firstWhere(
+      (type) => type.name == value,
+      orElse: () => LiturgyItemType.annotation,
+    ),
+  };
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LiturgyItem && id == other.id;
+      identical(this, other) || other is LiturgyItem && id == other.id;
 
   @override
   int get hashCode => id.hashCode;

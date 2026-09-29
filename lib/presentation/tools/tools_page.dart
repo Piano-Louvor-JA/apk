@@ -9,6 +9,7 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bible_page.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/liturgy_page.dart';
 import 'package:louvorja_piano_mobile/presentation/timer/timer_page.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/remote_control_tool_page.dart';
 
 class ToolsPage extends StatefulWidget {
   const ToolsPage({super.key});
@@ -70,9 +71,12 @@ class _ToolsPageState extends State<ToolsPage> {
           onPressed: () => setState(() => _activeView = null),
         ),
         title: Text(view.label.tr()),
+        // F3.3l: o botão do Palco vive na AppBar da PRÓPRIA ferramenta
+        // (Bíblia/Liturgia/Timer já têm StageCastButton) — um cast só.
       ),
       body: switch (view) {
         _ToolView.liturgy => const LiturgyPage(),
+        _ToolView.remoteControl => const RemoteControlToolPage(),
         _ToolView.bible => const BiblePage(),
         _ToolView.timer => const TimerPage(),
       },
@@ -83,31 +87,36 @@ class _ToolsPageState extends State<ToolsPage> {
 enum _ToolView {
   liturgy,
   bible,
-  timer;
+  timer,
+  remoteControl;
 
   IconData get icon => switch (this) {
-        liturgy => TablerIcons.clipboardText,
-        bible => TablerIcons.book2,
-        timer => TablerIcons.clock,
-      };
+    liturgy => TablerIcons.clipboardText,
+    bible => TablerIcons.book2,
+    timer => TablerIcons.clock,
+    remoteControl => TablerIcons.deviceGamepad2,
+  };
 
   String get label => switch (this) {
-        liturgy => 'tools.liturgy',
-        bible => 'tools.bible',
-        timer => 'tools.timer',
-      };
+    liturgy => 'tools.liturgy',
+    bible => 'tools.bible',
+    timer => 'tools.timer',
+    remoteControl => 'tools.remoteControl',
+  };
 
   String get subtitle => switch (this) {
-        liturgy => 'tools.liturgySubtitle',
-        bible => 'tools.bibleSubtitle',
-        timer => 'tools.timerSubtitle',
-      };
+    liturgy => 'tools.liturgySubtitle',
+    bible => 'tools.bibleSubtitle',
+    timer => 'tools.timerSubtitle',
+    remoteControl => 'tools.remoteControlSubtitle',
+  };
 
   Color color(ColorScheme scheme) => switch (this) {
-        liturgy => scheme.primary,
-        bible => scheme.tertiary,
-        timer => scheme.secondary,
-      };
+    liturgy => scheme.primary,
+    bible => scheme.tertiary,
+    timer => scheme.secondary,
+    remoteControl => scheme.error,
+  };
 }
 
 class _ToolCard extends StatelessWidget {

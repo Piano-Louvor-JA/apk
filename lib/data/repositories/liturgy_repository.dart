@@ -1,5 +1,7 @@
 library;
 
+import '../../core/services/liturgy_widget_updater.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -14,6 +16,9 @@ class LiturgyRepository {
 
   static const _itemsPrefix = 'liturgy_items_';
   static const _notesPrefix = 'liturgy_notes_';
+  static const _orderPrefix = 'liturgy_order_';
+  static const _avulsaPrefix = 'liturgy_avulsa_';
+  static const _lockPrefix = 'liturgy_lock_';
 
   LiturgyRepository(this._prefs);
 
@@ -39,6 +44,7 @@ class LiturgyRepository {
     final json = jsonEncode(items.map((e) => e.toJson()).toList());
     await _prefs.setString(_itemsKey(day), json);
     unawaited(SyncTimestamps.touch('liturgy'));
+    unawaited(LiturgyWidgetUpdater.notify());
   }
 
   /// Carrega notas de um dia.
@@ -50,6 +56,7 @@ class LiturgyRepository {
   Future<void> saveNotes(LiturgyWeekday day, String notes) async {
     await _prefs.setString(_notesKey(day), notes);
     unawaited(SyncTimestamps.touch('liturgy'));
+    unawaited(LiturgyWidgetUpdater.notify());
   }
 
   /// Clona liturgia de um dia para outro.
@@ -65,4 +72,71 @@ class LiturgyRepository {
     await _prefs.remove(_itemsKey(day));
     await _prefs.remove(_notesKey(day));
   }
+
+  /// Verifica se a liturgia do dia está lockada.
+  bool isLocked(LiturgyWeekday day) {
+    return _prefs.getBool(_lockKey(day)) ?? false;
+  }
+
+  /// Define o estado de lock da liturgia do dia.
+  Future<void> setLocked(LiturgyWeekday day, bool locked) async {
+    await _prefs.setBool(_lockKey(day), locked);
+    unawaited(SyncTimestamps.touch('liturgy_lock'));
+    unawaited(LiturgyWidgetUpdater.notify());
+  }
+
+  /// Salva a ordem dos itens para o dia.
+  Future<void> saveOrder(LiturgyWeekday day, List<String> orderedIds) async {
+    final json = jsonEncode(orderedIds);
+    await _prefs.setString(_orderKey(day), json);
+    unawaited(SyncTimestamps.touch('liturgy_order'));
+    unawaited(LiturgyWidgetUpdater.notify());
+  }
+
+  /// Carrega a ordem dos itens para o dia.
+  List<String> loadOrder(LiturgyWeekday day) {
+    final raw = _prefs.getString(_orderKey(day));
+    if (raw == null) return [];
+    try {
+      return jsonDecode(raw) as List<String>;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Salva a liturgia avulsa para a data específica.
+  Future<void> saveAvulsa(DateTime date, List<LiturgyItem> items) async {
+    final key = _avulsaKey(date);
+    final json = jsonEncode(items.map((e) => e.toJson()).toList());
+    await _prefs.setString(key, json);
+    unawaited(SyncTimestamps.touch('liturgy_avulsa'));
+    unawaited(LiturgyWidgetUpdater.notify());
+  }
+
+  /// Carrega a liturgia avulsa para a data específica.
+  List<LiturgyItem> loadAvulsa(DateTime date) {
+    final key = _avulsaKey(date);
+    final raw = _prefs.getString(key);
+    if (raw == null) return [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => LiturgyItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Limpa a liturgia avulsa para a data específica.
+  Future<void> clearAvulsa(DateTime date) async {
+    await _prefs.remove(_avulsaKey(date));
+    unawaited(SyncTimestamps.touch('liturgy_avulsa'));
+    unawaited(LiturgyWidgetUpdater.notify());
+  }
+
+  String _lockKey(LiturgyWeekday day) => '$_lockPrefix${day.name}';
+  String _orderKey(LiturgyWeekday day) => '$_orderPrefix${day.name}';
+  String _avulsaKey(DateTime date) =>
+      '$_avulsaPrefix${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
 }

@@ -96,8 +96,4 @@ enum AccentKey {
 }
 
 /// Chaves de perfil de interacao (identicas ao Electron page.ts).
-enum InteractionKey {
-  dynamic_,
-  soft,
-  mist,
-}
+enum InteractionKey { dynamic_, soft, mist }

@@ -36,6 +36,12 @@ class BibleSelectVerse extends BibleEvent {
   const BibleSelectVerse(this.verseNumber);
 }
 
+/// Seleção múltipla direta (input de referência "gn 1:1-3", "jo 2:3,5").
+class BibleSelectVerses extends BibleEvent {
+  final List<int> verses;
+  const BibleSelectVerses(this.verses);
+}
+
 class BibleClearSelection extends BibleEvent {}
 
 /// Navega para versiculo anterior (+delta) ou proximo (-delta).
@@ -129,6 +135,7 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
     on<BibleSelectBook>(_onSelectBook);
     on<BibleSelectChapter>(_onSelectChapter);
     on<BibleSelectVerse>(_onSelectVerse);
+    on<BibleSelectVerses>(_onSelectVerses);
     on<BibleClearSelection>(_onClearSelection);
     on<BibleNavigateVerse>(_onNavigateVerse);
   }
@@ -136,7 +143,9 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
   BibleRepository get repository => _repository;
 
   Future<void> _onBootstrap(
-      BibleBootstrap event, Emitter<BibleState> emit) async {
+    BibleBootstrap event,
+    Emitter<BibleState> emit,
+  ) async {
     emit(BibleLoading());
     try {
       // Sequencial para respeitar rate limit
@@ -150,29 +159,36 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
 
       final versionId = ScriptureFormat.pickDefaultVersionId(
         versions
-            .map((v) => BibleVersionDef(
-                  id: v.id,
-                  abbreviation: v.abbreviation,
-                  name: v.name,
-                ))
+            .map(
+              (v) => BibleVersionDef(
+                id: v.id,
+                abbreviation: v.abbreviation,
+                name: v.name,
+              ),
+            )
             .toList(),
         null,
       );
 
       final firstBook = books.first;
-      final verses =
-          await _repository.getChapter(versionId ?? versions.first.id, firstBook.id, 1);
+      final verses = await _repository.getChapter(
+        versionId ?? versions.first.id,
+        firstBook.id,
+        1,
+      );
 
-      emit(BibleLoaded(
-        books: books,
-        versions: versions,
-        // coverage:ignore-line
-        selectedVersionId: versionId ?? versions.first.id,
-        selectedBookId: firstBook.id,
-        selectedChapter: 1,
-        verses: verses,
-        selectedVerses: const [],
-      ));
+      emit(
+        BibleLoaded(
+          books: books,
+          versions: versions,
+          // coverage:ignore-line
+          selectedVersionId: versionId ?? versions.first.id,
+          selectedBookId: firstBook.id,
+          selectedChapter: 1,
+          verses: verses,
+          selectedVerses: const [],
+        ),
+      );
     } on LouvorjaApiException catch (e) {
       emit(BibleError(e.code));
     } catch (_) {
@@ -181,18 +197,25 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
   }
 
   Future<void> _onSelectVersion(
-      BibleSelectVersion event, Emitter<BibleState> emit) async {
+    BibleSelectVersion event,
+    Emitter<BibleState> emit,
+  ) async {
     final state = this.state;
     if (state is! BibleLoaded) return;
 
     try {
-      final verses =
-          await _repository.getChapter(event.versionId, state.selectedBookId, state.selectedChapter);
-      emit(state.copyWith(
-        selectedVersionId: event.versionId,
-        verses: verses,
-        selectedVerses: const [],
-      ));
+      final verses = await _repository.getChapter(
+        event.versionId,
+        state.selectedBookId,
+        state.selectedChapter,
+      );
+      emit(
+        state.copyWith(
+          selectedVersionId: event.versionId,
+          verses: verses,
+          selectedVerses: const [],
+        ),
+      );
     } on LouvorjaApiException catch (e) {
       emit(BibleError(e.code));
     } catch (_) {
@@ -202,7 +225,9 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
   }
 
   Future<void> _onSelectBook(
-      BibleSelectBook event, Emitter<BibleState> emit) async {
+    BibleSelectBook event,
+    Emitter<BibleState> emit,
+  ) async {
     final state = this.state;
     if (state is! BibleLoaded) return;
 
@@ -216,13 +241,18 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
 
     try {
       final verses = await _repository.getChapter(
-          state.selectedVersionId, event.bookId, chapter);
-      emit(state.copyWith(
-        selectedBookId: event.bookId,
-        selectedChapter: chapter,
-        verses: verses,
-        selectedVerses: const [],
-      ));
+        state.selectedVersionId,
+        event.bookId,
+        chapter,
+      );
+      emit(
+        state.copyWith(
+          selectedBookId: event.bookId,
+          selectedChapter: chapter,
+          verses: verses,
+          selectedVerses: const [],
+        ),
+      );
     } on LouvorjaApiException catch (e) {
       emit(BibleError(e.code));
     } catch (_) {
@@ -232,7 +262,9 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
   }
 
   Future<void> _onSelectChapter(
-      BibleSelectChapter event, Emitter<BibleState> emit) async {
+    BibleSelectChapter event,
+    Emitter<BibleState> emit,
+  ) async {
     final state = this.state;
     if (state is! BibleLoaded) return;
     if (event.chapter < 1) return;
@@ -244,12 +276,17 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
 
     try {
       final verses = await _repository.getChapter(
-          state.selectedVersionId, state.selectedBookId, next);
-      emit(state.copyWith(
-        selectedChapter: next,
-        verses: verses,
-        selectedVerses: const [],
-      ));
+        state.selectedVersionId,
+        state.selectedBookId,
+        next,
+      );
+      emit(
+        state.copyWith(
+          selectedChapter: next,
+          verses: verses,
+          selectedVerses: const [],
+        ),
+      );
     } on LouvorjaApiException catch (e) {
       emit(BibleError(e.code));
     } catch (_) {
@@ -266,6 +303,13 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
     emit(state.copyWith(selectedVerses: [event.verseNumber]));
   }
 
+  void _onSelectVerses(BibleSelectVerses event, Emitter<BibleState> emit) {
+    final state = this.state;
+    if (state is! BibleLoaded) return;
+    final verses = event.verses.where((v) => v >= 1).toSet().toList()..sort();
+    emit(state.copyWith(selectedVerses: verses));
+  }
+
   void _onClearSelection(BibleClearSelection event, Emitter<BibleState> emit) {
     final state = this.state;
     if (state is! BibleLoaded) return;
@@ -274,17 +318,20 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
   }
 
   Future<void> _onNavigateVerse(
-      BibleNavigateVerse event, Emitter<BibleState> emit) async {
+    BibleNavigateVerse event,
+    Emitter<BibleState> emit,
+  ) async {
     final state = this.state;
     if (state is! BibleLoaded) return;
     if (state.selectedVerses.isEmpty) return;
 
     final currentVerse = state.selectedVerses.first;
-    final verseKeys = state.verses.keys
-        .map((k) => int.tryParse(k) ?? 0)
-        .where((v) => v > 0)
-        .toList()
-      ..sort();
+    final verseKeys =
+        state.verses.keys
+            .map((k) => int.tryParse(k) ?? 0)
+            .where((v) => v > 0)
+            .toList()
+          ..sort();
     if (verseKeys.isEmpty) return;
 
     final book = state.selectedBook;
@@ -304,8 +351,7 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
     // Cruzar para outro capitulo
     if (newIndex < 0 && state.selectedChapter > 1) {
       // Capitulo anterior -- carregar e selecionar ultimo versiculo
-      await _loadChapterAndSelect(
-          state, state.selectedChapter - 1, 999, emit);
+      await _loadChapterAndSelect(state, state.selectedChapter - 1, 999, emit);
     } else if (newIndex >= verseKeys.length &&
         state.selectedChapter < book.chapters) {
       // Proximo capitulo -- carregar e selecionar primeiro versiculo
@@ -321,20 +367,26 @@ class BibleBloc extends Bloc<BibleEvent, BibleState> {
   ) async {
     try {
       final verses = await _repository.getChapter(
-          state.selectedVersionId, state.selectedBookId, chapter);
-      final keys = verses.keys
-          .map((k) => int.tryParse(k) ?? 0)
-          .where((v) => v > 0)
-          .toList()
-        ..sort();
+        state.selectedVersionId,
+        state.selectedBookId,
+        chapter,
+      );
+      final keys =
+          verses.keys
+              .map((k) => int.tryParse(k) ?? 0)
+              .where((v) => v > 0)
+              .toList()
+            ..sort();
       if (keys.isEmpty) return;
       final target = verseTarget == 999 ? keys.last : keys.first;
-      emit(state.copyWith(
-        selectedChapter: chapter,
-        verses: verses,
-        selectedVerses: [target],
-      ));
-    // coverage:ignore-start
+      emit(
+        state.copyWith(
+          selectedChapter: chapter,
+          verses: verses,
+          selectedVerses: [target],
+        ),
+      );
+      // coverage:ignore-start
     } on LouvorjaApiException catch (e) {
       emit(BibleError(e.code));
     } catch (_) {

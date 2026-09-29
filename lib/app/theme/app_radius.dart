@@ -5,10 +5,10 @@
 /// Identidade visual: TL (top-left) + BR (bottom-right) arredondados.
 /// TR + BL retos (0). NUNCA usar BorderRadius.circular() simétrico.
 library;
+
 import 'package:flutter/material.dart';
 
 abstract final class AppRadius {
-
   /// Inputs, botões, containers pequenos.
   static const BorderRadius sm = BorderRadius.only(
     topLeft: Radius.circular(8),

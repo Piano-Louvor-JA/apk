@@ -67,7 +67,11 @@ void main() {
   });
 
   test('AlbumCategory toString', () {
-    final a = AlbumCategory(id: 3, name: 'Cat', albums: const [Album(id: 1), Album(id: 2)]);
+    final a = AlbumCategory(
+      id: 3,
+      name: 'Cat',
+      albums: const [Album(id: 1), Album(id: 2)],
+    );
     expect(a.toString(), 'AlbumCategory(id: 3, name: Cat, 2 albums)');
   });
 

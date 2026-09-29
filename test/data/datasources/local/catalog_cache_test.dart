@@ -20,7 +20,7 @@ void main() {
 
   test('write + read round-trip', () {
     cache.write('categories', [
-      {'id': 1, 'name': 'Teste'}
+      {'id': 1, 'name': 'Teste'},
     ]);
     final result = cache.read('categories');
     expect(result, isA<List>());

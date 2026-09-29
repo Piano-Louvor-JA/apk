@@ -46,12 +46,13 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchMusicIndex() async => const [];
   @override
   String resolveMediaUrl(String p) => p;
-@override
+  @override
   Future<List<BibleBook>> fetchBibleBooks() async => const [];
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 void main() {
@@ -66,10 +67,8 @@ void main() {
         ),
         GoRoute(
           path: '/detail',
-          builder: (_, __) => BlocProvider<HymnsBloc>.value(
-            value: bloc,
-            child: child,
-          ),
+          builder: (_, __) =>
+              BlocProvider<HymnsBloc>.value(value: bloc, child: child),
         ),
       ],
     );
@@ -83,7 +82,12 @@ void main() {
     );
     final bloc = HymnsBloc(repo);
 
-    await tester.pumpWidget(wrapWithRouter(AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()), bloc));
+    await tester.pumpWidget(
+      wrapWithRouter(
+        AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
+        bloc,
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'filter');
@@ -97,7 +101,12 @@ void main() {
     );
     final bloc = HymnsBloc(repo);
 
-    await tester.pumpWidget(wrapWithRouter(AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()), bloc));
+    await tester.pumpWidget(
+      wrapWithRouter(
+        AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
+        bloc,
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(TablerIcons.arrowLeft));
@@ -119,7 +128,10 @@ void main() {
           path: '/detail',
           builder: (_, __) => BlocProvider<HymnsBloc>.value(
             value: bloc,
-            child: AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
+            child: AlbumDetailPage(
+              albumId: 100,
+              offlineService: _FakeOfflinePort(),
+            ),
           ),
         ),
       ],
@@ -133,7 +145,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byIcon(TablerIcons.alertCircle), findsOneWidget);
-    await tester.tap(find.byType(FilledButton));
+    await tester.tap(find.byType(FilledButton).last);
     await tester.pumpAndSettle();
   });
 }
@@ -143,7 +155,10 @@ class _FakeOfflinePort implements OfflineMusicPort {
   bool get isSupported => false;
 
   @override
-  Future<String?> localPathFor(int musicId, {bool instrumental = false}) async => null;
+  Future<String?> localPathFor(
+    int musicId, {
+    bool instrumental = false,
+  }) async => null;
 
   @override
   Future<String> download({

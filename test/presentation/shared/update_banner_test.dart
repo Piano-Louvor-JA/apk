@@ -7,7 +7,9 @@ import 'package:louvorja_piano_mobile/presentation/shared/widgets/update_banner.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('UpdateBanner renderiza versao e botao atualizar', (tester) async {
+  testWidgets('UpdateBanner renderiza versao e botao atualizar', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(

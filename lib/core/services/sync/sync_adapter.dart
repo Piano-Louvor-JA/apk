@@ -20,11 +20,7 @@ class SyncImportResult {
 /// Conflito: LWW por entidade (timestamp `sync.modified.v1.<entidade>`).
 /// Entidade desconhecida no pacote é ignorada (forward-compatible).
 class SyncAdapter {
-  static const _settingsKeys = [
-    'themeMode',
-    'accent',
-    'interaction',
-  ];
+  static const _settingsKeys = ['themeMode', 'accent', 'interaction'];
   static const _settingsIntKeys = ['glassIntensity'];
   static const _timerPresetsKey = 'timer.countdown.presets.v1';
 
@@ -129,10 +125,9 @@ class SyncAdapter {
           final rawItems = dayData['items'];
           final items = (rawItems is List<dynamic>)
               ? rawItems
-                  .whereType<Map>()
-                  .map((e) => LiturgyItem.fromJson(
-                      e.cast<String, dynamic>()))
-                  .toList()
+                    .whereType<Map>()
+                    .map((e) => LiturgyItem.fromJson(e.cast<String, dynamic>()))
+                    .toList()
               : <LiturgyItem>[];
           await repo.saveItems(day, items);
           final notes = dayData['notes'];

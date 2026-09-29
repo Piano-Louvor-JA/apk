@@ -39,29 +39,27 @@ class BookColors {
     }
   }
 
-  static Color background(BibleBook book, ThemeData theme,
-      {bool selected = false}) {
+  static Color background(
+    BibleBook book,
+    ThemeData theme, {
+    bool selected = false,
+  }) {
     final isLight = theme.brightness == Brightness.light;
     if (selected) {
-      return const Color(0xFFCA8A04)
-          .withValues(alpha: isLight ? 0.25 : 0.4);
+      return const Color(0xFFCA8A04).withValues(alpha: isLight ? 0.25 : 0.4);
     }
     if (book.color != null) {
       return parseHex(book.color!).withValues(alpha: isLight ? 0.16 : 0.22);
     }
     switch (book.tone) {
       case BibleBookTone.law:
-        return const Color(0xFF3B82F6)
-            .withValues(alpha: isLight ? 0.15 : 0.18);
+        return const Color(0xFF3B82F6).withValues(alpha: isLight ? 0.15 : 0.18);
       case BibleBookTone.history:
-        return const Color(0xFF22C55E)
-            .withValues(alpha: isLight ? 0.15 : 0.12);
+        return const Color(0xFF22C55E).withValues(alpha: isLight ? 0.15 : 0.12);
       case BibleBookTone.prophets:
-        return const Color(0xFFCA8A04)
-            .withValues(alpha: isLight ? 0.18 : 0.14);
+        return const Color(0xFFCA8A04).withValues(alpha: isLight ? 0.18 : 0.14);
       case BibleBookTone.gospels:
-        return const Color(0xFFA855F7)
-            .withValues(alpha: isLight ? 0.15 : 0.12);
+        return const Color(0xFFA855F7).withValues(alpha: isLight ? 0.15 : 0.12);
       case BibleBookTone.letters:
       case BibleBookTone.neutral:
         return isLight

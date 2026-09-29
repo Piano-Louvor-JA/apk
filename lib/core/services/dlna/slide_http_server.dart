@@ -4,6 +4,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 /// Servidor HTTP local que serve o slide atual (PNG) para a TV baixar.
 ///
 /// A TV faz HEAD antes do GET (validação LG do PoC) — ambos suportados.
@@ -23,9 +25,14 @@ class SlideHttpServer {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
       _server!.listen(_handle, onError: (_) {});
       final ip = await _localIp();
-      if (ip == null) return null;
+      _cachedLocalIp = ip;
+      if (ip == null) {
+        debugPrint('[DLNA] SlideHttpServer: _localIp() = null (sem IP LAN)');
+        return null;
+      }
       return 'http://$ip:${_server!.port}';
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[DLNA] SlideHttpServer.start() exceção: $e');
       return null;
     }
   }
@@ -48,6 +55,11 @@ class SlideHttpServer {
   }
 
   Future<void> _handle(HttpRequest req) async {
+    debugPrint(
+      '[DLNA] server ${req.method} ${req.uri.path}'
+      '${req.uri.query.isNotEmpty ? '?${req.uri.query}' : ''} de '
+      '${req.connectionInfo?.remoteAddress.address}',
+    );
     final res = req.response;
     final bytes = _currentSlide;
     if (bytes == null) {
@@ -55,8 +67,9 @@ class SlideHttpServer {
       await res.close();
       return;
     }
-    res.headers.contentType =
-        ContentType.parse(_jpegMode ? 'image/jpeg' : 'image/png');
+    res.headers.contentType = ContentType.parse(
+      _jpegMode ? 'image/jpeg' : 'image/png',
+    );
     res.headers.set('Content-Length', bytes.length);
     if (req.method == 'HEAD') {
       await res.close();
@@ -74,6 +87,18 @@ class SlideHttpServer {
   /// Agora: se o renderer está em 192.168.1.x, anunciamos o IP do celular
   /// também em 192.168.1.x.
   static String? rendererSubnetHint;
+  static String? _cachedLocalIp;
+
+  static String? get localIp => _cachedLocalIp;
+
+  /// F3.3ab: resolve o IP LAN sem subir servidor (usado pelo bottom sheet
+  /// do cast antes de qualquer conexão).
+  static Future<String?> resolveLocalIp() async {
+    if (_cachedLocalIp != null) return _cachedLocalIp;
+    final ip = await _localIp();
+    _cachedLocalIp = ip;
+    return ip;
+  }
 
   static Future<String?> _localIp() async {
     try {

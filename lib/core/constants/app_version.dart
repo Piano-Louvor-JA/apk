@@ -7,7 +7,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// Nunca hardcodar versao em widgets -- sempre usar esta classe.
 /// Quando o version do pubspec.yaml muda, todos os widgets atualizam.
 abstract final class AppVersion {
-
   static String? _cachedVersion;
 
   static Future<String> _getVersion() async {

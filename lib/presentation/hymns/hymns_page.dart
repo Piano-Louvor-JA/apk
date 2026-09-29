@@ -1,5 +1,7 @@
 library;
 
+import "dart:async";
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -12,6 +14,7 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album.dart';
+import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/catalog_cache.dart';
 import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
@@ -21,6 +24,11 @@ import 'package:louvorja_piano_mobile/core/services/offline_music_port.dart';
 import 'package:louvorja_piano_mobile/core/services/offline_music_service.dart';
 import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.dart';
 import 'package:louvorja_piano_mobile/data/repositories/hymn_repository_impl.dart';
+import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
+import 'package:louvorja_piano_mobile/core/services/hymn_player_adapter.dart';
+import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
+import 'package:louvorja_piano_mobile/presentation/hymns/now_playing_page.dart';
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import 'bloc/hymns_bloc.dart';
 
 const _apiToken = String.fromEnvironment('API_TOKEN', defaultValue: '');
@@ -70,8 +78,8 @@ class _HymnsPageState extends State<HymnsPage> {
   Future<void> _initBloc(String languagePrefix) async {
     // coverage:ignore-start
     final api = LouvorjaApiImpl(
-      baseUrl: 'https://api.louvorja.com.br/json_db',
-      filesUrl: 'https://api.louvorja.com.br/file',
+      baseUrls: ApiConfig.databaseUrls(),
+      filesUrls: ApiConfig.filesUrls(),
       apiToken: _apiToken,
       languagePrefix: languagePrefix,
     );
@@ -129,10 +137,106 @@ class _HymnsView extends StatefulWidget {
 class _HymnsViewState extends State<_HymnsView> {
   String _searchQuery = '';
   bool _isSearching = false;
+  List<Hymn> _searchResults = const [];
+  bool _searchLoading = false;
   bool _downloadingAll = false;
-  int? _downloadAllProgress; // 0..100
-  int? _downloadAllCurrent;
-  int? _downloadAllTotal;
+  int? _downloadAllProgress; // 0..100 (músicas, não álbuns)
+  int? _downloadAllCurrent; // músicas concluídas
+  int? _downloadAllTotal; // total de músicas no lote
+  String? _downloadAllAlbum; // álbum em curso
+
+  Timer? _debounce;
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    final q = value.trim();
+    setState(() => _searchQuery = q);
+    if (q.length < 3) {
+      setState(() {
+        _searchResults = const [];
+        _searchLoading = false;
+      });
+      return;
+    }
+    setState(() => _searchLoading = true);
+    _debounce = Timer(const Duration(milliseconds: 400), () => _doSearch(q));
+  }
+
+  Future<void> _doSearch(String query) async {
+    if (!mounted) return;
+    try {
+      final repo = context.read<HymnsBloc>().repository;
+      final results = await repo.searchHymns(query);
+      if (!mounted) return;
+      setState(() {
+        _searchResults = results;
+        _searchLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _searchResults = const [];
+        _searchLoading = false;
+      });
+    }
+  }
+
+  // coverage:ignore-start
+  Future<void> _openSearchResult(BuildContext context, Hymn hymn) async {
+    try {
+      final repo = context.read<HymnsBloc>().repository;
+      final detail = await repo.getHymnDetails(hymn.id);
+      if (!context.mounted) return;
+
+      final url = detail.urlMusic ?? '';
+      if (url.isEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('errors.notFound'.tr())));
+        return;
+      }
+
+      final source = DownloadUrlBuilder.build(url);
+      final player = HymnAudioPlayer.instance;
+      final adapter = HymnPlayerAdapter(player);
+
+      nowPlaying.start(
+        hymnId: hymn.id,
+        title: detail.title ?? '',
+        album: '',
+        albumId: 0,
+        durationMs: detail.durationMs,
+        detail: detail,
+        audioSource: source,
+      );
+      await player.playUrl(source);
+
+      if (!context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => NowPlayingPage(
+            detail: detail,
+            instrumental: false,
+            player: adapter,
+            filesUrl: ApiConfig.urlFiles,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('errors.connection'.tr())));
+    }
+  }
+  // coverage:ignore-end
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
 
   /// Baixa todas as coletaneas disponiveis (feature herdada do desktop:
   /// download sob demanda de toda a biblioteca).
@@ -147,52 +251,97 @@ class _HymnsViewState extends State<_HymnsView> {
     }
 
     final repo = context.read<HymnsBloc>().repository;
+
+    // Pré-conta músicas p/ progresso por FAIXA (o contador por álbum era
+    // vago: um álbum de 70 músicas não mudava o número por minutos).
+    // Músicas JÁ baixadas saem do lote — re-baixar o que tá salvo era o
+    // feedback do Rafael ('se já foi baixado não quero baixar de novo').
+    var totalMusics = 0;
+    final alreadyOffline = <int>{};
+    for (final album in albums) {
+      try {
+        final hymns = await repo.getHymnsByAlbum(album.id);
+        for (final hymn in hymns) {
+          if (await offline.localPathFor(hymn.id) != null) {
+            alreadyOffline.add(hymn.id);
+          } else {
+            totalMusics++;
+          }
+        }
+      } catch (_) {}
+    }
+    if (totalMusics == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Tudo já está baixado!')));
+        setState(() => _downloadingAll = false);
+      }
+      return;
+    }
+
     setState(() {
       _downloadingAll = true;
       _downloadAllProgress = 0;
       _downloadAllCurrent = 0;
-      _downloadAllTotal = albums.length;
+      _downloadAllTotal = totalMusics;
     });
 
     var done = 0;
     var failed = 0;
     for (final album in albums) {
+      if (mounted) {
+        setState(() => _downloadAllAlbum = album.name);
+      }
       try {
         final hymns = await repo.getHymnsByAlbum(album.id);
         for (final hymn in hymns) {
-          final detail = await repo.getHymnDetails(hymn.id);
-          final url = detail.urlMusic ?? '';
-          if (url.isNotEmpty) {
-            // URL encodada: paths da API tem espacos/acento e o request
-            // quebra sem encoding (bug dos downloads 100% falhando).
-            await offline.download(
-              musicId: hymn.id,
-              url: DownloadUrlBuilder.build(url),
-            );
-            final OfflineMusicPort offlinePort = offline;
-            if (offlinePort is OfflineLibraryPort) {
-              await (offlinePort as OfflineLibraryPort).saveMetadata(
+          if (alreadyOffline.contains(hymn.id)) continue; // já salvo: pula
+          try {
+            final detail = await repo.getHymnDetails(hymn.id);
+            final url = detail.urlMusic ?? '';
+            if (url.isNotEmpty) {
+              // URL encodada: paths da API tem espacos/acento e o request
+              // quebra sem encoding (bug dos downloads 100% falhando).
+              await offline.download(
                 musicId: hymn.id,
-                title: hymn.title ?? 'Hino #${hymn.id}',
-                number: hymn.number?.toString(),
-                albumId: album.id,
-                albumName: album.name,
+                url: DownloadUrlBuilder.build(url),
               );
+              final OfflineMusicPort offlinePort = offline;
+              if (offlinePort is OfflineLibraryPort) {
+                await (offlinePort as OfflineLibraryPort).saveMetadata(
+                  musicId: hymn.id,
+                  title: hymn.title ?? 'Hino #${hymn.id}',
+                  number: hymn.number?.toString(),
+                  albumId: album.id,
+                  albumName: album.name,
+                );
+              }
             }
+          } catch (_) {
+            failed++; // falha de música não aborta o lote
           }
+          done++;
           // Pausa entre faixas: respeita rate limiting da API.
           await Future<void>.delayed(const Duration(milliseconds: 400));
+          if (mounted && done % 3 == 0) {
+            setState(() {
+              _downloadAllCurrent = done;
+              _downloadAllProgress = (done * 100 ~/ totalMusics);
+            });
+          }
         }
       } catch (_) {
         failed++;
       }
-      done++;
-      if (mounted) {
-        setState(() {
-          _downloadAllCurrent = done;
-          _downloadAllProgress = (done * 100 ~/ albums.length);
-        });
-      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _downloadAllCurrent = done;
+        _downloadAllProgress =
+            (done * 100 ~/ (totalMusics == 0 ? 1 : totalMusics));
+      });
     }
 
     if (mounted) {
@@ -203,8 +352,12 @@ class _HymnsViewState extends State<_HymnsView> {
       if (failed > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('downloads.albumErrors'.tr(
-              namedArgs: {'count': '$failed', 'total': '${albums.length}'}))),
+            content: Text(
+              'downloads.albumErrors'.tr(
+                namedArgs: {'count': '$failed', 'total': '${albums.length}'},
+              ),
+            ),
+          ),
         );
       }
     }
@@ -228,11 +381,22 @@ class _HymnsViewState extends State<_HymnsView> {
                   ),
                 ),
                 style: theme.textTheme.bodyLarge,
-                onChanged: (value) =>
-                    setState(() => _searchQuery = value.trim()),
+                onChanged: _onSearchChanged,
               )
             : Text('hymns.title'.tr()),
         actions: [
+          // Playlists (seleção de hinos do acervo, local)
+          IconButton(
+            icon: const Icon(Icons.queue_music),
+            tooltip: 'Playlists',
+            onPressed: () => context.push('/hymns/playlists'),
+          ),
+          // Coletâneas da comunidade (custom da API)
+          IconButton(
+            icon: const Icon(Icons.groups),
+            tooltip: 'Coletâneas da Comunidade',
+            onPressed: () => context.push('/hymns/custom'),
+          ),
           BlocBuilder<HymnsBloc, HymnsState>(
             builder: (context, state) {
               if (state is! HymnsLoaded) return const SizedBox.shrink();
@@ -241,6 +405,7 @@ class _HymnsViewState extends State<_HymnsView> {
                 progress: _downloadAllProgress,
                 current: _downloadAllCurrent,
                 total: _downloadAllTotal,
+                album: _downloadAllAlbum,
                 onPressed: () => _downloadEverything(state.categories),
               );
             },
@@ -251,7 +416,11 @@ class _HymnsViewState extends State<_HymnsView> {
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
-                if (!_isSearching) _searchQuery = '';
+                if (!_isSearching) {
+                  _searchQuery = '';
+                  _searchResults = const [];
+                  _searchLoading = false;
+                }
               });
             },
           ),
@@ -294,10 +463,62 @@ class _HymnsViewState extends State<_HymnsView> {
             );
           }
           if (state is HymnsLoaded) {
-            // Busca com normalizacao de acentos (mesma logica da busca global).
+            // Busca por musicas quando ha 3+ caracteres.
+            if (_searchQuery.length >= 3) {
+              if (_searchLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (_searchResults.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        TablerIcons.musicOff,
+                        size: 48,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: AppSpacing.s2),
+                      Text(
+                        'Nenhuma musica encontrada',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.all(AppSpacing.s4),
+                itemCount: _searchResults.length,
+                itemBuilder: (context, i) {
+                  final h = _searchResults[i];
+                  return ListTile(
+                    leading: Text(
+                      h.number != null ? '#${h.number}' : '${h.id}',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    title: Text(
+                      h.title ?? 'Hino #${h.id}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Icon(
+                      TablerIcons.chevronRight,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    onTap: () => _openSearchResult(context, h),
+                  );
+                },
+              );
+            }
+
+            // Sem busca: lista coletaneas (comportamento original).
             final filteredCategories = GlobalSearchService.filterAlbums(
               state.categories,
-              _searchQuery,
+              '',
             );
 
             final allAlbums = <Album>[];
@@ -376,7 +597,7 @@ class _AlbumCard extends StatelessWidget {
     final isAsset = hasCover && coverUrl.startsWith('asset:');
     final assetName = isAsset ? coverUrl.substring('asset:'.length) : null;
     final fullCoverUrl = hasCover && !isAsset
-        ? 'https://api.louvorja.com.br/file/$coverUrl'
+        ? DownloadUrlBuilder.build(coverUrl)
         : null;
     // coverage:ignore-end
 
@@ -507,7 +728,6 @@ class _CoverPlaceholder extends StatelessWidget {
   }
 }
 
-
 /// Botao "Baixar todas as coletaneas" na AppBar da aba Hinos.
 /// Mostra progresso durante o download em lote.
 class _DownloadAllButton extends StatelessWidget {
@@ -515,6 +735,7 @@ class _DownloadAllButton extends StatelessWidget {
   final int? progress;
   final int? current;
   final int? total;
+  final String? album;
   final VoidCallback onPressed;
 
   const _DownloadAllButton({
@@ -523,19 +744,44 @@ class _DownloadAllButton extends StatelessWidget {
     required this.current,
     required this.total,
     required this.onPressed,
+    this.album,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (downloading) {
-      return Center(
-        child: Text(
-          '$current/$total',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w600,
-          ),
+      // Banner compacto: contador de músicas + barra + álbum em curso.
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (album != null)
+              Text(
+                album!,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
+            Text(
+              '$current/$total',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(
+              width: 88,
+              child: LinearProgressIndicator(
+                value: (progress ?? 0) / 100,
+                minHeight: 3,
+              ),
+            ),
+          ],
         ),
       );
     }

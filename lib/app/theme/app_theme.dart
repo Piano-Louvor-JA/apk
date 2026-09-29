@@ -13,7 +13,6 @@ import 'app_radius.dart';
 import 'app_spacing.dart';
 
 abstract final class AppTheme {
-
   /// Tema "Ethereal Lumens" (dark, padrão).
   static ThemeData dark({AccentColor accent = AppAccents.defaultAccent}) {
     final colorScheme = ColorScheme(
@@ -80,30 +79,22 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: scheme.surface,
       cardTheme: CardThemeData(
         color: scheme.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadius.lg,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.lg),
         margin: EdgeInsets.zero,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.sm,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.sm),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.sm,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.sm),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.sm,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.sm),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -123,19 +114,13 @@ abstract final class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadius.full,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.full),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: AppSpacing.navBarHeight,
         backgroundColor: scheme.surfaceContainer,
-        indicatorShape: RoundedRectangleBorder(
-          borderRadius: AppRadius.sm,
-        ),
-        labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 12),
-        ),
+        indicatorShape: RoundedRectangleBorder(borderRadius: AppRadius.sm),
+        labelTextStyle: WidgetStateProperty.all(const TextStyle(fontSize: 12)),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
