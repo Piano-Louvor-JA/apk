@@ -48,11 +48,11 @@ dependencies:
   flutter_native_splash: ^2.4.6
 
   # App version info (lê version do pubspec em runtime)
-  package_info_plus: ^9.0.1
-  device_info_plus: ^11.5.0
+  package_info_plus: ^10.2.1
+  device_info_plus: ^13.2.0
 
   # Media
-  cached_network_image: ^3.4.1
+  cached_network_image: ^4.0.2
 
   # Code generation (runtime annotations)
   freezed_annotation: ^3.0.0
@@ -66,26 +66,26 @@ dependencies:
   # Seleção de mídia local para itens da liturgia (mobile/web)
   # 10.3.9+ quebra registro Android (FilePickerPlugin ausente).
   # ponytail: remover pin quando upstream corrigir regressão #1960.
-  file_picker: 10.3.8
+  file_picker: 13.1.0
 
   # Abrir URLs externas (site, video online) da liturgia
   url_launcher: ^6.3.1
 
   # Manter tela acesa durante o culto
-  wakelock_plus: ^1.5.2
+  wakelock_plus: ^1.8.0
   flutter_local_notifications: ^22.3.1
   timezone: ^0.11.1
   open_filex: ^4.7.0
   image_picker: ^1.2.3
   flutter_colorpicker: ^1.1.0
   image: ^4.10.1
-  archive: ^4.2.0
-  flutter_foreground_task: ^11.0.0
+  archive: ^4.3.0
+  flutter_foreground_task: ^11.0.3
   multicast_dns: ^0.3.3+1
-  mobile_scanner: ^7.4.0
-  flutter_webrtc: ^1.6.0
+  mobile_scanner: ^7.4.2
+  flutter_webrtc: ^1.6.2+hotfix.3
   qr_flutter: ^4.1.0
-  flutter_secure_storage: ^10.3.2
+  flutter_secure_storage: ^10.3.4
   file_selector: ^1.1.0
 dev_dependencies:
   flutter_test:
@@ -97,8 +97,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # Code generation
-  build_runner: ^2.4.13
-  freezed: ^3.0.0
+  build_runner: ^2.16.1
+  freezed: ^4.0.1
   json_serializable: ^6.8.0
 
   # Testing
