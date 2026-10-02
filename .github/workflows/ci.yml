@@ -1,16 +1,22 @@
 name: CI
 
+# Padrao canonico da org: lint -> typecheck -> test -> build -> regression-gate -> quality-gate
+# Mapeamento apk: lint=flutter analyze · typecheck=embutido no analyze · builds de SO = camada extra
 on:
   push:
     branches: [main, master, staging]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  analyze:
-    name: Analyze
+  lint:
+    name: Lint (flutter analyze)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -45,6 +51,7 @@ jobs:
     name: Build Android
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: [lint, test]
     steps:
       - uses: actions/checkout@v7
 
@@ -78,6 +85,7 @@ jobs:
     name: Build iOS
     runs-on: macos-latest
     timeout-minutes: 25
+    needs: [lint, test]
     steps:
       - uses: actions/checkout@v7
 
@@ -123,3 +131,29 @@ jobs:
 
       - name: Compare (PR branch)
         run: dart run scripts/test-regression.dart --compare
+
+  # Quality Gate canonico: so passa se TODAS as camadas passaram
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint, test, build-android, build-ios, regression-gate]
+    if: always()
+    steps:
+      - name: Verifica se todos os gates passaram
+        run: |
+          echo "lint: ${{ needs.lint.result }}"
+          echo "test: ${{ needs.test.result }}"
+          echo "build-android: ${{ needs.build-android.result }}"
+          echo "build-ios: ${{ needs.build-ios.result }}"
+          echo "regression-gate: ${{ needs.regression-gate.result }}"
+          FAIL=0
+          for r in "${{ needs.lint.result }}" "${{ needs.test.result }}" "${{ needs.build-android.result }}" "${{ needs.build-ios.result }}"; do
+            [[ "$r" != "success" ]] && FAIL=1
+          done
+          # regression-gate roda so em PR; em push fica skipped e nao bloqueia
+          [[ "${{ needs.regression-gate.result }}" == "failure" ]] && FAIL=1
+          if [[ "$FAIL" == "1" ]]; then
+            echo "::error::Quality Gate FALHOU — corrija os erros antes do merge"
+            exit 1
+          fi
+          echo "Quality Gate PASSOU"
