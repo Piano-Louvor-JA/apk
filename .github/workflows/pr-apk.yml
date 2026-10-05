@@ -1,6 +1,7 @@
 name: PR APK Build (bot)
 
-# Builda APK de uma PR sob demanda (disparado pelo bot de alertas) e publica
+# Builda APK de uma PR sob demanda.
+# REGRA: builds de PR apontam SEMPRE pra API STAGING (api-stg.pianolouvorja.com.br) — nunca produção. (disparado pelo bot de alertas) e publica
 # como ARTIFACT efêmero (3 dias). Zero disco na VM: o binário vive no GitHub.
 # Uso pelo bot: /apk apk#123 → workflow_dispatch(pr_number=123) → download + envio no Telegram.
 
@@ -52,8 +53,8 @@ jobs:
           API_TOKEN: ${{ secrets.API_TOKEN }}
         run: >-
           flutter build apk --debug --no-tree-shake-icons
-          --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db
-          --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file
+          --dart-define=LOUVORJA_URL_DATABASE=https://api-stg.pianolouvorja.com.br/json_db
+          --dart-define=LOUVORJA_URL_FILES=https://api-stg.pianolouvorja.com.br/file
           --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
           --dart-define=API_TOKEN=$API_TOKEN
 
