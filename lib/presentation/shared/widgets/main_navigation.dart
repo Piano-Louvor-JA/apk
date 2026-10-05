@@ -10,6 +10,7 @@ import '../../../../core/services/hymn_audio_player.dart';
 import '../../../../core/services/hymn_player_adapter.dart';
 import '../../../../core/services/now_playing.dart';
 import 'mini_player_bar.dart';
+import 'offline_status_scope.dart';
 import '../../hymns/now_playing_page.dart';
 
 /// MainNavigation — bottom navigation com 5 tabs.
@@ -40,7 +41,8 @@ class MainNavigation extends StatelessWidget {
     ];
 
     return Scaffold(
-      body: navigationShell,
+      // SPEC 7: banner "modo offline" global sobre o conteúdo de qualquer tab.
+      body: OfflineStatusScope(child: navigationShell),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

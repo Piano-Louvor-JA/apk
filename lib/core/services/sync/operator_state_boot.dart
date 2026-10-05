@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import 'package:louvorja_piano_mobile/core/services/sync/operator_state_client.dart';
+import 'package:louvorja_piano_mobile/core/services/sync/sync_retry.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/custom_session_store.dart';
 
 abstract final class OperatorStateBoot {
@@ -74,6 +75,27 @@ abstract final class OperatorStateBoot {
       // rede/sessão indisponível — fila permanece pra próxima tentativa
     }
   }
+
+  /// SPEC 7 (apk#92): retry de sincronização quando a rede volta.
+  ///
+  /// Liga o stream do [OfflineStatusController] ao [SyncRetry]: a transição
+  /// offline→online dispara o flush da outbox sem ação do usuário.
+  static SyncRetry bindSyncRetry(
+    SharedPreferences prefs, {
+    required Stream<bool> offlineStream,
+  }) {
+    final retry = SyncRetry(prefs, flush: () => client(prefs).flush());
+    _retrySub = offlineStream.listen(retry.onNetworkBack);
+    return retry;
+  }
+
+  /// Testes: cancela a assinatura do retry.
+  static void unbindSyncRetry() {
+    _retrySub?.cancel();
+    _retrySub = null;
+  }
+
+  static StreamSubscription<bool>? _retrySub;
 
   /// Testes: descarta o singleton (SharedPreferences mockado por teste).
   static void resetForTest() => _client = null;

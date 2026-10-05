@@ -54,3 +54,46 @@ class ConnectivityController {
     await _state.close();
   }
 }
+
+/// SPEC 7 (apk#92) — modo offline: estado observável invertido da rede.
+///
+/// Expõe `isOffline` (replay do último estado conhecido) e o stream
+/// `onOfflineChanged` para o banner global. `start()` é idempotente
+/// (chamar duas vezes não duplica a assinatura do connectivity_plus).
+class OfflineStatusController {
+  OfflineStatusController({ConnectivityService? service})
+    : _service = service ?? ConnectivityService();
+
+  final ConnectivityService _service;
+  StreamSubscription<bool>? _subscription;
+  final StreamController<bool> _offline =
+      StreamController<bool>.broadcast();
+  bool _isOffline = false;
+  bool _started = false;
+
+  /// Último estado conhecido (replay imediato após start()).
+  bool get isOffline => _isOffline;
+
+  /// Emite `true` ao perder rede e `false` ao voltar.
+  Stream<bool> get onOfflineChanged => _offline.stream;
+
+  Future<void> start() async {
+    if (_started) return;
+    _started = true;
+    _setOffline(!(await _service.isConnected));
+    _subscription = _service.onConnectionChanged.listen(
+      (connected) => _setOffline(!connected),
+    );
+  }
+
+  void _setOffline(bool offline) {
+    if (_isOffline == offline) return;
+    _isOffline = offline;
+    _offline.add(offline);
+  }
+
+  Future<void> dispose() async {
+    await _subscription?.cancel();
+    await _offline.close();
+  }
+}

@@ -422,5 +422,10 @@
   },
   "albums": {
     "playAll": "Play all"
+  },
+  "offline": {
+    "sectionTitle": "Offline mode",
+    "mode": "Offline mode — using downloaded content",
+    "restored": "Connection restored — syncing…"
   }
 }
