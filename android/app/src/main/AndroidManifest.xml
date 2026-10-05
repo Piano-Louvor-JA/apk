@@ -27,6 +27,13 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- SSDP multicast: necessário para descobrir TVs DLNA na rede Wi-Fi. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- apk#90: Android 13+ exige ACCESS_NETWORK_STATE + NEARBY_WIFI_DEVICES
+         para descoberta mDNS/local de TVs. Sem elas o scan do Palco falha
+         em silêncio ("Procurando TV webOS…" infinito). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
 
     <application
         android:label="Piano LouvorJA"
