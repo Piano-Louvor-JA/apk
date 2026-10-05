@@ -23,7 +23,7 @@ void main() {
       try {
         final client = MDnsClient();
         await client.start();
-        await client.stop();
+        client.stop();
       } catch (e) {
         final msg = e.toString();
         if (msg.contains('PERMISSION') ||
