@@ -29,7 +29,11 @@ class BibleVersion {
   static int _parseInt(dynamic v) {
     if (v is int) return v;
     if (v is num) return v.toInt();
-    if (v is String) return int.tryParse(v) ?? 0;
+    if (v is String) {
+      // API prod manda id como string decimal ("13.0"): int.tryParse falha,
+      // truncar o double (apk#93 — bible_0_1_1 → bible_13_1_1).
+      return int.tryParse(v) ?? double.tryParse(v)?.truncate() ?? 0;
+    }
     return 0;
   }
 

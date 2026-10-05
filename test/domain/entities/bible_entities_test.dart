@@ -221,6 +221,24 @@ void main() {
       expect(v.id, 5);
     });
 
+    test('fromJson com id decimal em string da API (apk#93)', () {
+      // Payload REAL da API prod: id_bible_version vem como "13.0"
+      // (string decimal). int.tryParse falha e o id virava 0 → a chave
+      // do capítulo virava bible_0_1_1 → 404 "Conteúdo não disponível
+      // neste idioma". O id precisa truncar pra 13 (bible_13_1_1, 200).
+      final v = BibleVersion.fromJson({
+        'id_bible_version': '13.0',
+        'abbreviation': 'ACF',
+        'name': 'Almeida Corrigida e Fiel',
+      });
+      expect(v.id, 13);
+    });
+
+    test('fromJson com double', () {
+      final v = BibleVersion.fromJson({'id_bible_version': 2.0});
+      expect(v.id, 2);
+    });
+
     test('== por id', () {
       const a = BibleVersion(id: 1, abbreviation: 'ARA', name: 'A');
       const b = BibleVersion(id: 1, abbreviation: 'NVI', name: 'B');
