@@ -1,0 +1,73 @@
+name: PR APK Build (bot)
+
+# Builda APK de uma PR sob demanda.
+# REGRA: builds de PR apontam SEMPRE pra API STAGING (api-stg.pianolouvorja.com.br) — nunca produção. (disparado pelo bot de alertas) e publica
+# como ARTIFACT efêmero (3 dias). Zero disco na VM: o binário vive no GitHub.
+# Uso pelo bot: /apk apk#123 → workflow_dispatch(pr_number=123) → download + envio no Telegram.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Número da PR pra buildar'
+        required: true
+        type: string
+      requester:
+        description: 'Quem pediu (usuário Telegram, pra auditoria)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-apk-${{ inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: APK da PR #${{ inputs.pr_number }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout do head da PR
+        uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ inputs.pr_number }}/head
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build APK (debug, mesmo perfil do CI)
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: >-
+          flutter build apk --debug --no-tree-shake-icons
+          --dart-define=LOUVORJA_URL_DATABASE=https://api-stg.pianolouvorja.com.br/json_db
+          --dart-define=LOUVORJA_URL_FILES=https://api-stg.pianolouvorja.com.br/file
+          --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
+          --dart-define=API_TOKEN=$API_TOKEN
+
+      - name: Renomeia artefato com número da PR
+        run: |
+          mkdir -p out
+          cp build/app/outputs/flutter-apk/app-debug.apk "out/louvorja-pr${{ inputs.pr_number }}-debug.apk"
+          ls -la out/
+
+      - name: Upload artifact (efêmero — 3 dias)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-pr-${{ inputs.pr_number }}
+          path: out/*.apk
+          retention-days: 3
+          if-no-files-found: error
