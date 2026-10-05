@@ -514,7 +514,14 @@ void showLiturgyItemDialog(
                       const SizedBox(width: AppSpacing.s2),
                       FilledButton.icon(
                         onPressed: () {
-                          final name = nameCtrl.text.trim();
+                          var name = nameCtrl.text.trim();
+                          // Paridade app a60ddfd: edição de item de música
+                          // importado (.slja/comunidade grava o título em
+                          // subtitle ou name da música) não pode abrir/travar
+                          // com título vazio — cascata subtitle → label.
+                          if (name.isEmpty) {
+                            name = subtitleCtrl.text.trim();
+                          }
                           if (name.isEmpty &&
                               selectedMusicId.value == null &&
                               filePathCtrl.text.isEmpty &&
