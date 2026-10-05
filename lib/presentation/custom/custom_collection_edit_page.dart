@@ -8,6 +8,7 @@ import 'package:louvorja_piano_mobile/data/datasources/local/local_custom_store.
 import 'package:louvorja_piano_mobile/data/datasources/remote/custom_catalog_api_impl.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_player_adapter.dart';
+import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/data/datasources/remote/custom_file_api.dart';
 import 'package:louvorja_piano_mobile/domain/entities/custom_collection.dart';
 import 'package:louvorja_piano_mobile/domain/entities/custom_collection_music.dart';
@@ -24,12 +25,16 @@ class CustomCollectionEditPage extends StatefulWidget {
   final String? bearerToken;
   final LocalCustomStore? localStore;
 
+  /// Injeção opcional do player (testes). Null = singleton de plataforma.
+  final HymnAudioPlayer? audioPlayer;
+
   const CustomCollectionEditPage({
     super.key,
     required this.api,
     required this.collection,
     this.bearerToken,
     this.localStore,
+    this.audioPlayer,
   });
 
   @override
@@ -248,8 +253,20 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
                 ? rawUrl
                 : '${widget.api.filesBaseUrl}${rawUrl.startsWith('/') ? '' : '/'}$rawUrl');
 
-      final player = HymnAudioPlayer.instance;
+      final player = widget.audioPlayer ?? HymnAudioPlayer.instance;
       if (source != null) await player.playUrl(source);
+
+      // SPEC 4 (apk#91): registra no estado global para o MiniPlayerBar
+      // aparecer em TODAS as abas (antes, play custom não atualizava a
+      // barra — só a aba Hinos/álbum oficial alimentava o now playing).
+      nowPlaying.start(
+        hymnId: hymn.id,
+        title: hymn.title ?? music.name,
+        album: widget.collection.name,
+        durationMs: hymn.durationMs,
+        detail: hymn,
+        audioSource: source,
+      );
 
       if (!mounted) return;
       await Navigator.of(context).push(
