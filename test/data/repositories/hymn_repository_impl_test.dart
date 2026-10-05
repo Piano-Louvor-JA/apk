@@ -75,11 +75,13 @@ class _MockApi implements LouvorjaApiClient {
 
 void main() {
   late _MockApi api;
+  late Directory cacheDir;
   late CatalogCache cache;
 
   setUp(() {
     api = _MockApi();
     final tempDir = Directory.systemTemp.createTempSync('repo_test');
+    cacheDir = tempDir;
     cache = CatalogCache(tempDir);
   });
 
@@ -355,4 +357,110 @@ void main() {
     final repo = HymnRepositoryImpl(api, cache);
     expect(() => repo.getCategories(), throwsA(isA<Exception>()));
   });
+
+  test(
+    'cache de disco expirado nao esconde categoria nova da API (apk#116)',
+    () async {
+      // Sessao 1: catalogo SEM Infantis/Doxologia (ex.: device que caiu
+      // no fallback antigo um dia e gravou o cache com so 5 categorias).
+      api.categoriesResult = [
+        AlbumCategory(
+          id: 1,
+          name: 'Diversas',
+          albums: const [Album(id: 674, name: 'Antigo')],
+        ),
+      ];
+      final repo1 = HymnRepositoryImpl(api, cache);
+      final antigo = await repo1.getCategories();
+      expect(antigo.any((c) => c.id == 98), isFalse);
+
+      // Simula TTL 24h estourado: backdate o mtime do arquivo em disco.
+      final f = File(
+        '${cacheDir.path}/catalog_categories.json',
+      );
+      expect(f.existsSync(), isTrue);
+      final oldTime = DateTime.now().subtract(const Duration(hours: 25));
+      f.setLastModifiedSync(oldTime);
+
+      // Sessao 2 (app reiniciou): a API agora TRAZ Infantis/Doxologia
+      // e esta saudavel. O cache stale nao pode substituir o remoto.
+      api.categoriesResult = [
+        const AlbumCategory(
+          id: 1,
+          name: 'Diversas',
+          albums: [Album(id: 674, name: 'Antigo')],
+        ),
+        AlbumCategory(
+          id: 98,
+          name: 'Infantis',
+          albums: const [Album(id: 9000, name: 'Infantis')],
+        ),
+        AlbumCategory(
+          id: 99,
+          name: 'Doxologia',
+          albums: const [Album(id: 9010, name: 'Entrada da Plataforma')],
+        ),
+      ];
+      final repo2 = HymnRepositoryImpl(api, cache);
+      final result = await repo2.getCategories();
+
+      expect(
+        result.any((c) => c.id == 98 && c.albums.any((a) => a.id == 9000)),
+        isTrue,
+        reason: 'Infantis (98) deve aparecer quando a API traz a categoria',
+      );
+      expect(
+        result.any((c) => c.id == 99 && c.albums.isNotEmpty),
+        isTrue,
+        reason: 'Doxologia (99) deve aparecer quando a API traz a categoria',
+      );
+      // Cache regravado com o catalogo novo.
+      final cached = cache.read('categories') as List;
+      final cachedIds = cached
+          .map((e) => (e as Map)['id_category'])
+          .toSet();
+      expect(cachedIds.contains(98), isTrue);
+      expect(cachedIds.contains(99), isTrue);
+    },
+  );
+
+  test(
+    'cache de disco AINDA fresco e subconjunto: API ok substitui stale (apk#116)',
+    () async {
+      // Cache fresco (TTL nao estourou) gravado do fallback antigo,
+      // sem 98/99. API primaria saudavel traz as categorias novas.
+      api.categoriesResult = [
+        const AlbumCategory(
+          id: 1,
+          name: 'Diversas',
+          albums: [Album(id: 674, name: 'Antigo')],
+        ),
+      ];
+      final repo1 = HymnRepositoryImpl(api, cache);
+      await repo1.getCategories();
+
+      api.categoriesResult = [
+        const AlbumCategory(
+          id: 1,
+          name: 'Diversas',
+          albums: [Album(id: 674, name: 'Antigo')],
+        ),
+        const AlbumCategory(
+          id: 98,
+          name: 'Infantis',
+          albums: [Album(id: 9000, name: 'Infantis')],
+        ),
+      ];
+      final repo2 = HymnRepositoryImpl(api, cache);
+      final result = await repo2.getCategories();
+
+      expect(
+        result.any((c) => c.id == 98),
+        isTrue,
+        reason:
+            'API saudavel deve prevalecer sobre cache em disco stale, '
+            'mesmo dentro do TTL',
+      );
+    },
+  );
 }
