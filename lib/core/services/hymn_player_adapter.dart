@@ -50,4 +50,7 @@ class HymnPlayerAdapter implements HymnPlayerLike {
 
   @override
   Future<void> stop() => _player.stop();
+
+  @override
+  Future<void> playSource(String url) => _player.playUrl(url);
 }

@@ -23,6 +23,11 @@ abstract class HymnPlayerLike {
   Future<void> pause();
   Future<void> resume();
   Future<void> stop();
+
+  /// SPEC 3 (apk#94): troca a FONTE do áudio em runtime (cantado ↔
+  /// instrumental). Default inofensivo — implementações que suportam
+  /// sobrescrevem (HymnPlayerAdapter → playUrl).
+  Future<void> playSource(String url) async {}
 }
 
 /// Faixa em execucao exibida pelo miniplayer.
