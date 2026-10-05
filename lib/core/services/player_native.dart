@@ -106,6 +106,11 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
   }
 
   @override
+  Future<void> resume() async {
+    await _player.resume();
+  }
+
+  @override
   Future<void> stop() async {
     await _player.stop();
     _currentUrl = null;

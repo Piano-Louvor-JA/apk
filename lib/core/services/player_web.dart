@@ -119,6 +119,15 @@ class _WebAudioPlayer implements HymnAudioPlayer {
   }
 
   @override
+  Future<void> resume() async {
+    _ensure();
+    // HTMLMediaElement: pause() preserva currentTime; play() retoma da posição.
+    try {
+      await _audio!.play();
+    } catch (_) {}
+  }
+
+  @override
   Future<void> stop() async {
     _ensure();
     _audio!.pause();

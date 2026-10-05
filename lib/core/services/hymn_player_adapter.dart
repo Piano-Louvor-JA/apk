@@ -42,11 +42,7 @@ class HymnPlayerAdapter implements HymnPlayerLike {
   Future<void> pause() => _player.pause();
 
   @override
-  Future<void> resume() async {
-    // HymnAudioPlayer nao tem resume: toggleUrl na URL atual retoma.
-    final url = _player.currentUrl;
-    if (url != null) await _player.playUrl(url);
-  }
+  Future<void> resume() => _player.resume();
 
   @override
   Future<void> stop() => _player.stop();
