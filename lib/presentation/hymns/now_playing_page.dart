@@ -425,8 +425,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               ),
               const SizedBox(height: 12),
               ValueListenableBuilder<bool>(
-                valueListenable: PipController.isActive,
-                builder: (context, _, __) => Row(
+                valueListenable: widget.player.playingListenable,
+                builder: (context, livePlaying, _) => Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
@@ -440,7 +440,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     IconButton(
                       iconSize: 44,
                       icon: Icon(
-                        playing
+                        livePlaying
                             ? TablerIcons.playerPause
                             : TablerIcons.playerPlay,
                         color: Colors.white,
@@ -451,7 +451,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                         } else {
                           await widget.player.resume();
                         }
-                        if (mounted) setState(() {});
                       },
                     ),
                     const SizedBox(width: 16),
