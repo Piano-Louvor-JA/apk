@@ -35,6 +35,7 @@ jobs:
           CONFIG.GIT_PROVIDER: github
           CONFIG.LLM_MODEL: openai/glm-4.6
           CONFIG.FALLBACK_MODELS: 'openai/glm-4.5-air'
+          CONFIG.CUSTOM_MODEL_MAX_TOKENS: '32000'
           CONFIG.REVIEW_MAX_FILES: '40'
           PR_REVIEWER.EXTRA_INSTRUCTIONS: >-
             Projeto PIANO (hinos ao piano, Electron+Vue). Foque em:
