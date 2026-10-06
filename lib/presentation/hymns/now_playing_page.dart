@@ -1,7 +1,6 @@
 library;
 
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 
 import 'package:easy_localization/easy_localization.dart';
 
@@ -79,7 +78,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   // SPEC 13 (apk#132): tempo visível no PiP ("m:ss / m:ss").
   final ValueNotifier<Duration?> _pipPosition = ValueNotifier<Duration?>(null);
-  ValueNotifier<Duration?> _pipDuration = ValueNotifier<Duration?>(null);
+  final ValueNotifier<Duration?> _pipDuration = ValueNotifier<Duration?>(null);
   StreamSubscription<Duration>? _pipDurSub;
 
   static String _fmt(Duration? d) {
@@ -423,14 +422,21 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final slide = _slides.slides.isEmpty ? null : _slides.slides[_index];
-    final playing = widget.player.isPlaying;
+    // SPEC 13 (apk#132): o switch tela-cheia ↔ PiP TEM que reagir ao
+    // notifier (ValueListenableBuilder) — leitura direta de .value no build
+    // não subscreve e a UI não troca quando o Android entra/sai do PiP.
+    return ValueListenableBuilder<bool>(
+      valueListenable: PipController.isActive,
+      builder: (context, isPip, _) => isPip
+          ? _buildPip(context)
+          : _buildFullScreen(context),
+    );
+  }
 
-    // SPEC 13 (apk#132): em PiP, janela minimalista — só título 1 linha +
-    // prev/play/next centrais. Todo o resto (fila, stop, cast, modos,
-    // timeline, navegação) fica pra tela cheia.
-    if (PipController.isActive.value) {
+  /// Janela PiP: título 1 linha + tempo + prev/play/next. Todo o resto
+  /// (fila, stop, cast, modos, timeline, navegação) fica pra tela cheia.
+  Widget _buildPip(BuildContext context) {
+    final theme = Theme.of(context);
       return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
@@ -505,7 +511,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           ),
         ),
       );
-    }
+  }
+
+  /// Tela cheia: layout integral, sem regressão (SPEC 13 RF2).
+  Widget _buildFullScreen(BuildContext context) {
+    final theme = Theme.of(context);
+    final slide = _slides.slides.isEmpty ? null : _slides.slides[_index];
+    final playing = widget.player.isPlaying;
 
     return Scaffold(
       backgroundColor: Colors.black,
