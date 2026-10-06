@@ -1,6 +1,11 @@
 # Piano LouvorJA
 
-App Flutter para gerenciamento de cultos adventistas — companheiro mobile do [Piano LouvorJA Desktop](https://github.com/pianolouvorja/app).
+![CI](https://img.shields.io/github/actions/workflow/status/Piano-Louvor-JA/apk/ci.yml?branch=main&label=CI)
+![Security](https://img.shields.io/github/actions/workflow/status/Piano-Louvor-JA/apk/security.yml?branch=main&label=security)
+![Release](https://img.shields.io/github/v/release/Piano-Louvor-JA/apk)
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Web-lightgrey)
+
+App Flutter para gerenciamento de cultos adventistas — companheiro mobile do [Piano LouvorJA Desktop](https://github.com/Piano-Louvor-JA/app).
 
 ## Funcionalidades
 
