@@ -403,6 +403,74 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final slide = _slides.slides.isEmpty ? null : _slides.slides[_index];
     final playing = widget.player.isPlaying;
 
+    // SPEC 13 (apk#132): em PiP, janela minimalista — só título 1 linha +
+    // prev/play/next centrais. Todo o resto (fila, stop, cast, modos,
+    // timeline, navegação) fica pra tela cheia.
+    if (PipController.isActive.value) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.detail.title ?? '',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ValueListenableBuilder<bool>(
+                valueListenable: PipController.isActive,
+                builder: (context, _, __) => Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        TablerIcons.chevronLeft,
+                        color: Colors.white,
+                      ),
+                      onPressed: () => _goToSlide(_index - 1),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      iconSize: 44,
+                      icon: Icon(
+                        playing
+                            ? TablerIcons.playerPause
+                            : TablerIcons.playerPlay,
+                        color: Colors.white,
+                      ),
+                      onPressed: () async {
+                        if (widget.player.isPlaying) {
+                          _pauseAudioEverywhere();
+                        } else {
+                          await widget.player.resume();
+                        }
+                        if (mounted) setState(() {});
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(
+                        TablerIcons.chevronRight,
+                        color: Colors.white,
+                      ),
+                      onPressed: () => _goToSlide(_index + 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(

@@ -17,6 +17,7 @@ import java.io.File
 class MainActivity : FlutterActivity() {
     private val channelName = "app.louvorja/updater"
     private val mediaChannelName = "app.louvorja/media"
+    private var pipEventChannel: MethodChannel? = null
     private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
     @Volatile private var pipEnabled = false
     private var mediaEventSink: MethodChannel? = null
@@ -28,6 +29,14 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "setPipEventListener" -> {
+                        // Flutter registra o canal que recebe onPipChanged(active: bool)
+                        pipEventChannel = MethodChannel(
+                            flutterEngine.dartExecutor.binaryMessenger,
+                            "app.louvorja/pip"
+                        )
+                        result.success(true)
+                    }
                     "installApk" -> {
                         val path = call.argument<String>("path")
                         if (path == null) {
@@ -141,6 +150,16 @@ class MainActivity : FlutterActivity() {
             builder.setActions(MediaSessionController.remoteActions())
         }
         enterPictureInPictureMode(builder.build())
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPip: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPip, newConfig)
+        mainHandler().post {
+            pipEventChannel?.invokeMethod("onPipChanged", isInPip)
+        }
     }
 
     private fun installApk(file: File, result: MethodChannel.Result) {
