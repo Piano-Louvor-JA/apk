@@ -1,6 +1,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 
 import 'package:easy_localization/easy_localization.dart';
 
@@ -76,6 +77,18 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Duration? _lastPosition; // F3.3g: última posição do player local
   bool _routeListenerAdded = false; // F3.2: listener de mudança de audioRoute
 
+  // SPEC 13 (apk#132): tempo visível no PiP ("m:ss / m:ss").
+  final ValueNotifier<Duration?> _pipPosition = ValueNotifier<Duration?>(null);
+  ValueNotifier<Duration?> _pipDuration = ValueNotifier<Duration?>(null);
+  StreamSubscription<Duration>? _pipDurSub;
+
+  static String _fmt(Duration? d) {
+    if (d == null) return '0:00';
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
   // Palco: sessão GLOBAL (StageSession) — o player projeta no mesmo
   // palco que Liturgia/Bíblia. Sem controller local (bug 2026-08-16:
   // cast do player era órfão e os slides nunca chegavam à TV).
@@ -94,6 +107,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     _routeListenerAdded = true;
     _posSub = widget.player.positionStream.listen((pos) {
       _lastPosition = pos; // F3.3g
+      _pipPosition.value = pos; // SPEC 13: tempo do PiP
       if (!mounted || _noAudio) return;
       // Evita evento com posição antiga desfazer um toque no chevron antes
       // de Android concluir seek (mais visível nos MP3s do hinário).
@@ -107,6 +121,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     // Player nativo já usa AudioContext stayAwake em background. Esta tela
     // segura tela ativa durante operação; não depende do notifier do adapter.
     WakelockPlus.enable();
+    // SPEC 13: duração pro PiP (com fallback do catálogo — cache legado
+    // pode não trazer duração no decoder).
+    final fbDur = widget.catalogDurationMs ?? widget.detail.durationMs;
+    _pipDuration.value = fbDur != null ? Duration(milliseconds: fbDur) : null;
+    _pipDurSub = widget.player.durationStream.listen((d) {
+      if (d.inMilliseconds > 0) _pipDuration.value = d;
+    });
     // Serviço mantém áudio/clock/sender vivos fora do app. É compartilhado
     // com Palco e não pode ser parado ao entrar em PiP.
     PalcoForeground.start();
@@ -166,6 +187,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       StageSession.instance.removeListener(_onAudioRouteChanged);
     }
     _posSub?.cancel();
+    _pipDurSub?.cancel();
+    _pipPosition.dispose();
+    _pipDuration.dispose();
     // Multi-palco: minimizar (voltar pro mini player) NÃO para a música
     // na TV — o player singleton segue tocando e a projeção permanece.
     // Parar de verdade é o long-press no X (_stopAudioEverywhere) ou o
@@ -423,7 +447,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              // SPEC 13 (ajuste Ezequias 05/10): tempo da faixa visível no PiP.
+              // Linha única "m:ss / m:ss" — sem seek (controle é da notificação).
+              ValueListenableBuilder<Duration?>(
+                valueListenable: _pipPosition,
+                builder: (context, pos, _) => Text(
+                  '${_fmt(pos)} / ${_fmt(_pipDuration.value)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white70,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               ValueListenableBuilder<bool>(
                 valueListenable: widget.player.playingListenable,
                 builder: (context, livePlaying, _) => Row(
