@@ -1,6 +1,8 @@
 library;
 
 import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Controles de mídia nativos (notificação, lock screen, PiP).
@@ -79,6 +81,7 @@ abstract final class MediaSession {
   }
 
   static Future<dynamic> _handle(MethodCall call) async {
+    debugPrint('LouvorPip(dart): _handle ${call.method} args=${call.arguments}');
     switch (call.method) {
       case 'onPlayPause':
         onPlayPause?.call(call.arguments as bool? ?? true);

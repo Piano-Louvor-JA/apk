@@ -106,8 +106,34 @@
         <receiver
             android:name=".InstallResultReceiver"
             android:exported="false" />
+
+        <!-- SPEC 13 (apk#132): ações de mídia (PiP RemoteActions, notificação).
+             Receiver de MANIFEST: broadcasts disparados pelo shell do sistema
+             (com.android.wm.shell) não são entregues a receivers dinâmicos
+             NOT_EXPORTED no Android 14+. exported=true é obrigatório pra o
+             sistema disparar (PendingIntent do shell); as actions são
+             namespaced (app.louvorja.MEDIA_*) e o receiver ignora o resto. -->
+        <receiver
+            android:name=".MediaActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="app.louvorja.MEDIA_PLAY" />
+                <action android:name="app.louvorja.MEDIA_PAUSE" />
+                <action android:name="app.louvorja.MEDIA_PREV" />
+                <action android:name="app.louvorja.MEDIA_NEXT" />
+            </intent-filter>
+        </receiver>
+
             <service
             android:name=".PalcoForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- SPEC media-service (apk#132 follow-up): FGS de mídia que mantém
+             o processo vivo enquanto um hino toca (One UI congela o processo
+             em background sem isso — FreecessController "BG freezed" no A15). -->
+        <service
+            android:name=".MediaPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
     </application>

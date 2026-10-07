@@ -3,7 +3,6 @@ library;
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -76,6 +75,18 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Duration? _lastPosition; // F3.3g: última posição do player local
   bool _routeListenerAdded = false; // F3.2: listener de mudança de audioRoute
 
+  // SPEC 13 (apk#132): tempo visível no PiP ("m:ss / m:ss").
+  final ValueNotifier<Duration?> _pipPosition = ValueNotifier<Duration?>(null);
+  final ValueNotifier<Duration?> _pipDuration = ValueNotifier<Duration?>(null);
+  StreamSubscription<Duration>? _pipDurSub;
+
+  static String _fmt(Duration? d) {
+    if (d == null) return '0:00';
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
   // Palco: sessão GLOBAL (StageSession) — o player projeta no mesmo
   // palco que Liturgia/Bíblia. Sem controller local (bug 2026-08-16:
   // cast do player era órfão e os slides nunca chegavam à TV).
@@ -94,6 +105,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     _routeListenerAdded = true;
     _posSub = widget.player.positionStream.listen((pos) {
       _lastPosition = pos; // F3.3g
+      _pipPosition.value = pos; // SPEC 13: tempo do PiP
       if (!mounted || _noAudio) return;
       // Evita evento com posição antiga desfazer um toque no chevron antes
       // de Android concluir seek (mais visível nos MP3s do hinário).
@@ -107,26 +119,24 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     // Player nativo já usa AudioContext stayAwake em background. Esta tela
     // segura tela ativa durante operação; não depende do notifier do adapter.
     WakelockPlus.enable();
+    // SPEC 13: duração pro PiP (com fallback do catálogo — cache legado
+    // pode não trazer duração no decoder).
+    final fbDur = widget.catalogDurationMs ?? widget.detail.durationMs;
+    _pipDuration.value = fbDur != null ? Duration(milliseconds: fbDur) : null;
+    _pipDurSub = widget.player.durationStream.listen((d) {
+      if (d.inMilliseconds > 0) _pipDuration.value = d;
+    });
     // Serviço mantém áudio/clock/sender vivos fora do app. É compartilhado
     // com Palco e não pode ser parado ao entrar em PiP.
     PalcoForeground.start();
     PipController.setEnabled(true);
     // MediaSession: notificação de mídia + lock screen + ações PiP.
-    MediaSession.onPlayPause = (play) {
-      if (!mounted) return;
-      if (play) {
-        if (StageSession.instance.audioRoute == PalcoAudioRoute.tv) {
-          StageSession.instance.palco?.resumeAudio();
-        } else {
-          widget.player.resume();
-        }
-      } else {
-        _pauseAudioEverywhere();
-      }
-      if (mounted) setState(() {});
-    };
-    MediaSession.onPrev = () => _goToSlide(_index - 1);
-    MediaSession.onNext = () => _goToSlide(_index + 1);
+    //
+    // 23:22: os CONTROLES GLOBAIS agora moram no MediaStateMirror (pausa/
+    // retoma o singleton direto — funciona sem página viva, que era o bug
+    // em PiP: página disposta = onPlayPause null = toque sem efeito).
+    // Playback, ±15s e estado da sessão ficam no MediaStateMirror: a mesma
+    // ação vale na notificação, tela bloqueada e PiP, independente da rota.
     MediaSession.init().then((_) {
       if (!mounted) return;
       MediaSession.setMetadata(
@@ -157,7 +167,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   @override
   void dispose() {
     PipController.setEnabled(false);
-    MediaSession.release();
+    // SPEC 13 (apk#132): NÃO dar MediaSession.release() aqui — os botões
+    // NATIVOS do PiP (RemoteActions) e da notificação disparam broadcasts
+    // que o receiver da sessão recebe; destruir a sessão no dispose matava
+    // os controles quando o usuário fechava a página dentro da janelinha
+    // (log: "Ignoring call to destroyed session"). A sessão vive enquanto o
+    // app vive; aqui só esconde a notificação (o receiver continua ativo).
+    MediaSession.hide();
     if (!StageSession.instance.isOn) {
       WakelockPlus.disable();
       PalcoForeground.stop();
@@ -166,6 +182,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       StageSession.instance.removeListener(_onAudioRouteChanged);
     }
     _posSub?.cancel();
+    _pipDurSub?.cancel();
+    _pipPosition.dispose();
+    _pipDuration.dispose();
     // Multi-palco: minimizar (voltar pro mini player) NÃO para a música
     // na TV — o player singleton segue tocando e a projeção permanece.
     // Parar de verdade é o long-press no X (_stopAudioEverywhere) ou o
@@ -399,6 +418,101 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   @override
   Widget build(BuildContext context) {
+    // SPEC 13 (apk#132): o switch tela-cheia ↔ PiP TEM que reagir ao
+    // notifier (ValueListenableBuilder) — leitura direta de .value no build
+    // não subscreve e a UI não troca quando o Android entra/sai do PiP.
+    return ValueListenableBuilder<bool>(
+      valueListenable: PipController.isActive,
+      builder: (context, isPip, _) => isPip
+          ? _buildPip(context)
+          : _buildFullScreen(context),
+    );
+  }
+
+  /// Janela PiP: título 1 linha + tempo + prev/play/next. Todo o resto
+  /// (fila, stop, cast, modos, timeline, navegação) fica pra tela cheia.
+  /// Cores: tokens do TEMA ATIVO (accent do usuário + dark/light).
+  Widget _buildPip(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Scaffold(
+        backgroundColor: scheme.surface,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.detail.title ?? '',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // SPEC 13 (ajuste Ezequias 05/10): tempo da faixa visível no PiP.
+              // Linha única "m:ss / m:ss" — sem seek (controle é da notificação).
+              ValueListenableBuilder<Duration?>(
+                valueListenable: _pipPosition,
+                builder: (context, pos, _) => Text(
+                  '${_fmt(pos)} / ${_fmt(_pipDuration.value)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ValueListenableBuilder<bool>(
+                valueListenable: widget.player.playingListenable,
+                builder: (context, livePlaying, _) => Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        TablerIcons.chevronLeft,
+                        color: scheme.onSurface,
+                      ),
+                      onPressed: () => _goToSlide(_index - 1),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      iconSize: 44,
+                      icon: Icon(
+                        livePlaying
+                            ? TablerIcons.playerPause
+                            : TablerIcons.playerPlay,
+                        color: scheme.primary,
+                      ),
+                      onPressed: () async {
+                        if (widget.player.isPlaying) {
+                          _pauseAudioEverywhere();
+                        } else {
+                          await widget.player.resume();
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: Icon(
+                        TablerIcons.chevronRight,
+                        color: scheme.onSurface,
+                      ),
+                      onPressed: () => _goToSlide(_index + 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
+  /// Tela cheia: layout integral, sem regressão (SPEC 13 RF2).
+  Widget _buildFullScreen(BuildContext context) {
     final theme = Theme.of(context);
     final slide = _slides.slides.isEmpty ? null : _slides.slides[_index];
     final playing = widget.player.isPlaying;
