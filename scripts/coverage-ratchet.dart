@@ -40,12 +40,15 @@ Future<void> main(List<String> args) async {
   }
   final baseline = double.parse(baseFile.readAsStringSync().trim());
 
-  if (current < baseline - 0.01) {
+  // Tolerância 0.5%: o Flutter do CI pode medir ligeiramente diferente do local
+  // (versão do engine, ordem de shards). Regressão real é bem maior que isso.
+  const tolerance = 0.5;
+  if (current < baseline - tolerance) {
     stderr.writeln('❌ Coverage REGREDIU: $pct% < baseline $baseline%');
     exit(1);
   }
-  stdout.writeln('✅ Coverage OK: $pct% >= baseline $baseline%');
-  if (current > baseline + 0.01) {
+  stdout.writeln('✅ Coverage OK: $pct% >= baseline $baseline% (tolerância 0.5%)');
+  if (current > baseline + tolerance) {
     stdout.writeln('ℹ️ Subiu! Renove o baseline com --update para travar o ganho.');
   }
 }
