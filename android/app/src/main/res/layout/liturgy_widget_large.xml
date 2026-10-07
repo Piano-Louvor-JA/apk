@@ -20,7 +20,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Culto"
-            android:textColor="#FFFFFF"
+            android:textColor="#E5E2E1"
             android:textSize="14sp"
             android:textStyle="bold"
             android:maxLines="1"
@@ -31,7 +31,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="3/12"
-            android:textColor="#78909C"
+            android:textColor="#BFC7D4"
             android:textSize="11sp" />
     </LinearLayout>
 
