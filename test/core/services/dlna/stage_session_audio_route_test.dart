@@ -6,7 +6,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:flutter/foundation.dart';
 import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart';
+import 'package:louvorja_piano_mobile/core/services/palco/palco_orchestrator.dart';
+import 'package:louvorja_piano_mobile/core/services/dlna/stage_settings_repository.dart';
+// path_provider exposto transitivo no lock do app; fake de disco real.
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 /// F3.2: roteamento de áudio no StageSession (modo local/tv/mirror).
 ///
@@ -15,7 +21,18 @@ import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart'
 /// - local (default): NÃO envia áudio ao palco
 /// - tv/mirror: envia play/pause/stop ao receiver
 /// - palco desligado: playHymnAudio degrada para local sem erro
+Directory? _tmpCov;
+
 void main() {
+  setUp(() async {
+    _tmpCov = await Directory.systemTemp.createTemp('stage_session_cov');
+    PathProviderPlatform.instance = _FakePathProvider(_tmpCov!.path);
+  });
+
+  tearDown(() async {
+    if (_tmpCov!.existsSync()) await _tmpCov!.delete(recursive: true);
+  });
+
   Future<(StageSession, StreamIterator<Map<String, dynamic>>, FakeReceiverRx)>
   setUpPalco() async {
     final stage = StageSession.instance;
@@ -94,6 +111,169 @@ void main() {
     stage.pauseHymnAudio();
     stage.stopHymnAudio();
   });
+
+  // ===== Cobertura extra: getters/projeção/timer/remotes sobre palco real =====
+  Future<(StageSession, FakeReceiverRx)> onCov() async {
+    final stage = StageSession.instance;
+    await stage.turnOff();
+    await PalcoOrchestrator.instance.removeSlot('principal');
+    final ok = await stage.turnOnPalco(
+      PalcoTarget(name: 'TV teste', ip: '127.0.0.1', wsPort: 0),
+    );
+    expect(ok, isTrue, reason: 'sender deve subir em loopback');
+    final rx = FakeReceiverRx();
+    await rx.connect('127.0.0.1', stage.palco!.wsPort);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return (stage, rx);
+  }
+
+  group('StageSession — getters em modo palco', () {
+    test('isOn/isPalcoMode/rendererName/receiverRoles/playerState/ip', () async {
+      final (stage, rx) = await onCov();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      expect(stage.isOn, isTrue);
+      expect(stage.isPalcoMode, isTrue);
+      expect(stage.rendererName, 'TV teste');
+      expect(stage.receiverRoles, isA<Map<String, int>>());
+      expect(stage.remotePlayerState, isA<Map<String, dynamic>>());
+      expect(stage.receiverIp, '127.0.0.1');
+    });
+
+    test('getters com palco desligado voltam ao default', () async {
+      final stage = StageSession.instance;
+      await stage.turnOff();
+
+      expect(stage.isOn, isFalse);
+      expect(stage.isPalcoMode, isFalse);
+      expect(stage.rendererName, isNull);
+      expect(stage.receiverRoles, isEmpty);
+      expect(stage.remotePlayerState, isEmpty);
+      expect(stage.receiverIp, isNull);
+    });
+
+    test('sendRemoteCommand com palco → ack/estado sem lançar', () async {
+      final (stage, rx) = await onCov();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      final resp = await stage.sendRemoteCommand(
+        'play',
+        role: 'desktop',
+        value: 0.5,
+      );
+      expect(resp, anyOf(isNull, isA<Map<String, dynamic>>()));
+    });
+  });
+
+  group('StageSession — projeção e controles', () {
+    test('com palco: project entrega conteúdo ao receiver', () async {
+      final (stage, rx) = await onCov();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      final ok = await stage.project(
+        title: 'O nosso sol',
+        body: 'Veio iluminar',
+        footer: 'Hinos 1',
+      );
+      expect(ok, isTrue);
+
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      final proj = rx.received.lastWhere((m) => m['type'] == 'projection');
+      expect(proj['text'] as String, contains('O nosso sol'));
+      expect(proj['footer'], 'Hinos 1');
+    });
+
+    test('sem palco: project retorna false', () async {
+      final stage = StageSession.instance;
+      await stage.turnOff();
+      expect(await stage.project(title: 't', body: 'b'), isFalse);
+    });
+
+    test('clearContent + remote-key + vídeo ended via receiver', () async {
+      final (stage, rx) = await onCov();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      await stage.project(title: 'a', body: 'b');
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      rx.send({'type': 'remote-key', 'fields': {'key': 'right'}});
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      rx.send({'type': 'ended', 'fields': {'media': 'video'}});
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(stage.isVideoOnStage, isFalse);
+
+      stage.clearContent();
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(rx.received.any((m) => m['type'] == 'projection'), isTrue);
+    });
+
+    test('startTimer com palco envia timer ao receiver', () async {
+      final (stage, rx) = await onCov();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      await stage.startTimer(
+        duration: 90,
+        mode: 'countdown',
+        label: 'Culto',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(rx.received.any((m) => m['type'] == 'timer'), isTrue);
+      stage.stopTimerStage();
+    });
+
+    test('turnOff limpa palco e getters voltam ao default', () async {
+      final (stage, rx) = await onCov();
+      await rx.close();
+
+      await stage.turnOff();
+      expect(stage.isOn, isFalse);
+      expect(stage.isPalcoMode, isFalse);
+      expect(stage.palco, isNull);
+    });
+  });
+
+  group('StageSession — background BG do usuário', () {
+    test('setBackgroundBytes persiste e reload mantém', () async {
+      final stage = StageSession.instance;
+      await stage.turnOff();
+
+      final png = [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00,
+        0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89,
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63,
+        0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4,
+        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60,
+        0x82,
+      ];
+      await stage.setBackgroundBytes(
+        Uint8List.fromList(png),
+        scope: 'hymns',
+      );
+
+      final loaded = await StageSettingsRepository(
+        scope: 'hymns',
+      ).loadBackgroundImage(backgroundScope: 'hymns');
+      expect(loaded, isNotNull);
+      expect(loaded!.length, png.length);
+    });
+  });
 }
 
 /// Receiver fake com stream de mensagens decodificadas.
@@ -111,9 +291,13 @@ class FakeReceiverRx {
     });
   }
 
+  /// Envia mensagem pro sender (remote-key, ended etc).
+  void send(Map<String, dynamic> m) => _ws!.add(jsonEncode(m));
+
   Future<void> close() async {
-    await messages.close();
     await _ws?.close();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await messages.close();
   }
 }
 
@@ -122,4 +306,14 @@ Future<StreamIterator<Map<String, dynamic>>> _iter(
 ) async {
   final it = StreamIterator<Map<String, dynamic>>(s);
   return it;
+}
+
+
+/// Fake do channel do path_provider apontando pra um dir temporário.
+class _FakePathProvider extends PathProviderPlatform {
+  final String basePath;
+  _FakePathProvider(this.basePath);
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => basePath;
 }
