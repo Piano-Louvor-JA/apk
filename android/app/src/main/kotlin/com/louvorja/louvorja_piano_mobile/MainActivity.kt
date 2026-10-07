@@ -25,6 +25,32 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // SPEC 13 (apk#132): receiver de MANIFEST pras ações de mídia —
+        // broadcasts do shell do PiP não chegam em receivers dinâmicos
+        // NOT_EXPORTED no Android 14+ (log: zero entregas).
+        MainActivity.dartPoke = { method ->
+            mainHandler().post {
+                try {
+                    MethodChannel(
+                        flutterEngine.dartExecutor.binaryMessenger,
+                        channelName
+                    ).invokeMethod(method, null)
+                } catch (e: Exception) {
+                    android.util.Log.e("LouvorPip", "pokeDart($method) falhou", e)
+                }
+            }
+        }
+        // Player real emite estado pelo Dart. Atualiza as ações do PiP com
+        // esse estado (RemoteAction é snapshot; sem isto fica PLAY mesmo
+        // tocando — A15, 15:57). A notificação é atualizada pela sessão.
+        MainActivity.refreshPipActions = {
+            mainHandler().post {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && isInPictureInPictureMode) {
+                    setPictureInPictureParams(pipParamsBuilder().build())
+                }
+            }
+        }
+
         // Canal principal (installer, multicast, foreground, pip)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
@@ -35,6 +61,7 @@ class MainActivity : FlutterActivity() {
                             flutterEngine.dartExecutor.binaryMessenger,
                             "app.louvorja/pip"
                         )
+                        android.util.Log.d("LouvorPip", "setPipEventListener registrado")
                         result.success(true)
                     }
                     "installApk" -> {
@@ -72,6 +99,20 @@ class MainActivity : FlutterActivity() {
                     }
                     "setPipEnabled" -> {
                         pipEnabled = call.argument<Boolean>("enabled") == true
+                        android.util.Log.d("LouvorPip", "setPipEnabled=$pipEnabled")
+                        // Auto-enter (API 31+): atualiza os params imediatamente
+                        // pra evitar corrida com onStop (o sistema lê os params
+                        // quando a Activity vai pra background).
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            try {
+                                // Sessão tem que existir ANTES: os botões da
+                                // barra do PiP vêm da MediaSession (token).
+                                MediaSessionController.ensureInit(applicationContext)
+                                setPictureInPictureParams(pipParamsBuilder().build())
+                            } catch (e: Exception) {
+                                android.util.Log.e("LouvorPip", "setPictureInPictureParams falhou", e)
+                            }
+                        }
                         result.success(true)
                     }
                     "updateLiturgyWidget" -> {
@@ -83,6 +124,10 @@ class MainActivity : FlutterActivity() {
                         sendBroadcast(i2)
                         result.success(true)
                     }
+                    // mediaPlay/mediaPause/mediaPrev/mediaNext: o DART cuida
+                    // (PipController registra handler global que opera no
+                    // player da faixa em execução — mesmo do overlay).
+                    "mediaPlay", "mediaPause", "mediaPrev", "mediaNext" -> result.success(true)
                     else -> result.notImplemented()
                 }
             }
@@ -95,7 +140,15 @@ class MainActivity : FlutterActivity() {
                 "init" -> {
                     MediaSessionController.init(applicationContext)
                     MediaSessionController.onPlayPause = { play ->
-                        mainHandler().post { mc.invokeMethod("onPlayPause", play) }
+                        android.util.Log.d("LouvorPip", "kotlin->dart onPlayPause play=$play")
+                        mainHandler().post {
+                            try {
+                                mc.invokeMethod("onPlayPause", play)
+                                android.util.Log.d("LouvorPip", "kotlin->dart onPlayPause OK")
+                            } catch (e: Exception) {
+                                android.util.Log.e("LouvorPip", "kotlin->dart falhou", e)
+                            }
+                        }
                     }
                     MediaSessionController.onPrev = {
                         mainHandler().post { mc.invokeMethod("onPrev", null) }
@@ -125,6 +178,24 @@ class MainActivity : FlutterActivity() {
                     MediaSessionController.show()
                     result.success(null)
                 }
+                "startMediaService" -> {
+                    // FGS de mídia: processo vivo em background (One UI
+                    // congela sem isso — FreecessController "BG freezed").
+                    try {
+                        MediaPlaybackService.start(applicationContext)
+                    } catch (e: Exception) {
+                        android.util.Log.e("LouvorPip", "startMediaService falhou", e)
+                    }
+                    result.success(null)
+                }
+                "stopMediaService" -> {
+                    try {
+                        MediaPlaybackService.stop(applicationContext)
+                    } catch (e: Exception) {
+                        android.util.Log.e("LouvorPip", "stopMediaService falhou", e)
+                    }
+                    result.success(null)
+                }
                 "hide" -> {
                     MediaSessionController.hide()
                     result.success(null)
@@ -139,17 +210,55 @@ class MainActivity : FlutterActivity() {
     }
 
     /// PiP: entra ao sair do app enquanto NowPlaying ativo.
+    ///
+    /// Android 12+ (API 31+): usa setAutoEnterEnabled — o sistema entra em PiP
+    /// sozinho no home/switch, sem depender do onUserLeaveHint deprecated
+    /// (que corridava com o setPipEnabled async do Flutter — bug apk#132 no
+    /// Android 16 do A15). onUserLeaveHint fica só pro fallback < API 31.
     @Suppress("DEPRECATION")
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return // auto-enter cuida
         if (!pipEnabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.O || isInPictureInPictureMode) return
-        val builder = PictureInPictureParams.Builder()
+        enterPictureInPictureMode(legacyPipParams())
+    }
+
+    private fun pipParamsBuilder(): PictureInPictureParams.Builder {
+        val b = PictureInPictureParams.Builder()
             .setAspectRatio(Rational(16, 9))
-        // Ações PiP no Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setActions(MediaSessionController.remoteActions())
+            b.setAutoEnterEnabled(pipEnabled)
+            b.setActions(MediaSessionController.remoteActions())
+            // NOTA apk#132: setMediaSessionToken não existe na API pública
+            // (é interna do sistema). Os botões da barra do PiP disparam as
+            // RemoteActions → MediaActionReceiver (manifest) → pokeDart.
         }
-        enterPictureInPictureMode(builder.build())
+        return b
+    }
+
+    private fun legacyPipParams(): PictureInPictureParams = pipParamsBuilder().build()
+
+    /// O sistema lê os params do PiP no onStop — precisa atualizar quando o
+    /// Flutter liga/desliga (entrada/saída da NowPlaying).
+    override fun onStop() {
+        super.onStop()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && pipEnabled && !isInPictureInPictureMode) {
+            setPictureInPictureParams(pipParamsBuilder().build())
+        }
+    }
+
+    companion object {
+        /// Ponte estática pra mandar eventos de mídia ao Dart quando os
+        /// callbacks da página não estão setados (PiP sem página viva).
+        @Volatile
+        var dartPoke: ((String) -> Unit)? = null
+
+        @Volatile
+        var refreshPipActions: (() -> Unit)? = null
+
+        fun pokeDart(method: String) {
+            dartPoke?.invoke(method)
+        }
     }
 
     override fun onPictureInPictureModeChanged(
@@ -157,8 +266,13 @@ class MainActivity : FlutterActivity() {
         newConfig: android.content.res.Configuration
     ) {
         super.onPictureInPictureModeChanged(isInPip, newConfig)
+        android.util.Log.d("LouvorPip", "onPictureInPictureModeChanged isInPip=$isInPip hasChannel=${pipEventChannel != null}")
         mainHandler().post {
-            pipEventChannel?.invokeMethod("onPipChanged", isInPip)
+            try {
+                pipEventChannel?.invokeMethod("onPipChanged", isInPip)
+            } catch (e: Exception) {
+                android.util.Log.e("LouvorPip", "invokeMethod onPipChanged falhou", e)
+            }
         }
     }
 

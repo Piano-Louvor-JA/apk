@@ -3,7 +3,6 @@ library;
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -132,21 +131,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     PalcoForeground.start();
     PipController.setEnabled(true);
     // MediaSession: notificação de mídia + lock screen + ações PiP.
-    MediaSession.onPlayPause = (play) {
-      if (!mounted) return;
-      if (play) {
-        if (StageSession.instance.audioRoute == PalcoAudioRoute.tv) {
-          StageSession.instance.palco?.resumeAudio();
-        } else {
-          widget.player.resume();
-        }
-      } else {
-        _pauseAudioEverywhere();
-      }
-      if (mounted) setState(() {});
-    };
-    MediaSession.onPrev = () => _goToSlide(_index - 1);
-    MediaSession.onNext = () => _goToSlide(_index + 1);
+    //
+    // 23:22: os CONTROLES GLOBAIS agora moram no MediaStateMirror (pausa/
+    // retoma o singleton direto — funciona sem página viva, que era o bug
+    // em PiP: página disposta = onPlayPause null = toque sem efeito).
+    // Playback, ±15s e estado da sessão ficam no MediaStateMirror: a mesma
+    // ação vale na notificação, tela bloqueada e PiP, independente da rota.
     MediaSession.init().then((_) {
       if (!mounted) return;
       MediaSession.setMetadata(
@@ -177,7 +167,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   @override
   void dispose() {
     PipController.setEnabled(false);
-    MediaSession.release();
+    // SPEC 13 (apk#132): NÃO dar MediaSession.release() aqui — os botões
+    // NATIVOS do PiP (RemoteActions) e da notificação disparam broadcasts
+    // que o receiver da sessão recebe; destruir a sessão no dispose matava
+    // os controles quando o usuário fechava a página dentro da janelinha
+    // (log: "Ignoring call to destroyed session"). A sessão vive enquanto o
+    // app vive; aqui só esconde a notificação (o receiver continua ativo).
+    MediaSession.hide();
     if (!StageSession.instance.isOn) {
       WakelockPlus.disable();
       PalcoForeground.stop();
@@ -435,10 +431,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   /// Janela PiP: título 1 linha + tempo + prev/play/next. Todo o resto
   /// (fila, stop, cast, modos, timeline, navegação) fica pra tela cheia.
+  /// Cores: tokens do TEMA ATIVO (accent do usuário + dark/light).
   Widget _buildPip(BuildContext context) {
     final theme = Theme.of(context);
-      return Scaffold(
-        backgroundColor: Colors.black,
+    final scheme = theme.colorScheme;
+    return Scaffold(
+        backgroundColor: scheme.surface,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -449,7 +447,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                  color: scheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -461,7 +459,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                 builder: (context, pos, _) => Text(
                   '${_fmt(pos)} / ${_fmt(_pipDuration.value)}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
+                    color: scheme.onSurfaceVariant,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -473,9 +471,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         TablerIcons.chevronLeft,
-                        color: Colors.white,
+                        color: scheme.onSurface,
                       ),
                       onPressed: () => _goToSlide(_index - 1),
                     ),
@@ -486,7 +484,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                         livePlaying
                             ? TablerIcons.playerPause
                             : TablerIcons.playerPlay,
-                        color: Colors.white,
+                        color: scheme.primary,
                       ),
                       onPressed: () async {
                         if (widget.player.isPlaying) {
@@ -498,9 +496,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     ),
                     const SizedBox(width: 16),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         TablerIcons.chevronRight,
-                        color: Colors.white,
+                        color: scheme.onSurface,
                       ),
                       onPressed: () => _goToSlide(_index + 1),
                     ),
