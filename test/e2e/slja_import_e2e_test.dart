@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -13,7 +14,13 @@ import 'package:louvorja_piano_mobile/data/datasources/remote/custom_catalog_api
 ///
 /// Pula sozinho se a API local não estiver acessível.
 void main() {
-  const apiBase = 'http://192.168.1.192:3100';
+  // E2E real de rede: opt-in via env — o gate de CI não pode depender da API
+  // de produção ao vivo. Rodar: LOUVORJA_E2E=1 flutter test test/e2e/
+  if (Platform.environment['LOUVORJA_E2E'] != '1') {
+    print('--- LOUVORJA_E2E!=1: E2E de rede pulado (opt-in) ---');
+    return;
+  }
+  const apiBase = 'https://api.pianolouvorja.com.br';
   final stamp = DateTime.now().millisecondsSinceEpoch;
   final email = 'slja_e2e_$stamp@teste.com';
 
@@ -24,8 +31,11 @@ void main() {
   setUpAll(() async {
     try {
       final ping = await http
-          .get(Uri.parse('$apiBase/v1/custom/collections'))
-          .timeout(const Duration(seconds: 3));
+          .get(
+            Uri.parse('$apiBase/v1/custom/collections'),
+            headers: {'User-Agent': 'LouvorJA/1.0'},
+          )
+          .timeout(const Duration(seconds: 6));
       if (ping.statusCode != 200) throw Exception('offline');
     } catch (_) {
       print('--- API $apiBase inacessível: E2E .slja pulado ---');
@@ -48,7 +58,8 @@ void main() {
       fetch: (method, url, {body, bearerToken}) async {
         final uri = Uri.parse(url.startsWith('http') ? url : '$apiBase$url');
         final request = http.Request(method, uri)
-          ..headers['Content-Type'] = 'application/json';
+          ..headers['Content-Type'] = 'application/json'
+          ..headers['User-Agent'] = 'LouvorJA/1.0';
         if (bearerToken != null) {
           request.headers['Authorization'] = 'Bearer $bearerToken';
         }
