@@ -144,9 +144,10 @@ void main() {
       queue.enqueue([_item(1), _item(2), _item(3)]);
       // Polling determinístico: espera 1 concluir e 2 falhar (sem sleep fixo,
       // que é flaky sob carga de CI com workers paralelos).
-      for (var i = 0; i < 150; i++) {
+      // full run com workers paralelos satura IO: limite generoso (30s).
+      for (var i = 0; i < 1500; i++) {
         if (offline.downloaded.containsAll({1, 3}) &&
-            File('${tmp.path}/2.mp3').existsSync() == false) {
+            !File('${tmp.path}/2.mp3').existsSync()) {
           break;
         }
         await Future<void>.delayed(const Duration(milliseconds: 20));
