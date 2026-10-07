@@ -142,8 +142,15 @@ void main() {
       );
 
       queue.enqueue([_item(1), _item(2), _item(3)]);
-      // Tempo do item 1 concluir e o 2 falhar:
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      // Polling determinístico: espera 1 concluir e 2 falhar (sem sleep fixo,
+      // que é flaky sob carga de CI com workers paralelos).
+      for (var i = 0; i < 150; i++) {
+        if (offline.downloaded.containsAll({1, 3}) &&
+            File('${tmp.path}/2.mp3').existsSync() == false) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
       // 1º boot: 1 e 3 baixam; 2 falha (rede) e fica PERSISTIDO na fila.
       expect(offline.downloaded, {1, 3});
       expect(File('${tmp.path}/1.mp3').existsSync(), isTrue);
