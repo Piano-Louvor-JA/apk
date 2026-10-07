@@ -32,9 +32,9 @@ jobs:
         run: flutter analyze --fatal-warnings --no-fatal-infos
 
   test:
-    name: Test
+    name: Test + Coverage Ratchet
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -44,7 +44,10 @@ jobs:
           cache: true
 
       - run: flutter pub get
-      - run: flutter test
+      - run: flutter test --coverage
+
+      - name: Coverage ratchet (bloqueia regressão de cobertura)
+        run: dart scripts/coverage-ratchet.dart
 
   build-android:
     name: Build Android
