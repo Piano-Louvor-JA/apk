@@ -630,9 +630,18 @@ class _AlbumCard extends StatelessWidget {
                           height: 64,
                           fit: BoxFit.cover,
                           // coverage:ignore-line
-                          errorBuilder: (_, __, ___) =>
-                              // coverage:ignore-line
-                              _CoverPlaceholder(theme: theme, album: album),
+                          errorBuilder: (_, error, stackTrace) {
+                            // apk#117: diagnostico de cover local tambem vai
+                            // ao logcat; placeholder preserva navegacao.
+                            debugPrint(
+                              '[AlbumCover] falha ao carregar asset '
+                              '"$assetName": $error\n$stackTrace',
+                            );
+                            return _CoverPlaceholder(
+                              theme: theme,
+                              album: album,
+                            );
+                          },
                         )
                       : fullCoverUrl != null
                       // coverage:ignore-start
@@ -646,8 +655,18 @@ class _AlbumCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           placeholder: (_, __) =>
                               _CoverPlaceholder(theme: theme, album: album),
-                          errorWidget: (_, __, ___) =>
-                              _CoverPlaceholder(theme: theme, album: album),
+                          errorWidget: (_, error, stackTrace) {
+                            // apk#117: deixa diagnostico no logcat sem
+                            // transformar uma falha de cover em crash.
+                            debugPrint(
+                              '[AlbumCover] falha ao carregar '
+                              '"$fullCoverUrl": $error\n$stackTrace',
+                            );
+                            return _CoverPlaceholder(
+                              theme: theme,
+                              album: album,
+                            );
+                          },
                         )
                       // coverage:ignore-end
                       : _CoverPlaceholder(theme: theme, album: album),
