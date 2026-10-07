@@ -32,8 +32,13 @@
 2. **TDD é obrigatório.** Escreva o teste ANTES da implementação.
    Red → Green → Refactor. Sem exceções.
 
-3. **Coverage >= 90%.** Toda linha nova deve ter teste. Use `bloc_test` para
-   BLoCs, `mocktail` para mocks, golden tests para widgets.
+3. **Qualidade de teste completa.** Coverage **100%** SEM mutantes sobreviventes
+   (mutation testing — todo mutante sobrevivente é lacuna de asserção: fortalecer o
+   teste até matá-lo). Camadas obrigatórias conforme couber na stack:
+   **unitários** (TDD, `bloc_test` para BLoCs, `mocktail` para mocks), **golden tests**
+   para widgets, **integração** (fluxos reais: persistência, sync offline, API), e
+   **E2E** (jornadas do usuário ponta a ponta). Todo bug fix vem com o teste que
+   reproduz o bug.
 
 4. **`flutter analyze` sem warnings.** Configurado com `--fatal-infos`.
    Se o CI falhar em analyze, o PR não entra.
@@ -214,7 +219,7 @@ class HymnRepositoryImpl implements HymnRepository {
 6. RODAR teste → GREEN (deve passar)
 7. RODAR flutter analyze → sem warnings
 8. REFACTOR se necessário
-9. VERIFICAR coverage >= 90%
+9. VERIFICAR coverage 100%
 10. COMMIT: `tipo(escopo): task X.Y - descrição`
 ```
 
@@ -254,7 +259,8 @@ jobs:
     - flutter analyze --fatal-infos
   test:
     - flutter test --coverage
-    - coverage >= 90% (check)
+    - coverage 100% (check)
+    - mutation testing — zero sobreviventes (check)
   build:
     - flutter build apk --debug  # smoke test
 ```
@@ -279,7 +285,9 @@ jobs:
 ### Checklist
 - [ ] Testes escritos antes da implementação (TDD)
 - [ ] `flutter analyze` sem warnings
-- [ ] Coverage >= 90%
+- [ ] Coverage 100% — zero mutantes sobreviventes
+- [ ] Testes de integração nos fluxos tocados
+- [ ] E2E na jornada do usuário (quando aplicável)
 - [ ] Widget teste em light e dark mode
 - [ ] Acessibilidade (Semantics labels)
 - [ ] Offline-first (funciona sem internet)
