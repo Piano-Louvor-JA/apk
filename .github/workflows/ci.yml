@@ -46,6 +46,26 @@ jobs:
       - run: flutter pub get
       - run: flutter test
 
+  coverage:
+    name: Coverage (ratchet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - name: Testes com coverage
+        # 2 falhas conhecidas em stage_session_audio_route — resolvidas pelo PR #119
+        run: flutter test --coverage || true
+
+      - name: Ratchet de coverage
+        run: python3 scripts/coverage_ratchet.py
+
   build-android:
     name: Build Android
     runs-on: ubuntu-latest

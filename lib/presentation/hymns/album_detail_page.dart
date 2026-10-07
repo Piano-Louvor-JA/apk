@@ -241,7 +241,6 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   /// Abre o player modo vídeo (slides sincronizados — paridade Electron).
   /// Busca o detail (lyric estruturado) e abre a tela cheia; o áudio
   /// inicia pela URL remota ou arquivo local (PlaybackResolver).
-  // coverage:ignore-start
   Future<void> _openNowPlaying(Hymn hymn, {bool instrumental = false}) async {
     setState(() => _loadingMusicId = hymn.id);
     try {
@@ -471,7 +470,6 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       return HymnRepositoryImpl(api, CatalogCache.noop());
     }
   }
-  // coverage:ignore-end
 
   @override
   void didChangeDependencies() {
