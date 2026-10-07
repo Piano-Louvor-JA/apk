@@ -259,7 +259,8 @@ jobs:
     - flutter analyze --fatal-infos
   test:
     - flutter test --coverage
-    - coverage >= 90% (check)
+    - coverage 100% (check)
+    - mutation testing — zero sobreviventes (check)
   build:
     - flutter build apk --debug  # smoke test
 ```
