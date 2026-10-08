@@ -161,12 +161,11 @@ void main() {
     );
     await tester.pump();
 
-    final prev = find.byIcon(Icons.chevron_left);
-    if (prev.evaluate().isNotEmpty) {
-      await tester.tap(prev.first);
-      await tester.pump();
-      expect(player.sought, isNull); // já está no primeiro slide
-    }
+    final prev = find.byIcon(TablerIcons.chevronLeft);
+    expect(prev, findsOneWidget);
+    await tester.tap(prev);
+    await tester.pump();
+    expect(player.sought, isNull); // já está no primeiro slide
     expect(tester.takeException(), isNull);
   });
 
