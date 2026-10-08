@@ -107,6 +107,29 @@ void main() {
     expect(player.stopped, isTrue);
   });
 
+  testWidgets('pausar e retomar atualiza o player local', (tester) async {
+    final player = _FakePlayer();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.test/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(TablerIcons.playerPause));
+    await tester.pump();
+    expect(player.isPlaying, isFalse);
+    await tester.tap(find.byIcon(TablerIcons.playerPlay));
+    await tester.pump();
+    expect(player.isPlaying, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('alternar sem áudio remove e restaura timeline', (tester) async {
     final player = _FakePlayer();
     await tester.pumpWidget(
