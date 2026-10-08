@@ -21,6 +21,19 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desconectar em modo idle mantém página estável', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: RemoteControlToolPage()),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Botão existe mesmo sem sessão; disconnect precisa ser idempotente.
+    await tester.tap(find.byTooltip('remote.disconnect'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(TabBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('modo idle sem sessão não mostra TabBar (estado vazio)', (
     tester,
   ) async {
