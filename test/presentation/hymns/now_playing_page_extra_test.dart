@@ -190,6 +190,10 @@ void main() {
     await tester.tap(find.byIcon(TablerIcons.chevronRight));
     await tester.pump();
     expect(player.sought, const Duration(seconds: 17));
+    // Além do último slide, _goToSlide retorna sem novo seek.
+    await tester.tap(find.byIcon(TablerIcons.chevronRight));
+    await tester.pump();
+    expect(player.sought, const Duration(seconds: 17));
     expect(tester.takeException(), isNull);
   });
 
