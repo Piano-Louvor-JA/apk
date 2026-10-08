@@ -169,6 +169,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('avançar slide procura o timestamp da próxima letra', (tester) async {
+    final player = _FakePlayer();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.test/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(TablerIcons.chevronRight));
+    await tester.pump();
+    expect(player.sought, const Duration(seconds: 8));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('salvar em coletânea abre sheet sem crash', (tester) async {
     final player = _FakePlayer();
 
