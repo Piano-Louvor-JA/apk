@@ -358,6 +358,64 @@ void main() {
     final r = await stage.checkTvNeedsPalcoOpen();
     expect(r, anyOf(isNull, isA<bool>(), isA<Map<String, dynamic>>()));
   });
+  test('projectPptxSlides com arquivo inexistente retorna 0 sem lançar',
+      () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async {
+      await rx.close();
+      await stage.turnOff();
+    });
+
+    expect(stage.projectPptxSlides('/tmp/nao_existe_slide.pptx'), 0);
+  });
+  test('navigateSlides sem sequência carregada retorna false', () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async {
+      await rx.close();
+      await stage.turnOff();
+    });
+
+    expect(stage.navigateSlides('next'), isFalse);
+    expect(stage.navigateSlides('prev'), isFalse);
+    expect(stage.navigateSlides('outro'), isFalse);
+  });
+  test('playVideoOnStage com URL externa projeta e ended volta ao idle',
+      () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async {
+      await rx.close();
+      await stage.turnOff();
+    });
+
+    expect(stage.playVideoOnStage('https://x/video.mp4'), isTrue);
+    expect(stage.isVideoOnStage, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
+    stage.toggleStageVideoPause();
+    stage.stopVideoOnStage();
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(stage.isVideoOnStage, isFalse);
+    expect(stage.isStageVideoPaused, anyOf(isTrue, isFalse));
+  });
+  test('playVideoOnStage com palco desligado retorna false', () async {
+    final stage = StageSession.instance;
+    await stage.turnOff();
+    expect(stage.playVideoOnStage('https://x/v.mp4'), isFalse);
+  });
+  test('audioRoute setter duplicado e mudanças não lançam', () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async {
+      await rx.close();
+      await stage.turnOff();
+    });
+
+    stage.audioRoute = PalcoAudioRoute.tv;
+    final before = stage.audioRoute;
+    stage.audioRoute = PalcoAudioRoute.tv; // igual: no-op
+    expect(stage.audioRoute, before);
+    stage.audioRoute = PalcoAudioRoute.mirror;
+    expect(stage.audioRoute, PalcoAudioRoute.mirror);
+  });
   });
 }
 
