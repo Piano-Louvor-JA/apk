@@ -190,7 +190,9 @@ void main() {
         interItemDelay: Duration.zero,
       );
       queue.enqueue([_item(7)]);
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      for (var i = 0; i < 200 && !offline.downloaded.contains(7); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
       expect(offline.downloaded, {7});
 
       await offline.remove(7);
