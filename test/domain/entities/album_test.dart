@@ -1,5 +1,7 @@
 library;
 
+import 'dart:ui' show Color;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
@@ -25,12 +27,32 @@ void main() {
       expect(a.id, 5);
     });
 
-    test('toJson round-trip', () {
-      final original = Album(id: 10, name: 'Album X', subtitle: 'Sub');
+    test('toJson round-trip preserva campos opcionais', () {
+      final original = Album(
+        id: 10,
+        name: 'Album X',
+        subtitle: 'Sub',
+        coverUrl: '/covers/x.png',
+        trackCount: 12,
+        colorHex: '#102030',
+      );
       final restored = Album.fromJson(original.toJson());
       expect(restored.id, original.id);
       expect(restored.name, original.name);
       expect(restored.subtitle, original.subtitle);
+      expect(restored.coverUrl, original.coverUrl);
+      expect(restored.trackCount, 12);
+      expect(restored.color, const Color(0xFF102030));
+    });
+
+    test('fromJson aceita id numérico decimal e inválido', () {
+      expect(Album.fromJson({'id_album': 9.8}).id, 9);
+      expect(Album.fromJson({'id_album': 'invalido'}).id, 0);
+      expect(Album.fromJson({}).id, 0);
+    });
+
+    test('toString mostra id e nome', () {
+      expect(const Album(id: 4, name: 'JA').toString(), 'Album(id: 4, name: JA)');
     });
 
     test('igualdade por id', () {
