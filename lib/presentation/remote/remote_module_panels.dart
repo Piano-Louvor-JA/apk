@@ -548,12 +548,18 @@ class _TimeCard extends StatelessWidget {
 }
 
 class RemoteClockRandomPanel extends StatelessWidget {
-  const RemoteClockRandomPanel({super.key, this.clock, this.random});
+  const RemoteClockRandomPanel({
+    super.key,
+    this.clock,
+    this.random,
+    this.send,
+  });
 
   final RemoteClockState? clock;
   final RemoteRandomState? random;
+  final RemoteSend? send;
 
-  RemoteSend get _send => _defaultSend;
+  RemoteSend get _send => send ?? _defaultSend;
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +623,6 @@ class _ClockCard extends StatelessWidget {
 /// sortear, sorteados com devolver — espelho do app desktop.
 class _RandomCard extends StatefulWidget {
   const _RandomCard({required this.random, required this.send});
-
   final RemoteRandomState? random;
   final RemoteSend send;
 
