@@ -27,10 +27,12 @@ void main() {
     expect(server.port, greaterThan(0));
   });
 
-  test('stop para o servidor e isRunning false', () async {
+  test('stop limpa slide e impede nova URL', () async {
     await server.start();
+    await server.serveSlide(Uint8List.fromList([1]));
     await server.stop();
     expect(server.isRunning, isFalse);
+    expect(await server.serveSlide(Uint8List.fromList([2])), isNull);
   });
 
   test('stop sem start não lança', () async {
