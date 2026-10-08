@@ -9,6 +9,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
 
 import 'app/app.dart';
+import 'core/telemetry/telemetry.dart';
 import 'core/services/settings_controller.dart';
 
 void main() async {
@@ -27,21 +28,23 @@ void main() async {
   // é local/rápido e evita um flash escuro quando o usuário salvou tema claro.
   await settings.loadSettings();
 
-  runApp(
-    ChangeNotifierProvider.value(
-      value: settings,
-      child: EasyLocalization(
-        supportedLocales: const [
-          Locale('pt', 'BR'),
-          Locale('en'),
-          Locale('es'),
-        ],
-        path: 'assets/translations',
-        fallbackLocale: const Locale('pt', 'BR'),
-        // Segue o idioma do OS por padrao. Usuario pode trocar nas Configuracoes.
-        useOnlyLangCode: false,
-        child: const LouvorjaApp(),
+  await runWithTelemetry(() async {
+    runApp(
+      ChangeNotifierProvider.value(
+        value: settings,
+        child: EasyLocalization(
+          supportedLocales: const [
+            Locale('pt', 'BR'),
+            Locale('en'),
+            Locale('es'),
+          ],
+          path: 'assets/translations',
+          fallbackLocale: const Locale('pt', 'BR'),
+          // Segue o idioma do OS por padrao. Usuario pode trocar nas Configuracoes.
+          useOnlyLangCode: false,
+          child: const LouvorjaApp(),
+        ),
       ),
-    ),
-  );
+    );
+  });
 }
