@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'package:flutter/material.dart';
 
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
@@ -32,6 +33,7 @@ Future<void> showSaveToCollectionSheet(
       options: Options(
         method: method,
         headers: {
+          ...clientPlatformHeaders(),
           if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
         },
       ),
