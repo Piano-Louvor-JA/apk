@@ -316,7 +316,10 @@
     "imported": "Sincronizado: {applied}.",
     "importedNone": "Nada que actualizar (local ya es más reciente).",
     "importInvalid": "Archivo inválido o no es un paquete .louvorja.",
-    "importCancelled": "Importación cancelada."
+    "importCancelled": "Importación cancelada.",
+    "operatorSynced": "Estado del operador sincronizado.",
+    "operatorUpToDate": "Nada que actualizar (local ya es más reciente).",
+    "operatorPending": "Sincronización pendente — se enviará cuando haya conexión."
   },
   "remote": {
     "title": "Control Remoto",
@@ -419,5 +422,10 @@
   },
   "albums": {
     "playAll": "Reproducir todo"
+  },
+  "offline": {
+    "sectionTitle": "Modo sin conexión",
+    "mode": "Modo sin conexión — usando contenido descargado",
+    "restored": "Conexión restaurada — sincronizando…"
   }
 }
