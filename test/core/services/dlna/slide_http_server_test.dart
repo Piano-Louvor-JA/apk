@@ -50,9 +50,8 @@ void main() {
 
     expect(u1, isNotNull);
     expect(u2, isNotNull);
-    expect(u1, contains('/slide.png?v='));
-    expect(u2, contains('/slide.jpg?v='));
-    expect(u1 != u2, isTrue);
+    expect(u1, contains('/slide.png?v=1'));
+    expect(u2, contains('/slide.jpg?v=2'));
   });
 
   test('serveSlide jpeg=true muda extensão para .jpg', () async {
