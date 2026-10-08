@@ -1,5 +1,4 @@
-// coverage:ignore-file
-// UI de controle remoto (ferramenta) — widget tree + sessão WS, sem teste unit
+// UI de controle remoto (ferramenta) — smoke de idle coberto em teste.
 library;
 
 import 'dart:async';

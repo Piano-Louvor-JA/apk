@@ -1,6 +1,5 @@
-// coverage:ignore-file
-// UI dos módulos v2 do controle remoto (bible/timer/countdown) — widget
-// tree pura sobre RemoteSession.send, sem lógica testável isolada.
+// UI dos módulos v2 do controle remoto (bible/timer/countdown) —
+// widget tree pura sobre RemoteSend injetável (testado em remote_module_panels_test).
 library;
 
 import 'dart:async';
