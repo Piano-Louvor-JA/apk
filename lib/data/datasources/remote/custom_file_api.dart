@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:louvorja_piano_mobile/core/platform_header.dart';
 
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
@@ -63,7 +64,7 @@ class CustomFileApi {
     final res = await _dio.post<Map<String, dynamic>>(
       '$apiBaseUrl/v1/custom/files',
       data: formData,
-      options: Options(headers: {'Authorization': 'Bearer $bearerToken'}),
+      options: Options(headers: {'Authorization': 'Bearer $bearerToken', ...clientPlatformHeaders()}),
       onSendProgress: (sent, total) =>
           onProgress?.call(total > 0 ? sent / total : 0),
     );
