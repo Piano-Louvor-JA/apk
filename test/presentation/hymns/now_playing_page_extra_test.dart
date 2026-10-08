@@ -107,6 +107,29 @@ void main() {
     expect(player.stopped, isTrue);
   });
 
+  testWidgets('alternar sem áudio remove e restaura timeline', (tester) async {
+    final player = _FakePlayer();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.test/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Sem áudio'));
+    await tester.pump();
+    expect(find.byTooltip('Com áudio'), findsOneWidget);
+    await tester.tap(find.byTooltip('Com áudio'));
+    await tester.pump();
+    expect(find.byTooltip('Sem áudio'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('modo instrumental: botão de alternância aparece', (tester) async {
     final player = _FakePlayer();
 
