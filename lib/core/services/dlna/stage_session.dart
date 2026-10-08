@@ -407,6 +407,13 @@ class StageSession extends ChangeNotifier {
   /// F3.3w: true enquanto um vídeo projetado pela liturgia roda na TV.
   bool _videoOnStage = false;
   bool get isVideoOnStage => _videoOnStage;
+
+  /// Testes: simula vídeo em execução sem TV física.
+  @visibleForTesting
+  void markVideoOnStageForTest() {
+    _videoOnStage = true;
+    notifyListeners();
+  }
   bool _stageVideoPaused = false;
   bool get isStageVideoPaused => _stageVideoPaused;
 
