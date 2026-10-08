@@ -31,17 +31,15 @@ class HymnRepositoryImpl implements HymnRepository {
   Future<List<AlbumCategory>> getCategories() async {
     if (_categoriesCache != null) return _categoriesCache!;
 
-    // Tenta cache local primeiro
+    // Cache de disco do cold start (usado como fallback se a rede falhar).
     final cached = _cache.read('categories');
-    if (cached != null) {
-      final parsed = _parseCategories(cached);
-      if (parsed.isNotEmpty) {
-        _categoriesCache = parsed;
-        return parsed;
-      }
-    }
 
-    // Busca remoto: categorias primeiro, depois hinários (sequencial para respeitar rate limit)
+    // REMOTO PRIMEIRO: cache em disco nunca substitui uma API saudavel.
+    // Antes o cache respondia cedo por 24h (TTL) e um device que um dia
+    // gravou catalogo antigo (ex.: failover pro host de reserva) ficava
+    // preso SEM categorias novas mesmo online (apk#116 — Infantis 98 /
+    // Doxologia 99 invisiveis). Offline-first = fallback no catch, nao
+    // cache na frente do remoto.
     try {
       final categories = await _api.fetchCategories();
       final hymnal = await _api.fetchHymnal();
