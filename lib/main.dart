@@ -1,15 +1,18 @@
 // Entry point do LouvorJA PIANO Mobile.
 library;
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'core/services/settings_controller.dart';
+import 'core/services/sync/operator_state_boot.dart';
 
 void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
@@ -22,10 +25,19 @@ void main() async {
   // App operador: fixar em portrait (nao faz sentido landscape no celular)
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  final settings = SettingsController();
+  final prefs = await SharedPreferences.getInstance();
+  final settings = SettingsController(
+    outboxHook: (key, value) =>
+        unawaited(OperatorStateBoot.enqueuePrefsChange(prefs, key, value)),
+  );
   // Tema precisa estar pronto antes da Splash Flutter montar. SharedPreferences
   // é local/rápido e evita um flash escuro quando o usuário salvou tema claro.
   await settings.loadSettings();
+
+  // sync v2 (apk#107): flush no boot — a fila pendente sobe quando há sessão
+  // e o pull da resposta aplica LWW (agendados + prefs). Sem rede/sessão a
+  // fila fica íntegra pra próxima tentativa.
+  unawaited(OperatorStateBoot.flushOnBoot(prefs));
 
   runApp(
     ChangeNotifierProvider.value(

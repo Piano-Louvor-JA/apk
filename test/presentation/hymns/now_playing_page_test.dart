@@ -119,4 +119,40 @@ void main() {
     expect(player.sought, const Duration(seconds: 8));
     expect(find.text('O nosso sol'), findsOneWidget);
   });
+
+  testWidgets('ícone grande alterna play/pause quando o player emite estado', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Tocando: ícone de pausa.
+    expect(find.byIcon(TablerIcons.playerPause), findsOneWidget);
+    expect(find.byIcon(TablerIcons.playerPlay), findsNothing);
+
+    // Player pausa por fora (ex.: MediaSession / mini player): o ícone
+    // grande DEVE re-renderizar sem setState da página (apk#96).
+    player._playing.value = false;
+    await tester.pump();
+
+    expect(find.byIcon(TablerIcons.playerPlay), findsOneWidget);
+    expect(find.byIcon(TablerIcons.playerPause), findsNothing);
+
+    // Retoma: volta a pausa.
+    player._playing.value = true;
+    await tester.pump();
+
+    expect(find.byIcon(TablerIcons.playerPause), findsOneWidget);
+  });
 }

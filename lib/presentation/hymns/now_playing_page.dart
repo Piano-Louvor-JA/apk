@@ -401,9 +401,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final slide = _slides.slides.isEmpty ? null : _slides.slides[_index];
-    final playing = widget.player.isPlaying;
 
-    return Scaffold(
+    // apk#96: o ícone grande deve refletir o estado REAL do player (que
+    // muda por fora desta página: MediaSession, mini player, notificação).
+    // Escuta o playingListenable em vez de ler isPlaying uma única vez.
+    return ValueListenableBuilder<bool>(
+      valueListenable: widget.player.playingListenable,
+      builder: (context, playing, _) => Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
@@ -662,6 +666,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           ),
         ],
       ),
+    ),
     );
   }
 }
