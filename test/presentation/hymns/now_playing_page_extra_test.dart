@@ -187,6 +187,9 @@ void main() {
     await tester.tap(find.byIcon(TablerIcons.chevronRight));
     await tester.pump();
     expect(player.sought, const Duration(seconds: 8));
+    await tester.tap(find.byIcon(TablerIcons.chevronRight));
+    await tester.pump();
+    expect(player.sought, const Duration(seconds: 17));
     expect(tester.takeException(), isNull);
   });
 
