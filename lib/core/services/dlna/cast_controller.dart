@@ -56,12 +56,17 @@ class CastController {
       );
       return false;
     }
+    final controlUrl = renderer.avTransportControlUrl;
+    if (controlUrl == null) {
+      debugPrint('[DLNA] connect FALHOU: renderer sem controlURL (resolve?)');
+      await _server.stop();
+      return false;
+    }
     debugPrint(
-      '[DLNA] connect OK: server em $base, controlURL='
-      '${renderer.avTransportControlUrl}',
+      '[DLNA] connect OK: server em $base, controlURL=$controlUrl',
     );
     _renderer = renderer;
-    _client = DlnaRendererClient(renderer.avTransportControlUrl!);
+    _client = DlnaRendererClient(controlUrl);
     _format = renderer.preferredImageFormat;
     // Anuncia o IP do celular NA SUB-REDE da TV (evita anunciar IP de
     // VPN/segunda interface que a TV não alcança).

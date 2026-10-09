@@ -32,5 +32,12 @@ void main() {
       expect(slot.httpPort, 7086);
       expect(slot.wsPort, 7087);
     });
+
+    test('representação mostra identidade e portas do slot', () {
+      final slot = PalcoSlot(id: 'sala', label: 'TV Sala', slotIndex: 2);
+      slot.label = 'TV Sala Nova';
+
+      expect(slot.toString(), 'PalcoSlot(sala, TV Sala Nova, ports 7084/7085)');
+    });
   });
 }

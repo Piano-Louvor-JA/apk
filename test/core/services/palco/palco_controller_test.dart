@@ -203,4 +203,36 @@ void main() {
       await ctrl.disconnect();
     },
   );
+
+  test('seek, resume e clearMedia mantêm protocolo v2 coerente', () async {
+    final ctrl = PalcoController(
+      sender: PalcoSender(httpPortFixed: 0, wsPortFixed: 0),
+    );
+    await ctrl.connect(const PalcoTarget(name: 'TV', ip: '127.0.0.1'));
+    final rx = FakeReceiver();
+    await rx.connect('127.0.0.1', ctrl.wsPort);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    ctrl.seekAudio(42.5);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(rx.received.last['action'], 'seek');
+    expect(rx.received.last['position'], 42.5);
+
+    ctrl.resumeAudio();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(rx.received.last['action'], 'play');
+
+    // Path local cru NÃO vai pro proxy (receiver não alcança).
+    ctrl.playAudio('/data/local/tmp/hino.mp3');
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(rx.received.last['url'], '/data/local/tmp/hino.mp3');
+
+    ctrl.clearMedia();
+    expect(ctrl.isConnected, isTrue);
+
+    await rx.close();
+    await ctrl.disconnect();
+    expect(ctrl.isConnected, isFalse);
+    expect(ctrl.httpBase, isNull);
+  });
 }

@@ -235,6 +235,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       if (mounted) setState(() => _loadingMusicId = null);
     }
   }
+  // coverage:ignore-end
 
   bool _isThisPlaying(Hymn hymn) => _playingHymnId == hymn.id;
 
@@ -365,6 +366,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
   Future<void> _removeTrack(Hymn hymn) async {
     try {
+      await _queue?.cancel(hymn.id);
       await _offline.remove(hymn.id);
       if (mounted) setState(() => _downloadedIds.remove(hymn.id));
     } catch (_) {}
@@ -471,7 +473,6 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       return HymnRepositoryImpl(api, CatalogCache.noop());
     }
   }
-  // coverage:ignore-end
 
   @override
   void didChangeDependencies() {
