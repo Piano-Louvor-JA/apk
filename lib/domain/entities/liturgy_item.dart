@@ -57,6 +57,7 @@ enum LiturgyItemType {
   onlineVideo,
   site,
   verse,
+  audio,
 }
 
 /// Metadata visual de cada tipo (cor + nome do icone Tabler).
@@ -147,6 +148,11 @@ class LiturgyTypeRegistry {
       value: LiturgyItemType.verse,
       colorValue: 0xFFAB47BC,
       icon: TablerIcons.book,
+    ),
+    LiturgyItemType.audio: LiturgyItemTypeMeta(
+      value: LiturgyItemType.audio,
+      colorValue: 0xFFD500F9,
+      icon: TablerIcons.headphones,
     ),
   };
 
