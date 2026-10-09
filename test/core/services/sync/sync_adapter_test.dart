@@ -1,10 +1,13 @@
 library;
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:louvorja_piano_mobile/core/services/sync/sync_adapter.dart';
 import 'package:louvorja_piano_mobile/core/services/sync/sync_package.dart';
 import 'package:louvorja_piano_mobile/core/services/sync/sync_timestamps.dart';
+import 'package:louvorja_piano_mobile/data/datasources/local/local_custom_store.dart';
 import 'package:louvorja_piano_mobile/data/repositories/liturgy_repository.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 
@@ -148,5 +151,87 @@ void main() {
       prefsB.getString('timer.countdown.presets.v1'),
       '[{"name":"culto"}]',
     );
+  });
+
+  test('mediaCustomCatalog: round-trip export A → import B (t_c1ea317a)',
+      () async {
+    final dirA = await Directory.systemTemp.createTemp('sync_a');
+    final dirB = await Directory.systemTemp.createTemp('sync_b');
+    addTearDown(() async => await dirA.delete(recursive: true));
+    addTearDown(() async => await dirB.delete(recursive: true));
+    final storeA = LocalCustomStore(dirA);
+    storeA.createLocalCollection('Coletânea Sacra');
+    storeA.saveLocalMusic(collectionId: -1, name: 'Hino Sacro', lyric: 'G');
+    await SyncTimestamps.touch('mediaCustomCatalog');
+
+    final prefsA = await SharedPreferences.getInstance();
+    final pkg = await SyncAdapter(prefsA, localCustomStore: storeA).export();
+    expect(pkg.entities['mediaCustomCatalog'], isNotNull);
+
+    final prefsB = await SharedPreferences.getInstance();
+    final storeB = LocalCustomStore(dirB);
+    // B nunca viu esta entidade: zera o LWW local antes do import.
+    SharedPreferences.setMockInitialValues({});
+    await SyncTimestamps.init();
+    final prefsB2 = await SharedPreferences.getInstance();
+    final r = await SyncAdapter(
+      prefsB2,
+      localCustomStore: storeB,
+    ).importPackage(pkg);
+
+    expect(r.applied, contains('mediaCustomCatalog'));
+    expect(
+      storeB.listLocalCollections().single['name'],
+      'Coletânea Sacra',
+    );
+    expect(storeB.listLocalMusics(-1).single['name'], 'Hino Sacro');
+
+    // LWW: pacote antigo não sobrescreve.
+    final antigo = SyncPackage(
+      appVersion: '0.1.0',
+      platform: 'desktop',
+      exportedAt: DateTime.now().toUtc().subtract(const Duration(days: 1)),
+      entities: {
+        'mediaCustomCatalog': SyncEntity(
+          type: 'mediaCustomCatalog',
+          modified: DateTime.now().toUtc().subtract(const Duration(days: 2)),
+          data: {
+            'db': {
+              'collections': [
+                {'id': -1, 'name': 'antiga', 'created_at': 'x'},
+              ],
+              'musics': [],
+            },
+          },
+        ),
+      },
+    );
+    final r2 = await SyncAdapter(
+      prefsB,
+      localCustomStore: storeB,
+    ).importPackage(antigo);
+    expect(r2.skipped, contains('mediaCustomCatalog'));
+    expect(storeB.listLocalCollections().single['name'], 'Coletânea Sacra');
+  });
+
+  test('preferences: round-trip com allowlist stage.settings.*', () async {
+    final prefsA = await SharedPreferences.getInstance();
+    await prefsA.setString('stage.settings.global', '{"bg":1,"size":90}');
+    await prefsA.setString('stage.settings.hymns', '{"size":110}');
+    await prefsA.setString('stage.settings.evil', '{"hack":true}');
+    await SyncTimestamps.touch('preferences');
+
+    final pkg = await SyncAdapter(prefsA).export();
+    final pref = pkg.entities['preferences']!;
+    expect(pref.data.containsKey('stage.settings.global'), isTrue);
+    expect(pref.data.containsKey('stage.settings.evil'), isFalse);
+
+    SharedPreferences.setMockInitialValues({});
+    await SyncTimestamps.init();
+    final prefsB = await SharedPreferences.getInstance();
+    final r = await SyncAdapter(prefsB).importPackage(pkg);
+    expect(r.applied, contains('preferences'));
+    expect(prefsB.getString('stage.settings.global'), '{"bg":1,"size":90}');
+    expect(prefsB.getString('stage.settings.hymns'), '{"size":110}');
   });
 }
