@@ -365,6 +365,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
   Future<void> _removeTrack(Hymn hymn) async {
     try {
+      await _queue?.cancel(hymn.id);
       await _offline.remove(hymn.id);
       if (mounted) setState(() => _downloadedIds.remove(hymn.id));
     } catch (_) {}

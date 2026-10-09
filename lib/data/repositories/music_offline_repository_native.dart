@@ -111,7 +111,11 @@ class MusicOfflineRepository {
     final index = await _loadIndex();
     final key = _key(musicId, instrumental);
     final path = _pathOf(key, index[key]);
-    if (path == null || !await File(path).exists()) {
+    final file = path == null ? null : File(path);
+    if (path == null ||
+        !path.endsWith('.mp3') ||
+        !await file!.exists() ||
+        await file.length() == 0) {
       if (path != null) {
         index.remove(key);
         await _persistIndex();
