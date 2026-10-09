@@ -13,17 +13,22 @@ class DownloadQueueItem {
   final int musicId;
   final String title;
   final String url;
+  final bool instrumental;
 
   const DownloadQueueItem({
     required this.musicId,
     required this.title,
     required this.url,
+    this.instrumental = false,
   });
+
+  String get key => '${musicId}_${instrumental ? 'instrumental' : 'vocal'}';
 
   Map<String, dynamic> toJson() => {
     'musicId': musicId,
     'title': title,
     'url': url,
+    'instrumental': instrumental,
   };
 
   factory DownloadQueueItem.fromJson(Map<String, dynamic> json) =>
@@ -31,6 +36,7 @@ class DownloadQueueItem {
         musicId: json['musicId'] as int,
         title: json['title'] as String? ?? '',
         url: json['url'] as String? ?? '',
+        instrumental: json['instrumental'] == true,
       );
 }
 
@@ -84,7 +90,7 @@ class DownloadQueue {
 
   /// Itens que falharam neste drain — ficam no disco p/ proximo boot.
   final List<DownloadQueueItem> _failedThisRun = [];
-  final Set<int> _enqueuedIds = {};
+  final Set<String> _enqueuedKeys = {};
 
   /// Tamanho do lote corrente (p/ progresso '12/75').
   int _queueTotalThisRun = 0;
@@ -125,17 +131,28 @@ class DownloadQueue {
 
   /// Adiciona itens e inicia o processamento serial.
   void enqueue(Iterable<DownloadQueueItem> items) {
+    var added = 0;
     for (final item in items) {
-      if (_enqueuedIds.contains(item.musicId)) continue;
-      _enqueuedIds.add(item.musicId);
+      if (!_enqueuedKeys.add(item.key)) continue;
       _pending.add(item);
+      added++;
     }
-    _queueTotalThisRun += _pending.length;
+    _queueTotalThisRun += added;
     if (_restoring) {
       // o restore pendente vai processar os novos itens junto
       return;
     }
     _start();
+  }
+
+  /// Remove uma faixa pendente. O download corrente não pode ser abortado
+  /// pelo contrato [OfflineMusicPort], mas itens ainda enfileirados não rodam.
+  Future<void> cancel(int musicId, {bool instrumental = false}) async {
+    final key = '${musicId}_${instrumental ? 'instrumental' : 'vocal'}';
+    _pending.removeWhere((item) => item.key == key);
+    _failedThisRun.removeWhere((item) => item.key == key);
+    _enqueuedKeys.remove(key);
+    await _persist();
   }
 
   Future<void> _restoreAndStart() async {
@@ -145,8 +162,7 @@ class DownloadQueue {
       final list = map['pending'] as List<dynamic>? ?? const [];
       for (final e in list) {
         final item = DownloadQueueItem.fromJson(e as Map<String, dynamic>);
-        if (_enqueuedIds.contains(item.musicId)) continue;
-        _enqueuedIds.add(item.musicId);
+        if (!_enqueuedKeys.add(item.key)) continue;
         _pending.add(item);
       }
     } catch (_) {
@@ -187,11 +203,15 @@ class DownloadQueue {
       final item = _pending.removeAt(0);
       await _persist();
       try {
-        final existing = await offline.localPathFor(item.musicId);
+        final existing = await offline.localPathFor(
+          item.musicId,
+          instrumental: item.instrumental,
+        );
         if (existing == null) {
           await offline.download(
             musicId: item.musicId,
             url: item.url,
+            instrumental: item.instrumental,
             onReceiveProgress: (received, total) {
               notifier.value = DownloadQueueProgress(
                 musicId: item.musicId,
@@ -206,7 +226,7 @@ class DownloadQueue {
             },
           );
         }
-        _failedThisRun.removeWhere((e) => e.musicId == item.musicId);
+        _failedThisRun.removeWhere((e) => e.key == item.key);
         _consecutiveRateLimits = 0;
       } on LouvorjaApiException catch (e) {
         if (e.code == 'errors.serverBusy') {
