@@ -417,6 +417,78 @@ void main() {
     expect(stage.audioRoute, PalcoAudioRoute.mirror);
   });
   });
+
+  // ===== Onda 76: mídia LOCAL servida + reroute + background =====
+  test('playHymnAudio arquivo local existente: serve via /media', () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+
+    final f = File('${_tmpCov!.path}/hino_local.mp3');
+    await f.writeAsBytes(List.filled(64, 7));
+
+    stage.audioRoute = PalcoAudioRoute.tv;
+    final route = stage.playHymnAudio(f.path, title: 'Local');
+    expect(route, PalcoAudioRoute.tv);
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final play = rx.received.lastWhere((m) => m['type'] == 'audio');
+    expect(play['url'].toString(), contains('hymn_hino_local.mp3'));
+  });
+
+  test('playHymnAudio arquivo local INEXISTENTE: segue com URL original', () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+
+    stage.audioRoute = PalcoAudioRoute.tv;
+    final route = stage.playHymnAudio('/tmp/nao_existe_76.mp3');
+    expect(route, PalcoAudioRoute.tv);
+
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    final play = rx.received.lastWhere((m) => m['type'] == 'audio');
+    expect(play['url'], '/tmp/nao_existe_76.mp3');
+  });
+
+  test('rerouteCurrentAudio: local → tv re-envia servido; tv → local para', () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+
+    final f = File('${_tmpCov!.path}/reroute.mp3');
+    await f.writeAsBytes(List.filled(32, 9));
+
+    stage.audioRoute = PalcoAudioRoute.local;
+    stage.playHymnAudio(f.path, title: 'R');
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    stage.audioRoute = PalcoAudioRoute.tv;
+    stage.rerouteCurrentAudio();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final play = rx.received.lastWhere((m) => m['type'] == 'audio');
+    expect(play['url'].toString(), contains('hymn_reroute.mp3'));
+
+    stage.audioRoute = PalcoAudioRoute.local;
+    stage.rerouteCurrentAudio();
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(rx.received.last['action'], 'stop');
+  });
+
+  test('setBackgroundFromFile persiste e serve bgPalco no palco ligado', () async {
+    final (stage, _, rx) = await setUpPalco();
+    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+
+    final png = File('${_tmpCov!.path}/bg.png')
+      ..writeAsBytesSync([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D, 0x49,
+        0x48, 0x44, 0x52, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1F, 0x15,
+        0xC4, 0x89, 0, 0, 0, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63,
+        0, 1, 0, 0, 5, 0, 1, 0x0D, 0x0A, 0x2D, 0xB4, 0, 0, 0, 0, 0x49, 0x45,
+        0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+      ]);
+
+    await stage.setBackgroundFromFile(png.path);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final bg = rx.received.lastWhere((m) => m['type'] == 'bgPalco');
+    expect(bg['url'].toString(), contains('palco_bg.png'));
+  });
 }
 
 /// Receiver fake com stream de mensagens decodificadas.
