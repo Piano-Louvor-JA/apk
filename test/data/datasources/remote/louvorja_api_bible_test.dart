@@ -8,6 +8,7 @@ import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.
 
 class _OkAdapter implements HttpClientAdapter {
   final String json;
+  final requests = <RequestOptions>[];
   _OkAdapter(this.json);
 
   @override
@@ -19,6 +20,7 @@ class _OkAdapter implements HttpClientAdapter {
     Stream<List<int>>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    requests.add(options);
     final bytes = Uint8List.fromList(json.codeUnits);
     return ResponseBody(
       Stream.fromIterable([bytes]),
@@ -63,6 +65,23 @@ void main() {
     expect(result.length, 1);
     expect(result[0].abbreviation, 'ARA');
     expect(result[0].name, 'Almeida');
+  });
+
+  test('id decimal do catálogo produz a chave correta do capítulo', () async {
+    final api = createApi(
+      '[{"id_bible_version":"13.0","abbreviation":"ACF","name":"Almeida"}]',
+    );
+    final versions = await api.fetchBibleVersions();
+    expect(versions.single.id, 13);
+    final adapter = _OkAdapter('{"1":"No principio"}');
+    api.dio.httpClientAdapter = adapter;
+    final chapter = await api.fetchBibleChapter(versions.single.id, 1, 1);
+    expect(chapter['1'], 'No principio');
+    expect(adapter.requests.single.uri.toString(), contains('bible_13_1_1'));
+    expect(
+      adapter.requests.single.uri.toString(),
+      isNot(contains('bible_0_1_1')),
+    );
   });
 
   test('fetchBibleChapter retorna versiculos', () async {

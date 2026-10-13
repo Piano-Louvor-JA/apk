@@ -239,6 +239,26 @@ void main() {
       expect(v.id, 2);
     });
 
+    for (final value in [
+      'NaN',
+      'Infinity',
+      '-Infinity',
+      '1e999',
+      'inválido',
+      '',
+      null,
+      double.nan,
+      double.infinity,
+    ]) {
+      test('id inválido $value mantém fallback zero sem exceção', () {
+        expect(BibleVersion.fromJson({'id_bible_version': value}).id, 0);
+      });
+    }
+
+    test('decimal com fração preserva truncamento', () {
+      expect(BibleVersion.fromJson({'id_bible_version': '13.9'}).id, 13);
+    });
+
     test('== por id', () {
       const a = BibleVersion(id: 1, abbreviation: 'ARA', name: 'A');
       const b = BibleVersion(id: 1, abbreviation: 'NVI', name: 'B');
