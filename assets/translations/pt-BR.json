@@ -315,7 +315,10 @@
     "imported": "Sincronizado: {applied}.",
     "importedNone": "Nada a atualizar (local já é mais recente).",
     "importInvalid": "Arquivo inválido ou não é um pacote .louvorja.",
-    "importCancelled": "Importação cancelada."
+    "importCancelled": "Importação cancelada.",
+    "operatorSynced": "Estado do operador sincronizado.",
+    "operatorUpToDate": "Nada a atualizar (local já é mais recente).",
+    "operatorPending": "Sincronização pendente — será enviada quando houver conexão."
   },
   "remote": {
     "title": "Controle Remoto",
