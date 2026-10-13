@@ -298,6 +298,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             filesUrl: ApiConfig.urlFiles,
             audioSource: source, // F3.2: roteamento de áudio no Palco
             audioIsLocal: local != null,
+            offlineService: _offline,
             catalogDurationMs: hymn.durationMs,
           ),
         ),
