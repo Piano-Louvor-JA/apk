@@ -1,0 +1,24 @@
+android:
+  - changed-files:
+      - any-glob-to-any-file:
+          - android/**
+          - lib/**
+
+ios:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ios/**
+          - lib/**
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - test/**
+          - integration_test/**
+          - e2e/**
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - scripts/**
