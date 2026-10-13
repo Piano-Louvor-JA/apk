@@ -48,6 +48,7 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
   List<CustomCollectionMusic>? _musics;
   String? _error;
   bool _busy = false;
+  bool _openingMusic = false;
 
   @override
   void initState() {
@@ -234,6 +235,8 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
 
   /// Tap na música = tocar (NowPlayingPage com slides/timing custom).
   Future<void> _playCustom(CustomCollectionMusic music) async {
+    if (_openingMusic) return;
+    _openingMusic = true;
     // Sem áudio (ou sem timing gravado) abre em modo slides manuais —
     // mensagem explica o porquê em vez de falhar em silêncio.
     if (music.audioUrl == null) {
@@ -254,19 +257,20 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
                 : '${widget.api.filesBaseUrl}${rawUrl.startsWith('/') ? '' : '/'}$rawUrl');
 
       final player = widget.audioPlayer ?? HymnAudioPlayer.instance;
-      if (source != null) await player.playUrl(source);
-
-      // SPEC 4 (apk#91): registra no estado global para o MiniPlayerBar
-      // aparecer em TODAS as abas (antes, play custom não atualizava a
-      // barra — só a aba Hinos/álbum oficial alimentava o now playing).
-      nowPlaying.start(
-        hymnId: hymn.id,
-        title: hymn.title ?? music.name,
-        album: widget.collection.name,
-        durationMs: hymn.durationMs,
-        detail: hymn,
-        audioSource: source,
-      );
+      if (source != null) {
+        await player.playUrl(source);
+        // Só registra áudio iniciado de verdade. Slides manuais não devem
+        // substituir a faixa que continua tocando na barra global.
+        nowPlaying.start(
+          hymnId: hymn.id,
+          title: hymn.title ?? music.name,
+          album: _name,
+          durationMs: hymn.durationMs,
+          detail: hymn,
+          albumCoverUrl: _coverUrl,
+          audioSource: source,
+        );
+      }
 
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -283,6 +287,8 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
       );
     } catch (_) {
       if (mounted) _showSnack('Falha ao abrir "${music.name}".');
+    } finally {
+      _openingMusic = false;
     }
   }
 

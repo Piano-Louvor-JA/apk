@@ -15,6 +15,9 @@ import 'package:louvorja_piano_mobile/presentation/custom/custom_collection_edit
 class _FakePlayer implements HymnAudioPlayer {
   final _stream = StreamController<bool>.broadcast();
   bool paused = false;
+  bool failPlay = false;
+  Completer<void>? pendingPlay;
+  int playCalls = 0;
   String? playedUrl;
 
   @override
@@ -41,6 +44,9 @@ class _FakePlayer implements HymnAudioPlayer {
 
   @override
   Future<void> playUrl(String url) async {
+    playCalls++;
+    if (pendingPlay != null) await pendingPlay!.future;
+    if (failPlay) throw StateError("falha de áudio");
     playedUrl = url;
     paused = false;
     _stream.add(true);
@@ -63,6 +69,7 @@ class _FakePlayer implements HymnAudioPlayer {
 void main() {
   late CustomCatalogApiImpl api;
   late _FakePlayer player;
+  bool withTiming = true;
 
   final collection = const CustomCollection(
     id: 6,
@@ -76,6 +83,7 @@ void main() {
   setUp(() {
     nowPlaying.stop();
     player = _FakePlayer();
+    withTiming = true;
     api = CustomCatalogApiImpl(
       fetch: (method, url, {body, bearerToken}) async {
         if (method == 'GET' && url.contains('/collections/6/musics')) {
@@ -97,14 +105,16 @@ void main() {
             'name': 'Hino A',
             'audio_url': 'audio/hino-a.mp3',
             'duration': '00:02:17',
-            'lyrics': [
-              {
-                'lyric': 'Verso',
-                'time': '00:00:01.000',
-                'order': 1,
-                'image_url': null,
-              },
-            ],
+            'lyrics': withTiming
+                ? [
+                    {
+                      'lyric': 'Verso',
+                      'time': '00:00:01.000',
+                      'order': 1,
+                      'image_url': null,
+                    },
+                  ]
+                : [],
           };
         }
         return <String, dynamic>{};
@@ -137,5 +147,65 @@ void main() {
     expect(nowPlaying.track?.hymnId, CustomCatalogApiImpl.customIdOffset + 10);
     expect(nowPlaying.track?.title, 'Hino A');
     expect(nowPlaying.isPlaying, isTrue);
+  });
+  Future<void> showCollection(WidgetTester tester) async {
+    await tester.pumpWidget(
+      wrap(
+        CustomCollectionEditPage(
+          api: api,
+          collection: collection,
+          bearerToken: 'tok',
+          audioPlayer: player,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  void seedTrack() {
+    nowPlaying.start(
+      hymnId: 99,
+      title: 'Faixa anterior',
+      album: 'Hinário',
+      audioSource: 'https://example.com/old.mp3',
+    );
+    player.playedUrl = 'https://example.com/old.mp3';
+  }
+
+  testWidgets('slides sem fonte não substituem a faixa global em execução', (
+    tester,
+  ) async {
+    withTiming = false;
+    seedTrack();
+    await showCollection(tester);
+    await tester.tap(find.text('Hino A'));
+    await tester.pumpAndSettle();
+    expect(player.playCalls, 0);
+    expect(nowPlaying.track?.hymnId, 99);
+    expect(nowPlaying.track?.audioSource, player.currentUrl);
+  });
+
+  testWidgets('falha de áudio mantém a faixa global anterior', (tester) async {
+    player.failPlay = true;
+    seedTrack();
+    await showCollection(tester);
+    await tester.tap(find.text('Hino A'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(nowPlaying.track?.hymnId, 99);
+    expect(nowPlaying.track?.audioSource, player.currentUrl);
+  });
+
+  testWidgets('toques repetidos não iniciam duas reproduções', (tester) async {
+    player.pendingPlay = Completer<void>();
+    await showCollection(tester);
+    await tester.tap(find.text('Hino A'));
+    await tester.pump();
+    await tester.tap(find.text('Hino A'));
+    await tester.pump();
+    expect(player.playCalls, 1);
+    player.pendingPlay!.complete();
+    await tester.pumpAndSettle();
+    expect(nowPlaying.track?.hymnId, CustomCatalogApiImpl.customIdOffset + 10);
   });
 }
