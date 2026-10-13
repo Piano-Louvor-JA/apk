@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
 import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 import 'package:louvorja_piano_mobile/presentation/hymns/now_playing_page.dart';
@@ -15,6 +16,18 @@ class _FakePlayer extends HymnPlayerLike {
   final positions = StreamController<Duration>.broadcast();
   final durations = StreamController<Duration>.broadcast();
   Duration? sought;
+  final playedUrls = <String>[];
+  bool? lastVolume;
+  double? lastVolumeValue;
+
+  @override
+  Future<void> playSource(String url) async {
+    playedUrls.add(url);
+    _playing.value = true;
+  }
+
+  @override
+  Future<void> setVolume(double v) async => lastVolumeValue = v;
 
   @override
   bool get isPlaying => _playing.value;
@@ -118,5 +131,87 @@ void main() {
 
     expect(player.sought, const Duration(seconds: 8));
     expect(find.text('O nosso sol'), findsOneWidget);
+  });
+
+  testWidgets('botão instrumental troca a FONTE do áudio e o ícone', (
+    tester,
+    ) async {
+    final player = _FakePlayer();
+    final detail = Hymn(
+      id: 1,
+      title: 'Nosso Sol é Jesus',
+      hasInstrumental: true,
+      urlMusic: '/musics/pt/hino.mp3',
+      urlInstrumental: '/musics/pt/hino_instr.mp3',
+      lyricRaw: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: detail,
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Modo cantado: ícone piano (convite pra ir pro instrumental).
+    expect(find.byIcon(TablerIcons.piano), findsOneWidget);
+    expect(player.playedUrls, isEmpty);
+
+    await tester.tap(find.byIcon(TablerIcons.piano));
+    await tester.pump();
+
+    // FONTE trocou pra URL instrumental (mesmo builder do app).
+    expect(
+      player.playedUrls,
+      contains(DownloadUrlBuilder.build('/musics/pt/hino_instr.mp3')),
+    );
+    // Ícone agora reflete modo instrumental (microfone = voltar pro cantado).
+    expect(find.byIcon(TablerIcons.microphone), findsOneWidget);
+    // Posição reinicia: slides seguem o tempo instrumental.
+    expect(find.byIcon(TablerIcons.piano), findsNothing);
+
+    // Volta pro cantado: toca a URL cantada de novo.
+    await tester.tap(find.byIcon(TablerIcons.microphone));
+    await tester.pump();
+    expect(
+      player.playedUrls,
+      contains(DownloadUrlBuilder.build('/musics/pt/hino.mp3')),
+    );
+    expect(find.byIcon(TablerIcons.piano), findsOneWidget);
+  });
+
+  testWidgets('sem áudio pausa o player de verdade e retoma ao desligar', (
+    tester,
+    ) async {
+    final player = _FakePlayer();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(player.isPlaying, isTrue);
+
+    // Liga "sem áudio": player PAUSA (não só esconde a timeline).
+    await tester.tap(find.byIcon(TablerIcons.volumeOff));
+    await tester.pump();
+    expect(player.isPlaying, isFalse);
+
+    // Desliga: player retoma.
+    await tester.tap(find.byIcon(TablerIcons.volume));
+    await tester.pump();
+    expect(player.isPlaying, isTrue);
   });
 }
