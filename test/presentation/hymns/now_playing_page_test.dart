@@ -135,7 +135,7 @@ void main() {
 
   testWidgets('botão instrumental troca a FONTE do áudio e o ícone', (
     tester,
-    ) async {
+  ) async {
     final player = _FakePlayer();
     final detail = Hymn(
       id: 1,
@@ -187,7 +187,7 @@ void main() {
 
   testWidgets('sem áudio pausa o player de verdade e retoma ao desligar', (
     tester,
-    ) async {
+  ) async {
     final player = _FakePlayer();
 
     await tester.pumpWidget(

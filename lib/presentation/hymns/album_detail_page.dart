@@ -126,6 +126,36 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   Future<void> _togglePlay(Hymn hymn, {required bool instrumental}) async {
     final player = _player;
 
+    // Retomar a faixa pausada não deve consultar a API nem recarregar a fonte.
+    final track = nowPlaying.track;
+    if (!player.isPlaying &&
+        track?.hymnId == hymn.id &&
+        track?.instrumental == instrumental &&
+        track?.audioSource != null &&
+        track?.audioSource == player.currentUrl) {
+      try {
+        final stage = StageSession.instance;
+        await player.setVolume(
+          stage.isPalcoMode && stage.audioRoute == PalcoAudioRoute.tv ? 0 : 1,
+        );
+        await player.resume();
+        if (stage.isPalcoMode && stage.audioRoute != PalcoAudioRoute.local) {
+          stage.palco?.resumeAudio();
+        }
+        nowPlaying.setPlaying(true);
+        _playingInstrumental = instrumental;
+        if (mounted) setState(() => _playingHymnId = hymn.id);
+      } catch (error) {
+        debugPrint('Falha ao retomar hino: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('errors.playback'.tr())));
+        }
+      }
+      return;
+    }
+
     // Mesmo hino em execução:
     // - mesmo modo -> pausa (toggle play/pause clássico)
     // - outro modo (cantado <-> playback) -> TROCA o modo sem pausar
@@ -139,6 +169,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         // cai através pro fluxo normal iniciar o novo modo
       } else {
         await player.pause();
+        StageSession.instance.pauseHymnAudio();
         nowPlaying.pause();
         if (mounted) setState(() => _playingHymnId = null);
         return;

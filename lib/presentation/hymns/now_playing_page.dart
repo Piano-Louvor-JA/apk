@@ -483,263 +483,264 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: widget.player.playingListenable,
       builder: (context, playing, _) => Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Fundo do slide — asset local (hinario) ou URL da API.
-          if (_bgUrl != null)
-            _bgUrl!.startsWith('asset:')
-                ? Image.asset(
-                    _bgUrl!.substring('asset:'.length),
-                    fit: BoxFit.cover,
-                  )
-                : CachedNetworkImage(
-                    imageUrl: _bgUrl!,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-          Container(color: Colors.black54),
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Fundo do slide — asset local (hinario) ou URL da API.
+            if (_bgUrl != null)
+              _bgUrl!.startsWith('asset:')
+                  ? Image.asset(
+                      _bgUrl!.substring('asset:'.length),
+                      fit: BoxFit.cover,
+                    )
+                  : CachedNetworkImage(
+                      imageUrl: _bgUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+            Container(color: Colors.black54),
 
-          // Conteúdo
-          SafeArea(
-            child: Column(
-              children: [
-                // Top bar: título + modos + minimizar + fechar
-                Row(
-                  children: [
-                    // Minimizar: esconde o NowPlaying SEM parar nada —
-                    // música/projeção seguem; volta pelo mini player.
-                    IconButton(
-                      tooltip: 'Minimizar (música continua)',
-                      icon: const Icon(
-                        TablerIcons.arrowsDiagonal2,
-                        color: Colors.white,
+            // Conteúdo
+            SafeArea(
+              child: Column(
+                children: [
+                  // Top bar: título + modos + minimizar + fechar
+                  Row(
+                    children: [
+                      // Minimizar: esconde o NowPlaying SEM parar nada —
+                      // música/projeção seguem; volta pelo mini player.
+                      IconButton(
+                        tooltip: 'Minimizar (música continua)',
+                        icon: const Icon(
+                          TablerIcons.arrowsDiagonal2,
+                          color: Colors.white,
+                        ),
+                        onPressed:
+                            widget.onClose ??
+                            () => Navigator.of(context).maybePop(),
                       ),
-                      onPressed:
-                          widget.onClose ??
-                          () => Navigator.of(context).maybePop(),
-                    ),
-                    IconButton(
-                      icon: const Icon(TablerIcons.x, color: Colors.white),
-                      // X = para tudo (local + todas as TVs) E fecha.
-                      onPressed: () {
-                        _stopAudioEverywhere();
-                        if (mounted) {
-                          Navigator.of(context).maybePop();
-                        }
-                      },
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.detail.title ?? '',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
+                      IconButton(
+                        icon: const Icon(TablerIcons.x, color: Colors.white),
+                        // X = para tudo (local + todas as TVs) E fecha.
+                        onPressed: () {
+                          _stopAudioEverywhere();
+                          if (mounted) {
+                            Navigator.of(context).maybePop();
+                          }
+                        },
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.detail.title ?? '',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          ],
+                        ),
+                      ),
+                      const StageStopVideoButton(),
+                      // Salvar este hino numa coletânea custom (conteúdo do usuário).
+                      IconButton(
+                        tooltip: 'Salvar em coletânea',
+                        icon: const Icon(
+                          TablerIcons.playlistAdd,
+                          color: Colors.white,
+                        ),
+                        onPressed: () => showSaveToCollectionSheet(
+                          context,
+                          officialMusicId: widget.detail.id,
+                          hymnTitle: widget.detail.title ?? 'Hino',
+                        ),
+                      ),
+                      // Adicionar a uma PLAYLIST (seleção de hinos do acervo,
+                      // salva localmente — paridade com a /media do web).
+                      IconButton(
+                        tooltip: 'Adicionar à playlist',
+                        icon: const Icon(
+                          TablerIcons.playlist,
+                          color: Colors.white,
+                        ),
+                        onPressed: () => _addToPlaylist(context),
+                      ),
+                      // Cast só no AppBar (hinos/sub-módulos) — nunca abaixo.
+                      // Configura uma vez; cada hino não repete o controle.
+                      if (widget.detail.hasInstrumental)
+                        IconButton(
+                          tooltip: _modeInstrumental
+                              ? 'Cantado'
+                              : 'Instrumental',
+                          icon: Icon(
+                            _modeInstrumental
+                                ? TablerIcons.microphone
+                                : TablerIcons.piano,
+                            color: Colors.white,
+                          ),
+                          onPressed: _switchInstrumentalMode,
+                        ),
+                      IconButton(
+                        tooltip: _noAudio ? 'Com áudio' : 'Sem áudio',
+                        icon: Icon(
+                          _noAudio ? TablerIcons.volume : TablerIcons.volumeOff,
+                          color: Colors.white,
+                        ),
+                        onPressed: _toggleNoAudio,
+                      ),
+                    ],
+                  ),
+
+                  // Capa do álbum grande (referência 2026-08-21) + letra
+                  // sobreposta; swipe na área troca slide.
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragEnd: (d) {
+                        if (d.primaryVelocity == null) return;
+                        if (d.primaryVelocity! < 0) _goToSlide(_index + 1);
+                        if (d.primaryVelocity! > 0) _goToSlide(_index - 1);
+                      },
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 8),
+                          // Capa quadrada ocupando a largura útil.
+                          if (widget.albumCoverUrl != null)
+                            Expanded(
+                              flex: 5,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: CachedNetworkImage(
+                                    imageUrl: widget.albumCoverUrl!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorWidget: (_, __, ___) =>
+                                        const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Letra sincronizada abaixo da capa.
+                          Expanded(
+                            flex: 4,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                                child: Text(
+                                  slide?.text ?? '',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.4,
+                                      ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const StageStopVideoButton(),
-                    // Salvar este hino numa coletânea custom (conteúdo do usuário).
-                    IconButton(
-                      tooltip: 'Salvar em coletânea',
-                      icon: const Icon(
-                        TablerIcons.playlistAdd,
-                        color: Colors.white,
-                      ),
-                      onPressed: () => showSaveToCollectionSheet(
-                        context,
-                        officialMusicId: widget.detail.id,
-                        hymnTitle: widget.detail.title ?? 'Hino',
+                  ),
+
+                  // Indicador de slides (pontos)
+                  if (_slides.slides.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '${_index + 1} / ${_slides.slides.length}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.white70,
+                        ),
                       ),
                     ),
-                    // Adicionar a uma PLAYLIST (seleção de hinos do acervo,
-                    // salva localmente — paridade com a /media do web).
-                    IconButton(
-                      tooltip: 'Adicionar à playlist',
-                      icon: const Icon(
-                        TablerIcons.playlist,
-                        color: Colors.white,
+
+                  // Player: timeline + play/pause + prev/next slide
+                  if (!_noAudio)
+                    PlayerTimeline(
+                      positionStream: widget.player.positionStream,
+                      durationStream: widget.player.durationStream,
+                      onSeek: widget.player.seek,
+                      fallbackDuration: Duration(
+                        // Lista do hinário é a fonte estável. Detail pode
+                        // não trazer duração em cache legado.
+                        milliseconds:
+                            widget.catalogDurationMs ??
+                            widget.detail.durationMs ??
+                            0,
                       ),
-                      onPressed: () => _addToPlaylist(context),
                     ),
-                    // Cast só no AppBar (hinos/sub-módulos) — nunca abaixo.
-                    // Configura uma vez; cada hino não repete o controle.
-                    if (widget.detail.hasInstrumental)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                       IconButton(
-                        tooltip: _modeInstrumental
-                            ? 'Cantado'
-                            : 'Instrumental',
-                        icon: Icon(
-                          _modeInstrumental
-                              ? TablerIcons.microphone
-                              : TablerIcons.piano,
+                        icon: const Icon(
+                          TablerIcons.chevronLeft,
                           color: Colors.white,
                         ),
-                        onPressed: _switchInstrumentalMode,
+                        onPressed: () => _goToSlide(_index - 1),
                       ),
-                    IconButton(
-                      tooltip: _noAudio ? 'Com áudio' : 'Sem áudio',
-                      icon: Icon(
-                        _noAudio ? TablerIcons.volume : TablerIcons.volumeOff,
-                        color: Colors.white,
-                      ),
-                      onPressed: _toggleNoAudio,
-                    ),
-                  ],
-                ),
-
-                // Capa do álbum grande (referência 2026-08-21) + letra
-                // sobreposta; swipe na área troca slide.
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onHorizontalDragEnd: (d) {
-                      if (d.primaryVelocity == null) return;
-                      if (d.primaryVelocity! < 0) _goToSlide(_index + 1);
-                      if (d.primaryVelocity! > 0) _goToSlide(_index - 1);
-                    },
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 8),
-                        // Capa quadrada ocupando a largura útil.
-                        if (widget.albumCoverUrl != null)
-                          Expanded(
-                            flex: 5,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: CachedNetworkImage(
-                                  imageUrl: widget.albumCoverUrl!,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  errorWidget: (_, __, ___) =>
-                                      const SizedBox.shrink(),
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Letra sincronizada abaixo da capa.
-                        Expanded(
-                          flex: 4,
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              child: Text(
-                                slide?.text ?? '',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ),
+                      const SizedBox(width: 24),
+                      IconButton(
+                        iconSize: 56,
+                        icon: Icon(
+                          playing
+                              ? TablerIcons.playerPause
+                              : TablerIcons.playerPlay,
+                          color: Colors.white,
                         ),
-                      ],
-                    ),
+                        onPressed: () async {
+                          if (widget.player.isPlaying) {
+                            _pauseAudioEverywhere();
+                            MediaSession.setPlaybackState(
+                              isPlaying: false,
+                              positionMs: _lastPosition?.inMilliseconds ?? 0,
+                            );
+                          } else if (StageSession.instance.audioRoute ==
+                              PalcoAudioRoute.tv) {
+                            // só-TV: retoma SÓ no palco; player local nunca
+                            // volta a tocar neste modo (F3.3 T3).
+                            StageSession.instance.palco?.resumeAudio();
+                          } else {
+                            await widget.player.resume();
+                            _routeAudio();
+                            MediaSession.setPlaybackState(
+                              isPlaying: true,
+                              positionMs: _lastPosition?.inMilliseconds ?? 0,
+                            );
+                          }
+                          if (mounted) setState(() {});
+                        },
+                      ),
+                      const SizedBox(width: 24),
+                      IconButton(
+                        icon: const Icon(
+                          TablerIcons.chevronRight,
+                          color: Colors.white,
+                        ),
+                        onPressed: () => _goToSlide(_index + 1),
+                      ),
+                    ],
                   ),
-                ),
-
-                // Indicador de slides (pontos)
-                if (_slides.slides.length > 1)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      '${_index + 1} / ${_slides.slides.length}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-
-                // Player: timeline + play/pause + prev/next slide
-                if (!_noAudio)
-                  PlayerTimeline(
-                    positionStream: widget.player.positionStream,
-                    durationStream: widget.player.durationStream,
-                    onSeek: widget.player.seek,
-                    fallbackDuration: Duration(
-                      // Lista do hinário é a fonte estável. Detail pode
-                      // não trazer duração em cache legado.
-                      milliseconds:
-                          widget.catalogDurationMs ??
-                          widget.detail.durationMs ??
-                          0,
-                    ),
-                  ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        TablerIcons.chevronLeft,
-                        color: Colors.white,
-                      ),
-                      onPressed: () => _goToSlide(_index - 1),
-                    ),
-                    const SizedBox(width: 24),
-                    IconButton(
-                      iconSize: 56,
-                      icon: Icon(
-                        playing
-                            ? TablerIcons.playerPause
-                            : TablerIcons.playerPlay,
-                        color: Colors.white,
-                      ),
-                      onPressed: () async {
-                        if (widget.player.isPlaying) {
-                          _pauseAudioEverywhere();
-                          MediaSession.setPlaybackState(
-                            isPlaying: false,
-                            positionMs: _lastPosition?.inMilliseconds ?? 0,
-                          );
-                        } else if (StageSession.instance.audioRoute ==
-                            PalcoAudioRoute.tv) {
-                          // só-TV: retoma SÓ no palco; player local nunca
-                          // volta a tocar neste modo (F3.3 T3).
-                          StageSession.instance.palco?.resumeAudio();
-                        } else {
-                          await widget.player.resume();
-                          _routeAudio();
-                          MediaSession.setPlaybackState(
-                            isPlaying: true,
-                            positionMs: _lastPosition?.inMilliseconds ?? 0,
-                          );
-                        }
-                        if (mounted) setState(() {});
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                    IconButton(
-                      icon: const Icon(
-                        TablerIcons.chevronRight,
-                        color: Colors.white,
-                      ),
-                      onPressed: () => _goToSlide(_index + 1),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 }

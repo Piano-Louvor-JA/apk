@@ -93,8 +93,12 @@ class _WebAudioPlayer implements HymnAudioPlayer {
   @override
   Future<void> toggleUrl(String url) async {
     _ensure();
-    if (_currentUrl == url && _isPlaying) {
-      _audio!.pause();
+    if (_currentUrl == url) {
+      if (_isPlaying) {
+        await pause();
+      } else {
+        await resume();
+      }
       return;
     }
     await playUrl(url);
@@ -120,6 +124,7 @@ class _WebAudioPlayer implements HymnAudioPlayer {
 
   @override
   Future<void> resume() async {
+    if (_currentUrl == null) return;
     _ensure();
     // HTMLMediaElement: pause() preserva currentTime; play() retoma da posição.
     try {

@@ -91,16 +91,19 @@ void main() {
     expect(platform.resumeCalls, 1);
   });
 
-  test('playingListenable reflete pause/resume do player de plataforma', () async {
-    final platform = _FakePlatformPlayer();
-    final adapter = HymnPlayerAdapter(platform);
+  test(
+    'playingListenable reflete pause/resume do player de plataforma',
+    () async {
+      final platform = _FakePlatformPlayer();
+      final adapter = HymnPlayerAdapter(platform);
 
-    expect(adapter.playingListenable.value, isFalse);
-    await platform.playUrl('https://api.example.com/musica.mp3');
-    expect(adapter.playingListenable.value, isTrue);
-    await adapter.pause();
-    expect(adapter.playingListenable.value, isFalse);
-    await adapter.resume();
-    expect(adapter.playingListenable.value, isTrue);
-  });
+      expect(adapter.playingListenable.value, isFalse);
+      await platform.playUrl('https://api.example.com/musica.mp3');
+      expect(adapter.playingListenable.value, isTrue);
+      await adapter.pause();
+      expect(adapter.playingListenable.value, isFalse);
+      await adapter.resume();
+      expect(adapter.playingListenable.value, isTrue);
+    },
+  );
 }

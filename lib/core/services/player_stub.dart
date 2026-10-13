@@ -21,6 +21,7 @@ class _StubAudioPlayer implements HymnAudioPlayer {
   Future<void> playUrl(String url) async {}
   @override
   Future<void> pause() async {}
+  @override
   Future<void> resume() async {}
   @override
   Future<void> setVolume(double v) async {}
