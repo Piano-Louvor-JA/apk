@@ -38,25 +38,44 @@ typedef OperatorStateFetch =
 /// Payload do estado dos agendados (mesmo wire do scheduledState do app:
 /// `{categories, items}` — tojson de ScheduledCategory/ScheduledItem).
 class ScheduledStatePayload {
-  const ScheduledStatePayload({
-    required this.categories,
-    required this.items,
-  });
+  const ScheduledStatePayload({required this.categories, required this.items});
 
   final List<ScheduledCategory> categories;
   final List<ScheduledItem> items;
 
   Map<String, dynamic> toJson() => {
     'categories': categories.map((e) => e.toJson()).toList(),
-    'items': items.map((e) => e.toJson()).toList(),
+    'items': items
+        .map(
+          (e) => {
+            ...e.toJson(),
+            // Data de calendário, igual ao contrato app/web (sem fuso/horário).
+            'date': e.date.toIso8601String().split('T').first,
+          },
+        )
+        .toList(),
   };
 
   /// Valida a forma do payload vindo do servidor. Divergência → inválido
   /// (item ignorado no pull, sem quebrar).
-  static bool isValid(Object? value) =>
-      value is Map<String, dynamic> &&
-      value['categories'] is List<dynamic> &&
-      value['items'] is List<dynamic>;
+  static bool isValid(Object? value) {
+    if (value is! Map<String, dynamic> ||
+        value['categories'] is! List<dynamic> ||
+        value['items'] is! List<dynamic>) {
+      return false;
+    }
+    try {
+      for (final category in value['categories'] as List<dynamic>) {
+        ScheduledCategory.fromJson(category as Map<String, dynamic>);
+      }
+      for (final item in value['items'] as List<dynamic>) {
+        ScheduledItem.fromJson(item as Map<String, dynamic>);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 /// Entrada da outbox (mesma forma do OperatorStateItem da API — campo
@@ -82,7 +101,13 @@ class OutboxEntry {
     'client_uuid': clientUuid,
     'namespace': namespace,
     'key': key,
-    'value_json': valueJson,
+    'value_json': namespace == 'prefs' && key == 'values'
+        ? jsonEncode(
+            SyncablePrefKeys.toWire(
+              jsonDecode(valueJson) as Map<String, dynamic>,
+            ),
+          )
+        : valueJson,
     'updated_at': updatedAt,
     'deleted_at': deletedAt,
   };
@@ -117,6 +142,22 @@ abstract final class SyncablePrefKeys {
     'interaction',
     'glassIntensity',
   };
+
+  /// Adapta chaves/valores locais ao contrato compartilhado. Tema permanece
+  /// específico do APK: app/web não possuem o modo "seguir o sistema".
+  static Map<String, Object?> toWire(Map<String, dynamic> values) => {
+    for (final entry in values.entries)
+      if (all.contains(entry.key))
+        (entry.key == 'glassIntensity' ? 'blur' : entry.key):
+            entry.key == 'interaction' && entry.value == 'dynamic_'
+            ? 'dynamic'
+            : entry.value,
+  };
+
+  static String? localKey(String wireKey) {
+    if (wireKey == 'blur') return 'glassIntensity';
+    return all.contains(wireKey) ? wireKey : null;
+  }
 }
 
 class OperatorStateClient {
@@ -125,18 +166,20 @@ class OperatorStateClient {
     OperatorStateFetch? fetch,
     Future<String?> Function()? sessionToken,
     String? apiBaseUrl,
+    Future<void> Function()? onApplied,
   }) : _fetch = fetch ?? _defaultFetch,
        _sessionToken = sessionToken,
-       _apiBaseUrl = apiBaseUrl;
+       _apiBaseUrl = apiBaseUrl,
+       _onApplied = onApplied;
 
   final SharedPreferences _prefs;
   final OperatorStateFetch _fetch;
   final Future<String?> Function()? _sessionToken;
   final String? _apiBaseUrl;
+  final Future<void> Function()? _onApplied;
 
   static const outboxStorageKey = 'louvorja.sync.outbox.v1';
   static const _updatedAtPrefix = 'louvorja.sync.operator.updatedAt';
-  static const _scheduledMeta = 'scheduled::items';
   static const _prefsMeta = 'prefs::values';
 
   /// Resolvido por quem usa (mesma regra de CustomCollectionsPage._apiBase).
@@ -172,9 +215,7 @@ class OperatorStateClient {
     if (raw == null) return {};
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return decoded.map(
-        (k, v) => MapEntry(k, (v as Map<String, dynamic>)),
-      );
+      return decoded.map((k, v) => MapEntry(k, (v as Map<String, dynamic>)));
     } catch (_) {
       return {};
     }
@@ -204,8 +245,7 @@ class OperatorStateClient {
     final k = _coalesceKey(namespace, key);
     final existing = box[k];
     box[k] = {
-      'client_uuid':
-          existing?['client_uuid'] as String? ?? _uuid(),
+      'client_uuid': existing?['client_uuid'] as String? ?? _uuid(),
       'namespace': namespace,
       'key': key,
       'value_json': jsonEncode(value),
@@ -225,29 +265,35 @@ class OperatorStateClient {
   /// num único item `{a:1, b:2}` (coalescing preserva as mutações anteriores
   /// ainda não enviadas).
   Future<void> enqueuePrefs(Map<String, Object?> values) async {
+    final allowed = Map<String, Object?>.fromEntries(
+      values.entries.where((entry) => SyncablePrefKeys.all.contains(entry.key)),
+    );
+    if (allowed.isEmpty) return;
     final box = _readOutbox();
     final existing = box[_prefsMeta];
     final merged = <String, Object?>{
       if (existing != null)
         ...jsonDecode(existing['value_json'] as String) as Map<String, dynamic>,
-      ...values,
+      ...allowed,
     };
     await _enqueue('prefs', 'values', merged);
   }
 
   // ── Flush (push batch + pull da resposta) ───────────────────────────────
 
-  Future<void> _setMeta(String namespace, int atMs) =>
-      _prefs.setInt('$_updatedAtPrefix.$namespace', atMs);
+  Future<void> _setMeta(String namespace, int atMs) async {
+    final key = '$_updatedAtPrefix.$namespace';
+    final current = _prefs.getInt(key) ?? 0;
+    if (atMs > current) await _prefs.setInt(key, atMs);
+  }
 
   /// Envia a fila num batch. Retorna o operator_state do servidor (pull)
-  /// quando algo foi enviado; null quando nada saiu (fila vazia, sem sessão
+  /// inclusive com fila vazia (dispositivo novo); null quando nada saiu (sem sessão
   /// ou falha — itens permanecem na fila).
   Future<List<Map<String, dynamic>>?> flush() async {
     final box = _readOutbox();
-    if (box.isEmpty) return null;
     final token = await _sessionToken?.call();
-    if (token == null) return null;
+    if (token == null || token.trim().isEmpty) return null;
     final base = _apiBaseUrl ?? _baseUrl;
     if (base == null || base.isEmpty) return null;
 
@@ -270,30 +316,29 @@ class OperatorStateClient {
     if (response == null) return null;
 
     // enviado com sucesso: limpa SOMENTE os itens que foram no batch
-    final sentUuids = entries.map((e) => e.clientUuid).toSet();
     final rest = _readOutbox()
-      ..removeWhere((_, e) => sentUuids.contains(e['client_uuid'] as String));
+      ..removeWhere((key, current) {
+        final sent = box[key];
+        // A mesma UUID pode ter sido coalescida enquanto a rede respondia.
+        // Remova apenas a revisão efetivamente enviada.
+        return sent != null &&
+            current['client_uuid'] == sent['client_uuid'] &&
+            current['updated_at'] == sent['updated_at'] &&
+            current['value_json'] == sent['value_json'] &&
+            current['deleted_at'] == sent['deleted_at'];
+      });
     await _writeOutbox(rest);
 
     // LWW por namespace: cada produtor marca o SEU relógio (se veio no batch)
-    final names = entries
-        .map((e) => _coalesceKey(e.namespace, e.key))
-        .toSet();
-    final newestLocal = entries.fold<int>(
-      DateTime.now().toUtc().millisecondsSinceEpoch,
-      (max, e) => e.updatedAt > max ? e.updatedAt : max,
-    );
-    if (names.contains(_scheduledMeta)) {
-      await _setMeta('scheduled', newestLocal);
-    }
-    if (names.contains(_prefsMeta)) {
-      await _setMeta('prefs', newestLocal);
+    for (final entry in entries) {
+      await _setMeta(entry.namespace, entry.updatedAt);
     }
 
     final serverItems = (response['operator_state'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
     await applyOperatorState(_prefs, serverItems);
+    await _onApplied?.call();
     return serverItems;
   }
 
@@ -314,10 +359,11 @@ Future<void> applyOperatorState(
 ) async {
   for (final item in items) {
     if (item['deleted_at'] != null) continue;
-    final namespace = item['namespace'] as String?;
-    final key = item['key'] as String?;
-    final updatedAtMs = (item['updated_at_ms'] as num?)?.toInt();
-    if (namespace == null || key == null || updatedAtMs == null) continue;
+    final namespace = item['namespace'];
+    final key = item['key'];
+    final updatedAt = item['updated_at_ms'];
+    if (namespace is! String || key is! String || updatedAt is! num) continue;
+    final updatedAtMs = updatedAt.toInt();
 
     final metaKey = '$namespace::$key';
     Object? value;
@@ -357,8 +403,9 @@ Future<void> applyOperatorState(
         var applied = false;
         for (final entry in value.entries) {
           // whitelist: fora nunca viaja — nem do servidor mais novo
-          if (!SyncablePrefKeys.all.contains(entry.key)) continue;
-          await _applyPref(prefs, entry.key, entry.value);
+          final localKey = SyncablePrefKeys.localKey(entry.key);
+          if (localKey == null) continue;
+          await _applyPref(prefs, localKey, entry.value);
           applied = true;
         }
         if (applied) {
@@ -372,8 +419,28 @@ Future<void> applyOperatorState(
   }
 }
 
-int _metaOf(SharedPreferences prefs, String namespace) =>
-    prefs.getInt('${OperatorStateClient._updatedAtPrefix}.$namespace') ?? 0;
+int _metaOf(SharedPreferences prefs, String namespace) {
+  var newest =
+      prefs.getInt('${OperatorStateClient._updatedAtPrefix}.$namespace') ?? 0;
+  // Alterações ainda pendentes também participam do LWW, evitando que uma
+  // resposta antiga sobrescreva uma edição feita durante o envio.
+  try {
+    final box =
+        jsonDecode(
+              prefs.getString(OperatorStateClient.outboxStorageKey) ?? '{}',
+            )
+            as Map<String, dynamic>;
+    for (final entry in box.values) {
+      if (entry is Map && entry['namespace'] == namespace) {
+        final at = entry['updated_at'];
+        if (at is num && at > newest) newest = at.toInt();
+      }
+    }
+  } catch (_) {
+    // Storage inválido não impede a aplicação das demais namespaces.
+  }
+  return newest;
+}
 
 /// Aplica uma preferência no storage local, respeitando o tipo esperado por
 /// chave (SettingsController usa String para os enums e int pro glass).
@@ -388,6 +455,11 @@ Future<void> _applyPref(
         await prefs.setInt(key, value.toInt().clamp(0, 100));
       }
     case 'themeMode' || 'accent' || 'interaction':
-      if (value is String) await prefs.setString(key, value);
+      if (value is String) {
+        await prefs.setString(
+          key,
+          key == 'interaction' && value == 'dynamic' ? 'dynamic_' : value,
+        );
+      }
   }
 }
