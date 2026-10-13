@@ -2,16 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// apk#90 — Palco não conecta pelo celular.
-///
-/// Android 13+ (API 33): Apps com targetSdk 33+ que usam redes locais
-/// (mDNS/multicast, scans) precisam de NEARBY_WIFI_DEVICES (ou o prompt
-/// de "redes próximas") e ACCESS_NETWORK_STATE. Sem essas permissões no
-/// manifest, a descoberta mDNS da TV falha silenciosamente no A15 —
-/// exatamente o relato "Procurando TV webOS na rede…" infinito.
-///
-/// Este teste trava o contrato: o AndroidManifest DEVE declarar
-/// ACCESS_NETWORK_STATE e NEARBY_WIFI_DEVICES (neverForLocation).
+/// Contrato das declarações adicionadas ao manifest para apk#90.
+/// A presença no XML não comprova concessão em execução ou pareamento.
 void main() {
   test('AndroidManifest declara permissões de rede local (apk#90)', () {
     final manifest = File(
@@ -21,18 +13,15 @@ void main() {
     expect(
       manifest,
       contains('android.permission.ACCESS_NETWORK_STATE'),
-      reason: 'Sem ACCESS_NETWORK_STATE o connectivity check do '
-          'PalcoAutoConnectSheet falha no Android 13+.',
+      reason: 'Preserva a declaração de acesso ao estado da rede.',
     );
     expect(
       manifest,
       contains('android.permission.NEARBY_WIFI_DEVICES'),
-      reason: 'Android 13+ exige NEARBY_WIFI_DEVICES para descoberta '
-          'mDNS/local de TVs na rede — sem ela o scan falha em silêncio '
-          '(apk#90).',
+      reason: 'Preserva a declaração de dispositivos Wi-Fi próximos.',
     );
-    // NEARBY_WIFI_DEVICES nunca deve exigir location por design do app
-    // (LGPD / dados mínimos).
+    // O flag declara que os dados não são usados para inferir localização.
+    // Ele não dispensa a concessão da permissão de dispositivos próximos.
     final nearby = RegExp(
       r'<uses-permission[^>]*android\.permission\.NEARBY_WIFI_DEVICES[^>]*>',
     ).firstMatch(manifest);
@@ -40,8 +29,7 @@ void main() {
     expect(
       nearby!.group(0),
       contains('neverForLocation'),
-      reason: 'Palco não precisa de localização — neverForLocation evita '
-          'o prompt de GPS (dados mínimos).',
+      reason: 'A declaração deve preservar a finalidade sem localização.',
     );
   });
 }
