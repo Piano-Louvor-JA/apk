@@ -12,8 +12,32 @@ import 'package:louvorja_piano_mobile/core/services/terms_acceptance.dart';
 /// Conteúdo resumido + links completos (rotas /settings/terms e
 /// /settings/privacy). Scrollável: em tela pequena os botões ficam
 /// acessíveis (nada sobrepõe o botão de conectar — apk#95).
-class TermsAcceptanceSheet extends StatelessWidget {
+class TermsAcceptanceSheet extends StatefulWidget {
   const TermsAcceptanceSheet({super.key});
+
+  @override
+  State<TermsAcceptanceSheet> createState() => _TermsAcceptanceSheetState();
+}
+
+class _TermsAcceptanceSheetState extends State<TermsAcceptanceSheet> {
+  bool _saving = false;
+  String? _error;
+
+  Future<void> _accept() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await TermsAcceptance.instance.accept();
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'errors.unknown'.tr());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,18 +111,25 @@ class TermsAcceptanceSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
+              if (_error != null)
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                ),
               FilledButton(
                 key: const Key('terms-accept'),
-                onPressed: () async {
-                  await TermsAcceptance.instance.accept();
-                  if (context.mounted) Navigator.of(context).pop(true);
-                },
+                onPressed: _saving ? null : _accept,
                 child: const Text('Aceitar e continuar'),
               ),
               const SizedBox(height: 8),
               TextButton(
                 key: const Key('terms-dismiss'),
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: _saving
+                    ? null
+                    : () => Navigator.of(context).pop(false),
                 child: const Text('Agora não'),
               ),
             ],

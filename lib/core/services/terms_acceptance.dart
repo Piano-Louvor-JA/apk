@@ -30,8 +30,21 @@ class TermsAcceptance {
 
   Future<void> accept() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(acceptedAtKey, DateTime.now().toIso8601String());
-    await prefs.setString(versionKey, currentVersion);
+    try {
+      final timestampSaved = await prefs.setString(
+        acceptedAtKey,
+        DateTime.now().toIso8601String(),
+      );
+      if (!timestampSaved ||
+          !await prefs.setString(versionKey, currentVersion)) {
+        throw StateError('Não foi possível salvar o aceite dos termos');
+      }
+    } catch (_) {
+      // SharedPreferences atualiza o cache mesmo quando a escrita falha.
+      // Uma gravação parcial não deve autorizar a próxima conexão.
+      await prefs.remove(acceptedAtKey);
+      rethrow;
+    }
   }
 }
 
