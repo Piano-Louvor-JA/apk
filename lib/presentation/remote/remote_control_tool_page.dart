@@ -14,6 +14,7 @@ import 'package:louvorja_piano_mobile/presentation/settings/widgets/remote/remot
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
+import 'package:louvorja_piano_mobile/core/services/terms_acceptance.dart';
 
 /// Ferramenta "Controle Remoto": visível quando há sessão conectada.
 /// Layout de controle remoto — liturgia espelhada + controles de mídia.
@@ -93,7 +94,11 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                   builder: (_) => const DesktopQrScannerPage(),
                 ),
               );
-              if (code == null) return;
+              if (code == null || !mounted) return;
+              // apk#95: termos antes do conectar (aceitável e dispensável).
+              final termsOk = await ensureTermsAccepted(this.context);
+              if (!mounted) return;
+              if (!termsOk) return;
               final uri = Uri.tryParse(code.trim());
               final host = uri?.queryParameters['host'];
               final token = uri?.queryParameters['token'];
