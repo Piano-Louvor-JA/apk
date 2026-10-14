@@ -64,7 +64,12 @@ class CustomFileApi {
     final res = await _dio.post<Map<String, dynamic>>(
       '$apiBaseUrl/v1/custom/files',
       data: formData,
-      options: Options(headers: {'Authorization': 'Bearer $bearerToken', ...clientPlatformHeaders()}),
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $bearerToken',
+          ...clientPlatformHeaders(),
+        },
+      ),
       onSendProgress: (sent, total) =>
           onProgress?.call(total > 0 ? sent / total : 0),
     );

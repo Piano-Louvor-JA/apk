@@ -11,7 +11,9 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
+import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'package:louvorja_piano_mobile/core/services/sync/operator_state_client.dart';
+import 'package:louvorja_piano_mobile/core/services/sync/sync_retry.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/custom_session_store.dart';
 
 abstract final class OperatorStateBoot {
@@ -19,29 +21,50 @@ abstract final class OperatorStateBoot {
 
   /// Cliente com Dio default e sessão do secure storage. Construção lazy:
   /// o boot só monta quando o primeiro uso acontece (flush/hook).
-  static OperatorStateClient client(SharedPreferences prefs) {
-    return _client ??= _build(prefs);
+  static OperatorStateClient client(
+    SharedPreferences prefs, {
+    Dio? dio,
+    Future<String?> Function()? sessionToken,
+    String? apiBaseUrl,
+    Future<void> Function()? onApplied,
+  }) {
+    return _client ??= _build(
+      prefs,
+      dio: dio,
+      sessionToken: sessionToken,
+      apiBaseUrl: apiBaseUrl,
+      onApplied: onApplied,
+    );
   }
 
-  static OperatorStateClient _build(SharedPreferences prefs) {
-    final dio = Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 15),
-      ),
-    );
+  static OperatorStateClient _build(
+    SharedPreferences prefs, {
+    Dio? dio,
+    Future<String?> Function()? sessionToken,
+    String? apiBaseUrl,
+    Future<void> Function()? onApplied,
+  }) {
+    final http =
+        dio ??
+        Dio(
+          BaseOptions(
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 15),
+          ),
+        );
     Future<Map<String, dynamic>?> fetch(
       String method,
       String url, {
       Map<String, dynamic>? body,
       String? bearerToken,
     }) async {
-      final res = await dio.request<Map<String, dynamic>>(
+      final res = await http.request<Map<String, dynamic>>(
         url,
         data: body,
         options: Options(
           method: method,
           headers: {
+            ...clientPlatformHeaders(),
             if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
           },
         ),
@@ -52,10 +75,13 @@ abstract final class OperatorStateBoot {
     return OperatorStateClient(
       prefs,
       fetch: fetch,
-      apiBaseUrl: OperatorStateClient.apiBaseFromDatabase(
-        ApiConfig.urlDatabase,
-      ),
-      sessionToken: () async => (await CustomSessionStore().read())?.token,
+      apiBaseUrl:
+          apiBaseUrl ??
+          OperatorStateClient.apiBaseFromDatabase(ApiConfig.urlDatabase),
+      sessionToken:
+          sessionToken ??
+          () async => (await CustomSessionStore().read())?.token,
+      onApplied: onApplied,
     );
   }
 
@@ -74,6 +100,30 @@ abstract final class OperatorStateBoot {
       // rede/sessão indisponível — fila permanece pra próxima tentativa
     }
   }
+
+  /// SPEC 7 (apk#92): retry de sincronização quando a rede volta.
+  ///
+  /// Liga o stream do [OfflineStatusController] ao [SyncRetry]: a transição
+  /// offline→online dispara o flush da outbox sem ação do usuário.
+  static SyncRetry bindSyncRetry(
+    SharedPreferences prefs, {
+    required Stream<bool> offlineStream,
+  }) {
+    final retry = SyncRetry(prefs, flush: () => client(prefs).flush());
+    unbindSyncRetry();
+    _retrySub = offlineStream.listen(
+      (offline) => retry.onNetworkBack(!offline),
+    );
+    return retry;
+  }
+
+  /// Testes: cancela a assinatura do retry.
+  static void unbindSyncRetry() {
+    _retrySub?.cancel();
+    _retrySub = null;
+  }
+
+  static StreamSubscription<bool>? _retrySub;
 
   /// Testes: descarta o singleton (SharedPreferences mockado por teste).
   static void resetForTest() => _client = null;

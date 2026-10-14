@@ -90,6 +90,9 @@ class _FakePlayer implements HymnAudioPlayer {
 
   final _stream = StreamController<bool>.broadcast();
   bool paused = false;
+  int playCalls = 0;
+  int resumeCalls = 0;
+  Duration position = Duration.zero;
   String? playedUrl;
 
   @override
@@ -105,7 +108,16 @@ class _FakePlayer implements HymnAudioPlayer {
   }
 
   @override
+  Future<void> resume() async {
+    resumeCalls++;
+    paused = false;
+    _stream.add(true);
+  }
+
+  @override
   Future<void> playUrl(String url) async {
+    playCalls++;
+    position = Duration.zero;
     playedUrl = url;
     paused = false;
     _stream.add(true);
@@ -296,10 +308,17 @@ void main() {
     expect(find.byTooltip('Pausar'), findsOneWidget);
     expect(find.byIcon(TablerIcons.playerPauseFilled), findsOneWidget);
 
+    player.position = const Duration(seconds: 18);
     await tester.tap(find.byTooltip('Pausar'));
     await tester.pump();
     expect(player.paused, isTrue);
     expect(find.byTooltip('Reproduzir'), findsOneWidget);
+    await tester.tap(find.byTooltip('Reproduzir'));
+    await tester.pumpAndSettle();
+    expect(player.playCalls, 1);
+    expect(player.resumeCalls, 1);
+    expect(player.position, const Duration(seconds: 18));
+    expect(find.byTooltip('Pausar'), findsOneWidget);
   });
 
   testWidgets('tap no hino expande e recolhe a letra', (tester) async {

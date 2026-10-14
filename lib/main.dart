@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
+import 'core/services/offline_status.dart';
 import 'core/services/settings_controller.dart';
 import 'core/services/sync/operator_state_boot.dart';
 
@@ -33,11 +34,19 @@ void main() async {
   // Tema precisa estar pronto antes da Splash Flutter montar. SharedPreferences
   // é local/rápido e evita um flash escuro quando o usuário salvou tema claro.
   await settings.loadSettings();
+  // O pull recarrega o controller sem chamar setters/enfileirar novamente.
+  OperatorStateBoot.client(prefs, onApplied: settings.loadSettings);
 
   // sync v2 (apk#107): flush no boot — a fila pendente sobe quando há sessão
   // e o pull da resposta aplica LWW (agendados + prefs). Sem rede/sessão a
   // fila fica íntegra pra próxima tentativa.
   unawaited(OperatorStateBoot.flushOnBoot(prefs));
+  // SPEC 7 (apk#92): quando a rede volta, a outbox sobe sem ação do usuário.
+  unawaited(offlineStatus.start());
+  OperatorStateBoot.bindSyncRetry(
+    prefs,
+    offlineStream: offlineStatus.onOfflineChanged,
+  );
 
   runApp(
     ChangeNotifierProvider.value(

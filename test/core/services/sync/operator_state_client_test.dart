@@ -66,8 +66,8 @@ void main() {
       expect(entry['client_uuid'], isNotEmpty);
       expect(entry['namespace'], 'scheduled');
       expect(entry['key'], 'items');
-      final payload = jsonDecode(entry['value_json'] as String)
-          as Map<String, dynamic>;
+      final payload =
+          jsonDecode(entry['value_json'] as String) as Map<String, dynamic>;
       expect((payload['items'] as List).length, 1);
     });
 
@@ -77,9 +77,9 @@ void main() {
       await client.enqueuePrefs({'themeMode': 'light'});
       await client.enqueuePrefs({'accent': 'azure'});
       expect(client.outboxCount(), 1);
-      final box = jsonDecode(
-        prefs.getString(OperatorStateClient.outboxStorageKey)!,
-      ) as Map<String, dynamic>;
+      final box =
+          jsonDecode(prefs.getString(OperatorStateClient.outboxStorageKey)!)
+              as Map<String, dynamic>;
       final entry = box['prefs::values'] as Map<String, dynamic>;
       final payload =
           jsonDecode(entry['value_json'] as String) as Map<String, dynamic>;
@@ -93,7 +93,8 @@ void main() {
       final fetch = FakeFetch();
       final client = OperatorStateClient(
         prefs,
-        fetch: fetch.call, apiBaseUrl: "https://api.test",
+        fetch: fetch.call,
+        apiBaseUrl: "https://api.test",
         sessionToken: () async => null,
       );
       await client.enqueuePrefs({'themeMode': 'light'});
@@ -108,7 +109,8 @@ void main() {
       final fetch = FakeFetch()..nextResponse = <String, dynamic>{};
       final client = OperatorStateClient(
         prefs,
-        fetch: fetch.call, apiBaseUrl: "https://api.test",
+        fetch: fetch.call,
+        apiBaseUrl: "https://api.test",
         sessionToken: () async => 'tok123456',
       );
       await client.enqueueScheduled(
@@ -123,41 +125,46 @@ void main() {
       expect(fetch.bodies.single, contains('operator_state'));
     });
 
-    test('B5: rede falha → fila intacta; retry coalescido sai num batch', () async {
-      final prefs = await SharedPreferences.getInstance();
-      final fetch = FakeFetch()..nextResponse = 'boom';
-      final client = OperatorStateClient(
-        prefs,
-        fetch: fetch.call, apiBaseUrl: "https://api.test",
-        sessionToken: () async => 'tok123456',
-      );
-      await client.enqueueScheduled(
-        ScheduledStatePayload(categories: const [], items: [item('a')]),
-      );
-      final failed = await client.flush();
-      expect(failed, isNull);
-      expect(client.outboxCount(), 1);
+    test(
+      'B5: rede falha → fila intacta; retry coalescido sai num batch',
+      () async {
+        final prefs = await SharedPreferences.getInstance();
+        final fetch = FakeFetch()..nextResponse = 'boom';
+        final client = OperatorStateClient(
+          prefs,
+          fetch: fetch.call,
+          apiBaseUrl: "https://api.test",
+          sessionToken: () async => 'tok123456',
+        );
+        await client.enqueueScheduled(
+          ScheduledStatePayload(categories: const [], items: [item('a')]),
+        );
+        final failed = await client.flush();
+        expect(failed, isNull);
+        expect(client.outboxCount(), 1);
 
-      // mutation nova coalesce no MESMO item
-      await client.enqueueScheduled(
-        ScheduledStatePayload(categories: const [], items: [item('a2')]),
-      );
-      expect(client.outboxCount(), 1);
+        // mutation nova coalesce no MESMO item
+        await client.enqueueScheduled(
+          ScheduledStatePayload(categories: const [], items: [item('a2')]),
+        );
+        expect(client.outboxCount(), 1);
 
-      fetch.nextResponse = <String, dynamic>{};
-      final sent = await client.flush();
-      expect(sent, isNotNull);
-      final ops = fetch.bodies.single['operator_state'] as List<dynamic>;
-      expect(ops.length, 1);
-      expect(client.outboxCount(), 0);
-    });
+        fetch.nextResponse = <String, dynamic>{};
+        final sent = await client.flush();
+        expect(sent, isNotNull);
+        final ops = fetch.bodies.single['operator_state'] as List<dynamic>;
+        expect(ops.length, 1);
+        expect(client.outboxCount(), 0);
+      },
+    );
 
     test('B2c: flush registra push (meta LWW) do namespace enviado', () async {
       final prefs = await SharedPreferences.getInstance();
       final fetch = FakeFetch()..nextResponse = <String, dynamic>{};
       final client = OperatorStateClient(
         prefs,
-        fetch: fetch.call, apiBaseUrl: "https://api.test",
+        fetch: fetch.call,
+        apiBaseUrl: "https://api.test",
         sessionToken: () async => 'tok123456',
       );
       await client.enqueuePrefs({'themeMode': 'light'});
@@ -212,10 +219,7 @@ void main() {
         };
       final client = makeClient(prefs, fetch);
       // local antigo: registra meta 1000
-      await prefs.setInt(
-        'louvorja.sync.operator.updatedAt.scheduled',
-        1000,
-      );
+      await prefs.setInt('louvorja.sync.operator.updatedAt.scheduled', 1000);
       // outbox com mutação local: dispara o batch (o pull vem na resposta)
       await client.enqueueScheduled(
         ScheduledStatePayload(categories: const [], items: [item('local')]),
@@ -227,7 +231,10 @@ void main() {
       expect(repo.loadItems().map((e) => e.id), ['srv1']);
       expect(repo.loadCategories().single.id, 'c1');
       // meta atualizada pro instante do servidor
-      expect(prefs.getInt('louvorja.sync.operator.updatedAt.scheduled'), greaterThan(DateTime.now().toUtc().millisecondsSinceEpoch));
+      expect(
+        prefs.getInt('louvorja.sync.operator.updatedAt.scheduled'),
+        greaterThan(DateTime.now().toUtc().millisecondsSinceEpoch),
+      );
     });
 
     test('B3b: servidor mais VELHO — local vence, nada muda', () async {
@@ -246,10 +253,7 @@ void main() {
           ],
         };
       final client = makeClient(prefs, fetch);
-      await prefs.setInt(
-        'louvorja.sync.operator.updatedAt.scheduled',
-        9999,
-      );
+      await prefs.setInt('louvorja.sync.operator.updatedAt.scheduled', 9999);
       await client.enqueueScheduled(
         ScheduledStatePayload(categories: const [], items: [item('local')]),
       );
@@ -349,15 +353,15 @@ void main() {
   test('uuid de outbox é único por entrada nova', () async {
     final prefs = await SharedPreferences.getInstance();
     final c1 = OperatorStateClient(prefs, sessionToken: () async => null);
-    await c1.enqueuePrefs({'a': 1});
-    final box1 = jsonDecode(
-      prefs.getString(OperatorStateClient.outboxStorageKey)!,
-    ) as Map<String, dynamic>;
+    await c1.enqueuePrefs({'themeMode': 'light'});
+    final box1 =
+        jsonDecode(prefs.getString(OperatorStateClient.outboxStorageKey)!)
+            as Map<String, dynamic>;
     final uuid1 = (box1['prefs::values'] as Map)['client_uuid'] as String;
-    await c1.enqueuePrefs({'a': 2});
-    final box2 = jsonDecode(
-      prefs.getString(OperatorStateClient.outboxStorageKey)!,
-    ) as Map<String, dynamic>;
+    await c1.enqueuePrefs({'themeMode': 'dark'});
+    final box2 =
+        jsonDecode(prefs.getString(OperatorStateClient.outboxStorageKey)!)
+            as Map<String, dynamic>;
     final uuid2 = (box2['prefs::values'] as Map)['client_uuid'] as String;
     expect(uuid1, uuid2); // coalescing preserva a identidade do item
   });
