@@ -32,16 +32,20 @@
 2. **TDD é obrigatório.** Escreva o teste ANTES da implementação.
    Red → Green → Refactor. Sem exceções.
 
-3. **Qualidade de teste completa.** Coverage **100%** SEM mutantes sobreviventes
-   (mutation testing — todo mutante sobrevivente é lacuna de asserção: fortalecer o
-   teste até matá-lo). Camadas obrigatórias conforme couber na stack:
-   **unitários** (TDD, `bloc_test` para BLoCs, `mocktail` para mocks), **golden tests**
-   para widgets, **integração** (fluxos reais: persistência, sync offline, API), e
-   **E2E** (jornadas do usuário ponta a ponta). Todo bug fix vem com o teste que
-   reproduz o bug.
+3. **Qualidade de teste completa.** Nas PRs com base **staging**, a cobertura
+   de **linhas** deve ser de pelo menos **50%**. Nos demais destinos e em push,
+   o CI usa o **ratchet** de `scripts/coverage_ratchet.py`: a cobertura não pode
+   cair abaixo de `.coverage-baseline` (ou 55,46% quando o arquivo não existe).
+   As regras executadas estão em `.github/workflows/ci.yml`. O CI atual mede
+   linhas; não executa gate de mutation testing. Camadas de teste conforme o
+   comportamento afetado: **unitários** (TDD, `bloc_test`, `mocktail`),
+   **golden tests** para mudanças visuais, **integração** (persistência, sync
+   offline, API) e **E2E** nas jornadas afetadas. Todo bug fix vem com o teste
+   que reproduz o bug.
 
-4. **`flutter analyze` sem warnings.** Configurado com `--fatal-infos`.
-   Se o CI falhar em analyze, o PR não entra.
+4. **Análise sem erros ou warnings bloqueantes.** Use
+   `flutter analyze --fatal-warnings --no-fatal-infos`, como o CI.
+   Infos não bloqueiam o merge; erros e warnings devem ser corrigidos.
 
 5. **Um PR por task do PLAN.md.** NUNCA misturar tasks. Cada PR referencia
    a task (ex: `feat(hymns): task 2.6 - HymnsPage com BLoC`).
@@ -219,7 +223,7 @@ class HymnRepositoryImpl implements HymnRepository {
 6. RODAR teste → GREEN (deve passar)
 7. RODAR flutter analyze → sem warnings
 8. REFACTOR se necessário
-9. VERIFICAR coverage 100%
+9. VERIFICAR cobertura conforme o destino: staging >= 50% de linhas; demais = ratchet
 10. COMMIT: `tipo(escopo): task X.Y - descrição`
 ```
 
@@ -230,7 +234,7 @@ class HymnRepositoryImpl implements HymnRepository {
 dart run build_runner build --delete-conflicting-outputs
 
 # Analisar
-flutter analyze --fatal-infos
+flutter analyze --fatal-warnings --no-fatal-infos
 
 # Testar com coverage
 flutter test --coverage
@@ -250,27 +254,40 @@ flutter build ipa --release
 
 ## CI/CD Pipeline
 
-### Gates obrigatórios (PR não entra se falhar)
+### Gates executados pelo CI
 
-```yaml
-# .github/workflows/ci.yml
-jobs:
-  analyze:
-    - flutter analyze --fatal-infos
-  test:
-    - flutter test --coverage
-    - coverage 100% (check)
-    - mutation testing — zero sobreviventes (check)
-  build:
-    - flutter build apk --debug  # smoke test
+A configuração real fica em [.github/workflows/ci.yml](.github/workflows/ci.yml)
+e [.github/workflows/security.yml](.github/workflows/security.yml).
+
+- **Lint:** `flutter analyze --fatal-warnings --no-fatal-infos`.
+- **Test:** `flutter test`.
+- **Coverage (ratchet):** `flutter test --coverage` e
+  `python3 scripts/coverage_ratchet.py`. O workflow define `COVERAGE_MIN=50`
+  somente quando o evento é `pull_request` e a base real é `staging`;
+  em push e nos demais destinos, preserva o ratchet do baseline.
+- **Build Android** e **Build iOS:** builds debug; iOS sem codesign.
+- **Regression Gate:** compara a PR com staging; só executa em pull request.
+- **Quality Gate:** exige lint, testes e ambos os builds aprovados;
+  regressão com resultado failure também bloqueia.
+- **Segurança:** OSV, Gitleaks e análise; preserve as checagens existentes.
+
+O job de cobertura deve passar mesmo sendo separado do Quality Gate.
+Para verificar localmente o piso de uma PR com base staging:
+
+```bash
+flutter test --coverage
+COVERAGE_MIN=50 python3 scripts/coverage_ratchet.py
 ```
+
+Nos demais destinos, execute o script sem `COVERAGE_MIN`. Não use o piso de
+staging para validar promoção para main ou publicação.
 
 ### Branch Strategy
 
 | Branch | Função |
 |--------|--------|
 | `main` | Produção (sempre verde) |
-| `develop` | Integração contínua |
+| `staging` | Integração por PR e decisão humana de merge |
 | `feature/task-X.Y` | Uma task por branch |
 | `fix/issue-N` | Bug fixes |
 
@@ -285,13 +302,13 @@ jobs:
 ### Checklist
 - [ ] Testes escritos antes da implementação (TDD)
 - [ ] `flutter analyze` sem warnings
-- [ ] Coverage 100% — zero mutantes sobreviventes
+- [ ] Cobertura validada: PR para staging >= 50% de linhas; demais destinos = ratchet
 - [ ] Testes de integração nos fluxos tocados
 - [ ] E2E na jornada do usuário (quando aplicável)
 - [ ] Widget teste em light e dark mode
 - [ ] Acessibilidade (Semantics labels)
 - [ ] Offline-first (funciona sem internet)
-- [ ] Code review solicitado
+- [ ] Preparada para decisão humana de merge, conforme as regras atuais da base
 ```
 
 ---
