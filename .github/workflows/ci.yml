@@ -34,9 +34,9 @@ jobs:
         run: flutter analyze --fatal-warnings --no-fatal-infos
 
   test:
-    name: Test
+    name: Test + Coverage Ratchet
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -46,7 +46,34 @@ jobs:
           cache: true
 
       - run: flutter pub get
-      - run: flutter test
+      - run: flutter test --coverage
+
+      - name: Coverage ratchet (bloqueia regressão de cobertura)
+        env:
+          COVERAGE_MIN: ${{ github.event_name == 'pull_request' && github.base_ref == 'staging' && '50' || '' }}
+        run: dart scripts/coverage-ratchet.dart
+
+  coverage:
+    name: Coverage (ratchet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - name: Testes com coverage
+        run: flutter test --coverage
+
+      - name: Ratchet de coverage
+        # PR para staging: piso de 50%. Push e PR para main: ratchet do baseline.
+        env:
+          COVERAGE_MIN: ${{ github.event_name == 'pull_request' && github.base_ref == 'staging' && '50' || '' }}
+        run: python3 scripts/coverage_ratchet.py
 
   build-android:
     name: Build Android

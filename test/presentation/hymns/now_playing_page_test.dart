@@ -36,6 +36,7 @@ class _FakePlayer extends HymnPlayerLike {
   final playedUrls = <String>[];
   Completer<void>? pendingPlay;
   bool failPlay = false;
+  bool failResume = false;
   double? lastVolumeValue;
 
   @override
@@ -68,7 +69,12 @@ class _FakePlayer extends HymnPlayerLike {
   Future<void> pause() async => _playing.value = false;
 
   @override
-  Future<void> resume() async => _playing.value = true;
+  Future<void> resume() async {
+    if (failResume) {
+      throw StateError('falha ao retomar');
+    }
+    _playing.value = true;
+  }
 
   @override
   Future<void> stop() async => _playing.value = false;
@@ -458,5 +464,84 @@ void main() {
     await tester.pump();
     expect(player.sought, const Duration(seconds: 18));
     expect(player.lastVolumeValue, 1);
+  });
+
+  testWidgets('ícone grande alterna play/pause quando o player emite estado', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byIcon(TablerIcons.playerPause), findsOneWidget);
+    expect(find.byIcon(TablerIcons.playerPlay), findsNothing);
+
+    player._playing.value = false;
+    await tester.pump();
+
+    expect(find.byIcon(TablerIcons.playerPlay), findsOneWidget);
+    expect(find.byIcon(TablerIcons.playerPause), findsNothing);
+
+    player._playing.value = true;
+    await tester.pump();
+
+    expect(find.byIcon(TablerIcons.playerPause), findsOneWidget);
+  });
+
+  testWidgets('retomar com Palco desligado usa o player local', (tester) async {
+    final stage = StageSession.instance;
+    expect(stage.isOn, isFalse);
+    stage.audioRoute = PalcoAudioRoute.tv;
+    addTearDown(() => stage.audioRoute = PalcoAudioRoute.local);
+    final player = _FakePlayer();
+    await player.pause();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://example.com/file',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(TablerIcons.playerPlay));
+    await tester.pump();
+    expect(player.isPlaying, isTrue);
+    expect(player.lastVolumeValue, 1);
+  });
+
+  testWidgets('falha de resume permanece pausado e mostra erro', (
+    tester,
+  ) async {
+    final player = _FakePlayer()..failResume = true;
+    await player.pause();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://example.com/file',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(TablerIcons.playerPlay));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(player.isPlaying, isFalse);
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

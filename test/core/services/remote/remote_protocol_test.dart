@@ -429,4 +429,224 @@ void main() {
       expect(RemotePairing.matches('ABC123', 'ABC12'), isFalse);
     });
   });
+
+  group('onda 2 — parsing completo dos módulos', () {
+    const playerBase =
+        '{"v":1,"type":"state","player":{"playing":false,"positionMs":0,'
+        '"durationMs":0,"slideIndex":0,"slideCount":0,"volume":0,'
+        '"canPrevious":false,"canNext":false}';
+
+    test('liturgy: items completos, seleção e campos opcionais', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"liturgy":{"selectedIndex":2,"items":['
+        '{"index":0,"type":"hymn","title":"Hino 1","done":true,'
+        '"subtitle":"Harpa","isCategory":false,"accentColor":"#FF0000"},'
+        '{"index":1,"type":"category","isCategory":true},'
+        '{"index":"x"},'
+        '"não-é-map"]}}',
+      )! as RemotePlayerState;
+      expect(msg.liturgySelectedIndex, 2);
+      expect(msg.liturgyItems.length, 2);
+      expect(msg.liturgyItems[0].index, 0);
+      expect(msg.liturgyItems[0].type, 'hymn');
+      expect(msg.liturgyItems[0].title, 'Hino 1');
+      expect(msg.liturgyItems[0].done, isTrue);
+      expect(msg.liturgyItems[0].subtitle, 'Harpa');
+      expect(msg.liturgyItems[0].isCategory, isFalse);
+      expect(msg.liturgyItems[0].accentColor, '#FF0000');
+      expect(msg.liturgyItems[1].isCategory, isTrue);
+      expect(msg.liturgyItems[1].title, isNull);
+    });
+
+    test('liturgy: ausente → lista vazia e seleção null', () {
+      final msg = RemoteProtocol.parse('$playerBase}')! as RemotePlayerState;
+      expect(msg.liturgyItems, isEmpty);
+      expect(msg.liturgySelectedIndex, isNull);
+    });
+
+    test('media: searchResults filtra ids inválidos e preserva track', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"media":{"query":"amor","searchResults":['
+        '{"musicId":10,"name":"Amor","track":3},'
+        '{"musicId":0,"name":"inválido"},'
+        '{"musicId":12,"name":"Sem track"}]}}',
+      )! as RemotePlayerState;
+      expect(msg.mediaModule, isNotNull);
+      expect(msg.mediaModule!.query, 'amor');
+      expect(msg.mediaModule!.searchResults.length, 2);
+      expect(msg.mediaModule!.searchResults[0].musicId, 10);
+      expect(msg.mediaModule!.searchResults[0].track, 3);
+      expect(msg.mediaModule!.searchResults[1].track, isNull);
+    });
+
+    test('media: query não-string e results não-lista → defaults', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"media":{"query":42,"searchResults":"x"}}',
+      )! as RemotePlayerState;
+      expect(msg.mediaModule!.query, isNull);
+      expect(msg.mediaModule!.searchResults, isEmpty);
+    });
+
+    test('clock: defaults quando style não-string', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"clock":{"style":42,"showSeconds":true,'
+        '"format24h":false,"isProjecting":false}}',
+      )! as RemotePlayerState;
+      expect(msg.clockModule!.style, 'digital');
+      expect(msg.clockModule!.showSeconds, isTrue);
+      expect(msg.clockModule!.format24h, isFalse);
+    });
+
+    test('random: listas convertidas, vazias filtradas e defaults', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"random":{"mode":"numbers","numberMin":1,'
+        '"numberMax":100,"available":["Ana","","João"],'
+        '"drawn":["Bia"],"currentDisplay":7,"drawnCount":1}}',
+      )! as RemotePlayerState;
+      final r = msg.randomModule!;
+      expect(r.mode, 'numbers');
+      expect(r.numberMin, 1);
+      expect(r.numberMax, 100);
+      expect(r.available, ['Ana', 'João']);
+      expect(r.drawn, ['Bia']);
+      expect(r.currentDisplay, isNull);
+      expect(r.drawnCount, 1);
+    });
+
+    test('bible: books e versions filtram entradas inválidas', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"bible":{"bookId":2,"chapter":5,'
+        '"selectedVerses":[1,"x",3],"isProjecting":true,"versionId":7,'
+        '"books":[{"id":1,"name":"Gênesis","chapters":50,"number":1},'
+        '{"id":"x","name":"inválido"},{"name":"sem id"}],'
+        '"versions":[{"id":2,"abbreviation":"ARC"},'
+        '{"id":"x","abbreviation":"inválido"}]}}',
+      )! as RemotePlayerState;
+      final b = msg.bibleModule!;
+      expect(b.selectedVerses, [1, 3]);
+      expect(b.versionId, 7);
+      expect(b.books.length, 1);
+      expect(b.books[0].id, 1);
+      expect(b.books[0].chapters, 50);
+      expect(b.versions.length, 1);
+      expect(b.versions[0].abbreviation, 'ARC');
+    });
+
+    test('timer: campos completos e status não-string → default', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"timer":{"status":42,"accumulatedMs":65000,'
+        '"savedTimesMs":[1000,2000],"isProjecting":true}}',
+      )! as RemotePlayerState;
+      final t = msg.timerModule!;
+      expect(t.status, 'idle');
+      expect(t.accumulatedMs, 65000);
+      expect(t.savedTimesMs, [1000, 2000]);
+      expect(t.isProjecting, isTrue);
+    });
+
+    test('countdown: finished e status default', () {
+      final msg = RemoteProtocol.parse(
+        '$playerBase,"countdown":{"status":"running","durationMs":90000,'
+        '"accumulatedMs":1000,"finished":true,"savedTimesMs":[500]}}',
+      )! as RemotePlayerState;
+      final c = msg.countdownModule!;
+      expect(c.status, 'running');
+      expect(c.finished, isTrue);
+      expect(c.accumulatedMs, 1000);
+    });
+  });
+
+  group('onda 2 — validações de command', () {
+    test('liturgySelect com value não-inteiro → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"liturgy.select",'
+          '"value":1.5}',
+        ),
+        isNull,
+      );
+    });
+
+    test('liturgySelect com value negativo → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"liturgy.select",'
+          '"value":-1}',
+        ),
+        isNull,
+      );
+    });
+
+    test('setVolume value não-num → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"player.setVolume",'
+          '"value":"80"}',
+        ),
+        isNull,
+      );
+    });
+
+    test('command com positionMs negativo → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"player.seek",'
+          '"positionMs":-1}',
+        ),
+        isNull,
+      );
+    });
+
+    test('command com mode fora da lista → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"player.setMode",'
+          '"mode":"karaoke"}',
+        ),
+        isNull,
+      );
+    });
+
+    test('bible.open chapter < 1 → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"bible.open",'
+          '"bookId":1,"chapter":0}',
+        ),
+        isNull,
+      );
+    });
+
+    test('bible.open versionId < 1 → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"bible.open",'
+          '"versionId":0}',
+        ),
+        isNull,
+      );
+    });
+
+    test('countdown.setDuration negativo → null', () {
+      expect(
+        RemoteProtocol.parse(
+          '{"v":1,"type":"command","id":"x","action":"countdown.setDuration",'
+          '"durationMs":-5}',
+        ),
+        isNull,
+      );
+    });
+
+    test('token não-string em command → ignorado ou null (comportamento atual)',
+        () {
+      final msg = RemoteProtocol.parse(
+        '{"v":1,"type":"command","id":"x","action":"player.play",'
+        '"token":42}',
+      );
+      // Documenta o comportamento atual: token não-string é descartado.
+      if (msg != null) {
+        expect((msg as RemoteCommand).token, isNull);
+      }
+    });
+  });
 }
