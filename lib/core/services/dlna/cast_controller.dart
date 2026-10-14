@@ -15,7 +15,10 @@ import 'ssdp_discovery.dart';
 /// connect → serveSlide(bytes) → projectImage(url) → TV exibe.
 /// Debounce embutido: trocas rápidas de slide só projetam a última.
 class CastController {
-  final SlideHttpServer _server = SlideHttpServer();
+  CastController({SlideHttpServer? server})
+    : _server = server ?? SlideHttpServer();
+
+  final SlideHttpServer _server;
   DlnaRendererClient? _client;
   DlnaRenderer? _renderer;
   bool _connected = false;
@@ -56,12 +59,15 @@ class CastController {
       );
       return false;
     }
-    debugPrint(
-      '[DLNA] connect OK: server em $base, controlURL='
-      '${renderer.avTransportControlUrl}',
-    );
+    final controlUrl = renderer.avTransportControlUrl;
+    if (controlUrl == null) {
+      debugPrint('[DLNA] connect FALHOU: renderer sem controlURL (resolve?)');
+      await _server.stop();
+      return false;
+    }
+    debugPrint('[DLNA] connect OK: server em $base, controlURL=$controlUrl');
     _renderer = renderer;
-    _client = DlnaRendererClient(renderer.avTransportControlUrl!);
+    _client = DlnaRendererClient(controlUrl);
     _format = renderer.preferredImageFormat;
     // Anuncia o IP do celular NA SUB-REDE da TV (evita anunciar IP de
     // VPN/segunda interface que a TV não alcança).

@@ -1,5 +1,6 @@
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -35,6 +36,19 @@ void main() {
     expect(File(path).existsSync(), isTrue);
     expect(File(path).readAsBytesSync(), [1, 2, 3, 4]);
     expect(await repository.localPathFor(42), path);
+  });
+
+  test('MP3 vazio indexado não é aceito como baixado', () async {
+    final partial = File('${directory.path}/42_vocal.mp3');
+    await partial.create();
+    await File('${directory.path}/music_offline_index.json').writeAsString(
+      jsonEncode({
+        '42_vocal': {'path': partial.path},
+      }),
+    );
+
+    final repository = MusicOfflineRepository(Dio(), directory.path);
+    expect(await repository.localPathFor(42), isNull);
   });
 
   test('remove arquivo e indice da faixa', () async {
