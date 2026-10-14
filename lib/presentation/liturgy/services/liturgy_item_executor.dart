@@ -105,6 +105,14 @@ class LiturgyItemExecutor {
       case LiturgyItemType.category:
         // Nao executavel -- apenas visual
         return '';
+
+      case LiturgyItemType.audio:
+        // Paridade desktop: item de audio de pacote .louvorja. Sem player
+        // dedicado no APK (fora de escopo G1); abre o arquivo, se houver.
+        if (item.filePath != null || item.filePaths.isNotEmpty) {
+          return _executeFile(context, item);
+        }
+        return '';
     }
   }
 
@@ -228,6 +236,7 @@ class LiturgyItemExecutor {
       case LiturgyItemType.notice:
       case LiturgyItemType.prayer:
       case LiturgyItemType.verse:
+      case LiturgyItemType.audio:
         return false;
     }
   }
