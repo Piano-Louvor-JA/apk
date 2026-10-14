@@ -246,6 +246,99 @@ void main() {
 
     expect(captured.single, startsWith('https://api.github.com/repos/'));
   });
+
+  test('401/404 vira unavailable, não "sem atualização"', () async {
+    final dio = _MockDio();
+    when(
+      () => dio.get<dynamic>(
+        any(),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: ''),
+        response: Response<dynamic>(
+          statusCode: 401,
+          requestOptions: RequestOptions(path: ''),
+        ),
+      ),
+    );
+
+    final service = UpdateService(
+      dio: dio,
+      packageInfoProvider: () async => _pkg('0.1.0'),
+    );
+
+    final result = await service.checkForUpdates();
+    expect(result.isUnavailable, isTrue);
+    expect(result.failure, UpdateCheckFailure.unauthorized);
+  });
+
+  test('tag vazia, versão local vazia e sem digest retornam seguro', () async {
+    Response<dynamic> resp(Map<String, dynamic> data) => Response<dynamic>(
+          data: data,
+          statusCode: 200,
+          requestOptions: RequestOptions(path: ''),
+        );
+
+    final dioEmpty = _MockDio();
+    when(
+      () => dioEmpty.get<dynamic>(
+        any(),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer((_) async => resp({'tag_name': '', 'assets': []}));
+    final s1 = UpdateService(
+      dio: dioEmpty,
+      packageInfoProvider: () async => _pkg('0.1.0'),
+    );
+    expect((await s1.checkForUpdates()).hasUpdate, isFalse);
+
+    final dioVer = _MockDio();
+    when(
+      () => dioVer.get<dynamic>(
+        any(),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer((_) async => resp({'tag_name': 'v9.9.9', 'assets': []}));
+    final s2 = UpdateService(
+      dio: dioVer,
+      packageInfoProvider: () async => _pkg(''),
+    );
+    expect((await s2.checkForUpdates()).hasUpdate, isFalse);
+
+    final dioApk = _MockDio();
+    when(
+      () => dioApk.get<dynamic>(
+        any(),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer(
+      (_) async => resp({
+        'tag_name': 'v9.9.9',
+        'assets': [
+          {
+            'name': 'app.apk',
+            'browser_download_url': 'https://dl/apk',
+            'size': 10,
+          },
+        ],
+      }),
+    );
+    final s3 = UpdateService(
+      dio: dioApk,
+      packageInfoProvider: () async => _pkg('0.1.0'),
+    );
+    final r3 = await s3.checkForUpdates();
+    expect(r3.hasUpdate, isTrue);
+    expect(r3.apkSha256, isNull);
+
+    s3.dispose();
+  });
 }
 
 extension on UpdateService {

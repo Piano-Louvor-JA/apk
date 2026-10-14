@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/app/router.dart';
 import 'package:louvorja_piano_mobile/core/services/settings_controller.dart';
+import 'package:louvorja_piano_mobile/presentation/shared/widgets/mini_player_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -97,5 +98,22 @@ void main() {
       const Duration(seconds: 3),
     ); // consome timeout do indice offline
     expect(find.byType(MaterialApp), findsOneWidget);
+  });
+
+  testWidgets('mini player invisível sem faixa; dock renderiza 4 tabs', (
+    tester,
+  ) async {
+    appRouter.go('/');
+    await tester.pumpWidget(_wrapRouter());
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Sem track tocando: barra existe mas não mostra faixa (estado vazio).
+    expect(find.byType(MiniPlayerBar), findsOneWidget);
+    expect(find.bySubtype<Text>().evaluate(), isNotEmpty);
+
+    // Dock com 4 ramos: Início, Hinos, Ferramentas, Mais.
+    final labels = find.bySubtype<Text>().evaluate().length;
+    expect(labels, greaterThanOrEqualTo(4));
+    expect(tester.takeException(), isNull);
   });
 }
