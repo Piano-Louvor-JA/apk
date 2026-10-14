@@ -316,7 +316,10 @@
     "imported": "Synced: {applied}.",
     "importedNone": "Nothing to update (local is already newer).",
     "importInvalid": "Invalid file or not a .louvorja package.",
-    "importCancelled": "Import cancelled."
+    "importCancelled": "Import cancelled.",
+    "operatorSynced": "Operator state synced.",
+    "operatorUpToDate": "Nothing to update (local is already newer).",
+    "operatorPending": "Sync pending — it will be sent once a connection is available."
   },
   "remote": {
     "title": "Remote Control",
@@ -419,5 +422,10 @@
   },
   "albums": {
     "playAll": "Play all"
+  },
+  "offline": {
+    "sectionTitle": "Offline mode",
+    "mode": "Offline mode — using downloaded content",
+    "restored": "Connection restored — syncing…"
   }
 }

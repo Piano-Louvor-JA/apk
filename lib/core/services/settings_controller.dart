@@ -24,6 +24,12 @@ class SettingsController extends ChangeNotifier {
   InteractionKey _interaction = InteractionKey.dynamic_;
   int _glassIntensity = 60;
 
+  /// Hook do sync v2 (apk#107): injetado pelo boot — cada setter sincronizável
+  /// notifica a outbox (lote prefs::values). Null = sem sync (testes legados).
+  final void Function(String key, Object? value)? outboxHook;
+
+  SettingsController({this.outboxHook});
+
   ThemeMode get themeMode => _themeMode;
   AccentKey get accent => _accent;
   InteractionKey get interaction => _interaction;
@@ -54,6 +60,7 @@ class SettingsController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyThemeMode, mode.name);
     unawaited(SyncTimestamps.touch('settings'));
+    _syncNotify(_keyThemeMode, mode.name);
   }
 
   Future<void> setAccent(AccentKey key) async {
@@ -62,6 +69,7 @@ class SettingsController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyAccent, key.name);
     unawaited(SyncTimestamps.touch('settings'));
+    _syncNotify(_keyAccent, key.name);
   }
 
   Future<void> setInteraction(InteractionKey key) async {
@@ -70,6 +78,7 @@ class SettingsController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyInteraction, key.name);
     unawaited(SyncTimestamps.touch('settings'));
+    _syncNotify(_keyInteraction, key.name);
   }
 
   Future<void> setGlassIntensity(int value) async {
@@ -78,6 +87,16 @@ class SettingsController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyGlassIntensity, _glassIntensity);
     unawaited(SyncTimestamps.touch('settings'));
+    _syncNotify(_keyGlassIntensity, _glassIntensity);
+  }
+
+  /// sync v2 (apk#107): notifica a outbox (nunca bloqueia o fluxo local).
+  void _syncNotify(String key, Object? value) {
+    try {
+      outboxHook?.call(key, value);
+    } catch (_) {
+      // outbox nunca bloqueia
+    }
   }
 }
 
