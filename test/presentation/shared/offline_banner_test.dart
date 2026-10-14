@@ -7,33 +7,28 @@
 library;
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/offline_banner.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/offline_status_scope.dart';
 import 'package:louvorja_piano_mobile/core/services/connectivity_service.dart';
 
 class _Translations extends AssetLoader {
-  const _Translations(this.values);
-  final Map<String, dynamic> values;
+  const _Translations();
   @override
-  Future<Map<String, dynamic>> load(String path, Locale locale) async => values;
+  Future<Map<String, dynamic>> load(String path, Locale locale) async => {
+    'offline': {'mode': 'Modo offline — usando conteúdo baixado'},
+  };
 }
 
 Future<void> _pumpOffline(WidgetTester tester, bool offline) async {
-  final json = await tester.runAsync(
-    () => rootBundle.loadString('assets/translations/pt-BR.json'),
-  );
-  final translations = jsonDecode(json!) as Map<String, dynamic>;
   await tester.pumpWidget(
     EasyLocalization(
       supportedLocales: const [Locale('pt', 'BR')],
       path: 'assets/translations',
-      assetLoader: _Translations(translations),
+      assetLoader: const _Translations(),
       startLocale: const Locale('pt', 'BR'),
       saveLocale: false,
       child: Builder(
