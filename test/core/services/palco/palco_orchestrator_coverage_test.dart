@@ -80,8 +80,8 @@ void main() {
       for (final s in orch.slots.toList()) {
         await orch.removeSlot(s.id);
       }
-      // slotIndex 1 = portas 7082/7083: evita corrida com outros arquivos
-      // de teste que usam o slot 0 (7080/7081) em shards paralelos.
+      // slotIndex 1 = portas configuradas 7082/7083; o bind real é efêmero
+      // (test/flutter_test_config.dart), sem colidir com outros arquivos.
       final ok = orch.addSlot(id: 'cov1', label: 'Cov', slotIndex: 1);
       expect(ok, isTrue);
       slotId = 'cov1';
@@ -92,7 +92,8 @@ void main() {
       expect(connected, isTrue);
       rx = FakeRx();
       final slot = orch.slot(slotId)!;
-      await rx!.connect('127.0.0.1', slot.wsPort);
+      // Porta real do sender (efêmera em teste), não a configurada do slot.
+      await rx!.connect('127.0.0.1', slot.controller.wsPort);
       await Future<void>.delayed(const Duration(milliseconds: 200));
     });
 
