@@ -15,7 +15,10 @@ import 'ssdp_discovery.dart';
 /// connect → serveSlide(bytes) → projectImage(url) → TV exibe.
 /// Debounce embutido: trocas rápidas de slide só projetam a última.
 class CastController {
-  final SlideHttpServer _server = SlideHttpServer();
+  CastController({SlideHttpServer? server})
+    : _server = server ?? SlideHttpServer();
+
+  final SlideHttpServer _server;
   DlnaRendererClient? _client;
   DlnaRenderer? _renderer;
   bool _connected = false;
@@ -62,9 +65,7 @@ class CastController {
       await _server.stop();
       return false;
     }
-    debugPrint(
-      '[DLNA] connect OK: server em $base, controlURL=$controlUrl',
-    );
+    debugPrint('[DLNA] connect OK: server em $base, controlURL=$controlUrl');
     _renderer = renderer;
     _client = DlnaRendererClient(controlUrl);
     _format = renderer.preferredImageFormat;

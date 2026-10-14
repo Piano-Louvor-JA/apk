@@ -4,9 +4,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/cast_controller.dart';
+import 'package:louvorja_piano_mobile/core/services/dlna/slide_http_server.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/ssdp_discovery.dart';
 
-const _descXml = '<?xml version="1.0"?>\n'
+const _descXml =
+    '<?xml version="1.0"?>\n'
     '<root xmlns="urn:schemas-upnp-org:device-1-0">\n'
     '  <device>\n'
     '    <friendlyName>TV Fake Cast</friendlyName>\n'
@@ -36,17 +38,18 @@ void main() {
       final action = req.headers.value('SOAPACTION');
       if (action != null) soapActions.add(action);
       if (req.uri.path == '/ConnectionManager/control') {
-        req.response.add(utf8.encode(
-          '<s:Envelope><s:Body><u:GetProtocolInfoResponse>'
-          '<Sink>png_lrg 1920x1080</Sink>'
-          '</u:GetProtocolInfoResponse></s:Body></s:Envelope>',
-        ));
+        req.response.add(
+          utf8.encode(
+            '<s:Envelope><s:Body><u:GetProtocolInfoResponse>'
+            '<Sink>png_lrg 1920x1080</Sink>'
+            '</u:GetProtocolInfoResponse></s:Body></s:Envelope>',
+          ),
+        );
       } else {
         req.response.add(utf8.encode(_descXml));
       }
       await req.response.close();
     });
-
   });
 
   tearDown(() async {
@@ -62,29 +65,40 @@ void main() {
     return r;
   }
 
-  test('connect + projectSlide: SOAP Play dispara e imageFormat é png', () async {
-    final c = CastController();
-    final renderer = await resolvedRenderer();
+  test(
+    'connect + projectSlide: SOAP Play dispara e imageFormat é png',
+    () async {
+      final c = CastController(
+        server: SlideHttpServer(localIpResolver: () async => '127.0.0.1'),
+      );
+      final renderer = await resolvedRenderer();
 
-    expect(await c.connect(renderer), isTrue);
-    expect(c.isConnected, isTrue);
-    expect(c.rendererName, 'TV Fake Cast');
-    expect(c.imageFormat, StageImageFormat.png, reason: 'Sink declara PNG_LRG');
+      expect(await c.connect(renderer), isTrue);
+      expect(c.isConnected, isTrue);
+      expect(c.rendererName, 'TV Fake Cast');
+      expect(
+        c.imageFormat,
+        StageImageFormat.png,
+        reason: 'Sink declara PNG_LRG',
+      );
 
-    final ok = await c.projectSlide(
-      Uint8List.fromList(List.filled(64, 7)),
-      title: 'Slide 1',
-    );
-    expect(ok, isTrue);
-    expect(soapActions.where((a) => a.contains('Play')), isNotEmpty);
-    expect(c.lastError, isNull);
+      final ok = await c.projectSlide(
+        Uint8List.fromList(List.filled(64, 7)),
+        title: 'Slide 1',
+      );
+      expect(ok, isTrue);
+      expect(soapActions.where((a) => a.contains('Play')), isNotEmpty);
+      expect(c.lastError, isNull);
 
-    await c.disconnect();
-    expect(c.isConnected, isFalse);
-  });
+      await c.disconnect();
+      expect(c.isConnected, isFalse);
+    },
+  );
 
   test('debounce: rajada de slides é atrasada mas todas projetam', () async {
-    final c = CastController();
+    final c = CastController(
+      server: SlideHttpServer(localIpResolver: () async => '127.0.0.1'),
+    );
     final renderer = await resolvedRenderer();
     await c.connect(renderer);
 
@@ -108,8 +122,12 @@ void main() {
     await c.disconnect();
   });
 
-  test('SOAP falhando (TV fora): projectSlide retorna false e lastError set', () async {
-      final c = CastController();
+  test(
+    'SOAP falhando (TV fora): projectSlide retorna false e lastError set',
+    () async {
+      final c = CastController(
+        server: SlideHttpServer(localIpResolver: () async => '127.0.0.1'),
+      );
       final renderer = await resolvedRenderer();
       // Control URL morta: apontar pra porta fechada.
       final dead = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -123,5 +141,6 @@ void main() {
       expect(c.lastError, isNotNull);
 
       await c.disconnect();
-  });
+    },
+  );
 }

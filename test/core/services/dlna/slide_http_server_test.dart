@@ -10,7 +10,7 @@ void main() {
   late SlideHttpServer server;
 
   setUp(() async {
-    server = SlideHttpServer();
+    server = SlideHttpServer(localIpResolver: () async => '127.0.0.1');
     SlideHttpServer.rendererSubnetHint = null;
   });
 
@@ -19,7 +19,7 @@ void main() {
     SlideHttpServer.rendererSubnetHint = null;
   });
 
-  test('start sobe servidor e devolve URL http da LAN', () async {
+  test('start sobe servidor e devolve URL http de loopback', () async {
     final base = await server.start();
     expect(base, isNotNull);
     expect(base, startsWith('http://'));
