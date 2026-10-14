@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: pr-apk-${{ inputs.pr_number }}
@@ -30,6 +31,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Valida PR antes do checkout
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+        with:
+          script: |
+            const value = process.env.PR_NUMBER;
+            const number = Number(value);
+            if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(number)) {
+              core.setFailed('Número de PR inválido');
+              return;
+            }
+            const { owner, repo } = context.repo;
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            if (pr.state !== 'open' || pr.head.repo?.full_name !== `${owner}/${repo}`) {
+              core.setFailed('Use uma PR aberta com origem neste repositório');
+            }
+
       - name: Checkout do head da PR
         uses: actions/checkout@v7
         with:
@@ -55,13 +74,15 @@ jobs:
           flutter build apk --debug --no-tree-shake-icons
           --dart-define=LOUVORJA_URL_DATABASE=https://api-stg.pianolouvorja.com.br/json_db
           --dart-define=LOUVORJA_URL_FILES=https://api-stg.pianolouvorja.com.br/file
-          --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
+          --dart-define=LOUVORJA_FALLBACK_URLS=
           --dart-define=API_TOKEN=$API_TOKEN
 
       - name: Renomeia artefato com número da PR
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
           mkdir -p out
-          cp build/app/outputs/flutter-apk/app-debug.apk "out/louvorja-pr${{ inputs.pr_number }}-debug.apk"
+          cp build/app/outputs/flutter-apk/app-debug.apk "out/louvorja-pr${PR_NUMBER}-debug.apk"
           ls -la out/
 
       - name: Upload artifact (efêmero — 3 dias)

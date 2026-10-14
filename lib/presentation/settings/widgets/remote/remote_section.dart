@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
+import 'package:louvorja_piano_mobile/core/services/terms_acceptance.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/unified_qr_scanner.dart';
@@ -80,7 +81,12 @@ class _RemoteSectionState extends State<RemoteSection> {
     final code = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const DesktopQrScannerPage()),
     );
-    if (code == null) return;
+    if (code == null || !mounted) return;
+    // apk#95: termos aceitáveis e dispensáveis ANTES do conectar — o sheet
+    // é scrollável e nunca sobrepõe/bloqueia o botão Conectar.
+    final termsOk = await ensureTermsAccepted(context);
+    if (!mounted) return;
+    if (!termsOk) return;
     // QR do web (P2P WebRTC): JSON {type:'offer', sdp:...}
     final trimmed = code.trim();
     if (trimmed.startsWith('{')) {
