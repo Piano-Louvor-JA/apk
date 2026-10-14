@@ -266,7 +266,6 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       if (mounted) setState(() => _loadingMusicId = null);
     }
   }
-  // coverage:ignore-end
 
   bool _isThisPlaying(Hymn hymn) => _playingHymnId == hymn.id;
 

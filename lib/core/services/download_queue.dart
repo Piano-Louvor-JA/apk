@@ -87,6 +87,7 @@ class DownloadQueue {
       ValueNotifier<DownloadQueueProgress?>(null);
 
   final List<DownloadQueueItem> _pending = [];
+  DownloadQueueItem? _active;
 
   /// Itens que falharam neste drain — ficam no disco p/ proximo boot.
   final List<DownloadQueueItem> _failedThisRun = [];
@@ -151,7 +152,7 @@ class DownloadQueue {
     final key = '${musicId}_${instrumental ? 'instrumental' : 'vocal'}';
     _pending.removeWhere((item) => item.key == key);
     _failedThisRun.removeWhere((item) => item.key == key);
-    _enqueuedKeys.remove(key);
+    if (_active?.key != key) _enqueuedKeys.remove(key);
     await _persist();
   }
 
@@ -201,6 +202,7 @@ class DownloadQueue {
         break;
       }
       final item = _pending.removeAt(0);
+      _active = item;
       await _persist();
       try {
         final existing = await offline.localPathFor(
@@ -241,6 +243,8 @@ class DownloadQueue {
         _consecutiveRateLimits = 0;
         _failedThisRun.add(item);
       }
+      _active = null;
+      await _persist();
       if (_pending.isNotEmpty && interItemDelay > Duration.zero) {
         await Future<void>.delayed(interItemDelay);
       }
@@ -260,6 +264,7 @@ class DownloadQueue {
       await storage.write(
         jsonEncode({
           'pending': [
+            if (_active != null) _active!,
             ..._pending,
             ..._failedThisRun,
           ].map((e) => e.toJson()).toList(),

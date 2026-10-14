@@ -19,6 +19,7 @@ void main() {
       await orch.removeSlot(s.id);
     }
     orch.clearMirror();
+    expect(orch.addSlot(id: 'principal', slotIndex: 2), isTrue);
     final session = StageSession.instance;
     if (session.isOn) await session.turnOff();
   });
@@ -27,15 +28,21 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(appBar: AppBar(actions: [const StageClearButton()]))),
+      MaterialApp(
+        home: Scaffold(appBar: AppBar(actions: [const StageClearButton()])),
+      ),
     );
     await tester.pump();
     expect(find.byTooltip('Limpar projeção (voltar ao idle)'), findsNothing);
   });
 
-  testWidgets('tap no cast desligado abre PalcoAutoConnectSheet', (tester) async {
+  testWidgets('tap no cast desligado abre PalcoAutoConnectSheet', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(appBar: AppBar(actions: [const StageCastButton()]))),
+      MaterialApp(
+        home: Scaffold(appBar: AppBar(actions: [const StageCastButton()])),
+      ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
@@ -62,5 +69,4 @@ void main() {
     await session.turnOff();
     expect(session.isOn, isFalse);
   });
-
 }

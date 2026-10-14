@@ -20,6 +20,7 @@ void main() {
       await orch.removeSlot(s.id);
     }
     orch.clearMirror();
+    expect(orch.addSlot(id: 'principal', slotIndex: 3), isTrue);
     final session = StageSession.instance;
     if (session.isOn) await session.turnOff();
 
@@ -68,7 +69,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-
   testWidgets('Limpar projeção no painel volta ao idle mantendo sessão', (
     tester,
   ) async {
@@ -89,7 +89,9 @@ void main() {
 
   testWidgets('Desligar no painel encerra a sessão', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: StageCastButton(module: StageModule.hymns))),
+      MaterialApp(
+        home: Scaffold(body: StageCastButton(module: StageModule.hymns)),
+      ),
     );
     await tester.pump(const Duration(milliseconds: 600));
     await tester.tap(find.byType(StageCastButton));

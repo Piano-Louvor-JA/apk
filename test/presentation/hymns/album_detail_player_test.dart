@@ -30,11 +30,8 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchAlbumHymns(int albumId) async => hymns;
 
   @override
-  Future<Hymn> fetchMusic(int musicId) async => Hymn(
-    id: musicId,
-    title: 'Test',
-    urlMusic: '/musics/test.mp3',
-  );
+  Future<Hymn> fetchMusic(int musicId) async =>
+      Hymn(id: musicId, title: 'Test', urlMusic: '/musics/test.mp3');
 
   @override
   Future<List<AlbumCategory>> fetchCategories() async => [];
@@ -51,7 +48,8 @@ class _MockApi implements LouvorjaApiClient {
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
 class _FakeOfflinePort implements OfflineMusicPort {
@@ -59,8 +57,10 @@ class _FakeOfflinePort implements OfflineMusicPort {
   bool get isSupported => false;
 
   @override
-  Future<String?> localPathFor(int musicId, {bool instrumental = false}) async =>
-      null;
+  Future<String?> localPathFor(
+    int musicId, {
+    bool instrumental = false,
+  }) async => null;
 
   @override
   Future<String> download({
@@ -122,6 +122,13 @@ class _FakePlayer extends HymnAudioPlayer {
   }
 
   @override
+  Future<void> resume() async {
+    if (url == null) return;
+    playing = true;
+    _playing.add(true);
+  }
+
+  @override
   Future<void> pause() async {
     playing = false;
     _playing.add(false);
@@ -163,49 +170,44 @@ void main() {
   );
 
   group('AlbumDetailPage — tocar tudo (fila com player fake)', () {
-    testWidgets('playAll toca 1ª faixa; completion avança pra 2ª; fim encerra', (
-      tester,
-    ) async {
-      final player = _FakePlayer();
-      final bloc = blocWith([
-        const Hymn(id: 1, title: 'Hino 1', urlMusic: '/m/1.mp3'),
-        const Hymn(id: 2, title: 'Hino 2', urlMusic: '/m/2.mp3'),
-      ]);
+    testWidgets(
+      'playAll toca 1ª faixa; completion avança pra 2ª; fim encerra',
+      (tester) async {
+        final player = _FakePlayer();
+        final bloc = blocWith([
+          const Hymn(id: 1, title: 'Hino 1', urlMusic: '/m/1.mp3'),
+          const Hymn(id: 2, title: 'Hino 2', urlMusic: '/m/2.mp3'),
+        ]);
 
-      await tester.pumpWidget(
-        wrapWithRouter(
-          AlbumDetailPage(
-            albumId: 100,
-            offlineService: _FakeOfflinePort(),
-            audioPlayer: player,
+        await tester.pumpWidget(
+          wrapWithRouter(
+            AlbumDetailPage(
+              albumId: 100,
+              offlineService: _FakeOfflinePort(),
+              audioPlayer: player,
+            ),
+            bloc,
           ),
-          bloc,
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // "Tocar tudo": botão/ícone na AppBar ou header
-      final playAll = find.widgetWithText(
-        FilledButton,
-        'albums.playAll',
-      );
-      expect(playAll, findsOneWidget);
-      await tester.tap(playAll);
-      await tester.pumpAndSettle();
+        // "Tocar tudo": botão/ícone na AppBar ou header
+        final playAll = find.widgetWithText(FilledButton, 'albums.playAll');
+        expect(playAll, findsOneWidget);
+        await tester.tap(playAll);
+        await tester.pumpAndSettle();
 
-      // 1ª faixa tocando (offline vazio → busca detail e monta URL)
-      expect(player.playedUrls, isNotEmpty);
+        // 1ª faixa tocando (offline vazio → busca detail e monta URL)
+        expect(player.playedUrls, isNotEmpty);
 
-      // completa → avança pra próxima da fila
-      final before = player.playedUrls.length;
-      player.completeTrack();
-      await tester.pumpAndSettle();
-      // fila tinha 1 item restante: toca mais um
-      expect(
-        player.playedUrls.length,
-        greaterThanOrEqualTo(before),
-      );
-    });
+        // completa → avança pra próxima da fila
+        final before = player.playedUrls.length;
+        player.completeTrack();
+        await tester.pumpAndSettle();
+        // fila tinha 1 item restante: toca mais um
+        expect(player.playedUrls.length, greaterThanOrEqualTo(before));
+      },
+    );
 
     testWidgets('filtro aceita entrada sem filtrar localmente (TODO atual)', (
       tester,

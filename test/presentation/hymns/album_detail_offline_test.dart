@@ -30,11 +30,8 @@ class _MockApi implements LouvorjaApiClient {
   Future<List<Hymn>> fetchAlbumHymns(int albumId) async => hymns;
 
   @override
-  Future<Hymn> fetchMusic(int musicId) async => Hymn(
-    id: musicId,
-    title: 'Test',
-    urlMusic: '/musics/test.mp3',
-  );
+  Future<Hymn> fetchMusic(int musicId) async =>
+      Hymn(id: musicId, title: 'Test', urlMusic: '/musics/test.mp3');
 
   @override
   Future<List<AlbumCategory>> fetchCategories() async => [];
@@ -51,11 +48,11 @@ class _MockApi implements LouvorjaApiClient {
   @override
   Future<List<BibleVersion>> fetchBibleVersions() async => const [];
   @override
-  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async => {};
+  Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
+      {};
 }
 
-final class _SupportedOffline
-    implements OfflineMusicPort, OfflineLibraryPort {
+final class _SupportedOffline implements OfflineMusicPort, OfflineLibraryPort {
   final removed = <int>[];
   final downloaded = <int>{};
 
@@ -63,8 +60,10 @@ final class _SupportedOffline
   bool get isSupported => true;
 
   @override
-  Future<String?> localPathFor(int musicId, {bool instrumental = false}) async =>
-      downloaded.contains(musicId) ? '/tmp/fake.mp3' : null;
+  Future<String?> localPathFor(
+    int musicId, {
+    bool instrumental = false,
+  }) async => downloaded.contains(musicId) ? '/tmp/fake.mp3' : null;
 
   @override
   Future<String> download({
@@ -150,6 +149,13 @@ class _FakePlayer extends HymnAudioPlayer {
   }
 
   @override
+  Future<void> resume() async {
+    if (url == null) return;
+    playing = true;
+    _playing.add(true);
+  }
+
+  @override
   Future<void> pause() async {
     playing = false;
     _playing.add(false);
@@ -191,14 +197,16 @@ void main() {
       const Hymn(id: 1, title: 'Hino DL', urlMusic: '/m/1.mp3'),
     ]);
 
-    await tester.pumpWidget(wrapWithRouter(
-      AlbumDetailPage(
-        albumId: 100,
-        offlineService: _NoOffline(),
-        audioPlayer: _FakePlayer(),
+    await tester.pumpWidget(
+      wrapWithRouter(
+        AlbumDetailPage(
+          albumId: 100,
+          offlineService: _NoOffline(),
+          audioPlayer: _FakePlayer(),
+        ),
+        bloc,
       ),
-      bloc,
-    ));
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hino DL'));
     await tester.pumpAndSettle();
@@ -219,14 +227,16 @@ void main() {
       const Hymn(id: 2, title: 'Hino OK', urlMusic: '/m/2.mp3'),
     ]);
 
-    await tester.pumpWidget(wrapWithRouter(
-      AlbumDetailPage(
-        albumId: 100,
-        offlineService: offline,
-        audioPlayer: _FakePlayer(),
+    await tester.pumpWidget(
+      wrapWithRouter(
+        AlbumDetailPage(
+          albumId: 100,
+          offlineService: offline,
+          audioPlayer: _FakePlayer(),
+        ),
+        bloc,
       ),
-      bloc,
-    ));
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hino OK'));
     await tester.pumpAndSettle();
@@ -248,14 +258,16 @@ void main() {
       const Hymn(id: 3, title: 'Hino Removível', urlMusic: '/m/3.mp3'),
     ]);
 
-    await tester.pumpWidget(wrapWithRouter(
-      AlbumDetailPage(
-        albumId: 100,
-        offlineService: offline,
-        audioPlayer: _FakePlayer(),
+    await tester.pumpWidget(
+      wrapWithRouter(
+        AlbumDetailPage(
+          albumId: 100,
+          offlineService: offline,
+          audioPlayer: _FakePlayer(),
+        ),
+        bloc,
       ),
-      bloc,
-    ));
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hino Removível'));
     await tester.pumpAndSettle();

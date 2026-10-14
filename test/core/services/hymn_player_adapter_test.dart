@@ -75,7 +75,6 @@ class _FakePlatformPlayer extends HymnAudioPlayer {
   void dispose() {}
 }
 
-
 class _MockPlayer extends Mock implements HymnAudioPlayer {}
 
 void main() {
@@ -88,10 +87,8 @@ void main() {
     registerFallbackValue(const Duration(seconds: 1));
     when(() => player.isPlaying).thenReturn(false);
     when(() => player.playingStream).thenAnswer((_) => playingCtrl.stream);
-    when(() => player.positionStream)
-        .thenAnswer((_) => const Stream.empty());
-    when(() => player.durationStream)
-        .thenAnswer((_) => const Stream.empty());
+    when(() => player.positionStream).thenAnswer((_) => const Stream.empty());
+    when(() => player.durationStream).thenAnswer((_) => const Stream.empty());
     when(() => player.currentUrl).thenReturn(null);
     when(() => player.resume()).thenAnswer((_) async {});
   });
@@ -113,24 +110,26 @@ void main() {
     expect(seen, contains(false));
   });
 
-  test('isPlaying/position/duration/seek/setVolume/stop delegam pro player',
-      () async {
-    when(() => player.isPlaying).thenReturn(true);
-    when(() => player.seek(any())).thenAnswer((_) async {});
-    when(() => player.setVolume(any())).thenAnswer((_) async {});
-    when(() => player.stop()).thenAnswer((_) async {});
+  test(
+    'isPlaying/position/duration/seek/setVolume/stop delegam pro player',
+    () async {
+      when(() => player.isPlaying).thenReturn(true);
+      when(() => player.seek(any())).thenAnswer((_) async {});
+      when(() => player.setVolume(any())).thenAnswer((_) async {});
+      when(() => player.stop()).thenAnswer((_) async {});
 
-    final adapter = HymnPlayerAdapter(player);
-    expect(adapter.isPlaying, isTrue);
-    expect(adapter.positionStream, isA<Stream<Duration>>());
-    expect(adapter.durationStream, isA<Stream<Duration>>());
-    await adapter.seek(const Duration(seconds: 5));
-    await adapter.setVolume(0.5);
-    await adapter.stop();
-    verify(() => player.seek(const Duration(seconds: 5))).called(1);
-    verify(() => player.setVolume(0.5)).called(1);
-    verify(() => player.stop()).called(1);
-  });
+      final adapter = HymnPlayerAdapter(player);
+      expect(adapter.isPlaying, isTrue);
+      expect(adapter.positionStream, isA<Stream<Duration>>());
+      expect(adapter.durationStream, isA<Stream<Duration>>());
+      await adapter.seek(const Duration(seconds: 5));
+      await adapter.setVolume(0.5);
+      await adapter.stop();
+      verify(() => player.seek(const Duration(seconds: 5))).called(1);
+      verify(() => player.setVolume(0.5)).called(1);
+      verify(() => player.stop()).called(1);
+    },
+  );
 
   test('pause e resume delegam sem recarregar a URL', () async {
     when(() => player.pause()).thenAnswer((_) async {});
@@ -182,5 +181,4 @@ void main() {
       expect(adapter.playingListenable.value, isTrue);
     },
   );
-
 }

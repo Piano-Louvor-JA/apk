@@ -49,6 +49,8 @@ jobs:
       - run: flutter test --coverage
 
       - name: Coverage ratchet (bloqueia regressão de cobertura)
+        env:
+          COVERAGE_MIN: ${{ github.event_name == 'pull_request' && github.base_ref == 'staging' && '50' || '' }}
         run: dart scripts/coverage-ratchet.dart
 
   coverage:
