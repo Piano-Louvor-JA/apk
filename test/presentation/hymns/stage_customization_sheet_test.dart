@@ -66,14 +66,36 @@ Future<void> _tapScrollable(WidgetTester tester, Finder f) async {
 }
 
 
-/// Aplica as mudanças: o save vai a DISCO real (path_provider fake + IO
-/// verdadeiro), que não roda dentro do FakeAsync do testWidgets — por isso
-/// o tap precisa de runAsync.
-Future<void> _apply(WidgetTester tester) async {
-  await tester.runAsync(() async {
-    await _tapScrollable(tester, find.widgetWithText(FilledButton, 'Aplicar'));
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-  });
+/// Aplica as mudanças e espera o `onApply` de verdade.
+///
+/// O botão faz `await repo.save()` em DISCO real (path_provider fake + IO
+/// verdadeiro) antes de chamar `onApply`. Esse IO não avança dentro do
+/// FakeAsync do testWidgets, e sob carga da suíte completa passa de qualquer
+/// atraso fixo. Por isso alternamos tempo real (runAsync) com pump (tempo
+/// falso) até o callback disparar, com limite e mensagem clara se não
+/// disparar.
+Future<void> _apply(WidgetTester tester, bool Function() applied) async {
+  // Diálogo/animação anterior (ex.: picker fechando) precisa terminar, senão
+  // o tap cai na barreira modal e o Aplicar não dispara.
+  await tester.pumpAndSettle();
+  final button = find.widgetWithText(FilledButton, 'Aplicar');
+  await tester.scrollUntilVisible(
+    button,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+  expect(button, findsOneWidget);
+  // Sem warnIfMissed: false — o tap precisa acertar o botão.
+  await tester.tap(button);
+  for (var i = 0; i < 500 && !applied(); i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    // Avança também o relógio falso: timers da cadeia async do save.
+    await tester.pump(const Duration(milliseconds: 10));
+  }
+  expect(applied(), isTrue, reason: 'onApply não disparou após tocar Aplicar');
   await tester.pumpAndSettle();
 }
 
@@ -134,7 +156,7 @@ void main() {
       await _tapScrollable(tester, find.widgetWithText(InputChip, 'Preto'));
       await tester.pump();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
 
       expect(applied, isNotNull);
       expect(applied!.backgroundColor, const Color(0xFF000000));
@@ -147,7 +169,7 @@ void main() {
       await _tapScrollable(tester, find.widgetWithText(InputChip, 'Amarelo suave').first);
       await tester.pump();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
 
       expect(applied!.textColor, const Color(0xFFFFE9A8));
     });
@@ -165,7 +187,7 @@ void main() {
 
       expect(find.textContaining('Tamanho da fonte'), findsOneWidget);
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
       expect(applied, isNotNull);
     });
 
@@ -176,7 +198,7 @@ void main() {
       await _tapScrollable(tester, find.text('Forte').first);
       await tester.pump();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
 
       expect(applied!.fontWeight, FontWeight.w800);
     });
@@ -215,7 +237,7 @@ void main() {
       await _tapScrollable(tester, find.text('Borda na caixinha'));
       await tester.pump();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
       expect(applied!.textBox, isTrue);
       expect(applied!.boxBorder, isFalse);
     });
@@ -231,7 +253,7 @@ void main() {
       await _tapScrollable(tester, find.byIcon(TablerIcons.arrowUp));
       await tester.pump();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
 
       expect(applied!.textAlign, 'left');
       expect(applied!.textVerticalAlign, 'top');
@@ -250,7 +272,7 @@ void main() {
       // OK sem escolher nada: mantém a cor atual (picked = current).
       await _tapScrollable(tester, find.widgetWithText(FilledButton, 'OK'));
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
       expect(applied!.backgroundColor, const Color(0xFF0A0E1A));
     });
 
@@ -264,7 +286,7 @@ void main() {
       await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
       await tester.pumpAndSettle();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
       expect(applied!.backgroundColor, const Color(0xFF0A0E1A));
     });
 
@@ -283,7 +305,7 @@ void main() {
       await _tapScrollable(tester, find.text('Mostrar versão da Bíblia no rodapé'));
       await tester.pump();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
 
       expect(applied!.footerRefColor, const Color(0xFFFCCE02));
       // default é true; o tap no SwitchListTile alterna pra false.
@@ -304,7 +326,7 @@ void main() {
       await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
       await tester.pumpAndSettle();
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
       expect(applied!.backgroundColor, const Color(0xFF000000));
     });
 
@@ -317,7 +339,7 @@ void main() {
         onApply: (s) => applied = s,
       );
 
-      await _apply(tester);
+      await _apply(tester, () => applied != null);
 
       expect(applied!.backgroundColor, const Color(0xFF2A1B1B));
       // O sheet usa StageSettingsRepository() interno (scope global) e o
