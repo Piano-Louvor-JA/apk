@@ -9,11 +9,9 @@ import 'package:louvorja_piano_mobile/domain/repositories/louvorja_api_client.da
 
 /// Implementação offline-first de [HymnRepository].
 ///
-/// Estratégia:
-/// 1. Tenta cache local (TTL 24h).
-/// 2. Se cache expirado/inexistente, busca remoto.
-/// 3. Se remoto falhar, usa cache expirado como fallback.
-/// 4. Sempre atualiza cache após sucesso remoto.
+/// Categorias: memória da sessão, depois remoto; disco fresco ou expirado
+/// como fallback quando a rede falha. Faixas preservam o cache local antes
+/// da rede. Sucesso remoto atualiza o disco.
 class HymnRepositoryImpl implements HymnRepository {
   final LouvorjaApiClient _api;
   final CatalogCache _cache;
@@ -31,17 +29,11 @@ class HymnRepositoryImpl implements HymnRepository {
   Future<List<AlbumCategory>> getCategories() async {
     if (_categoriesCache != null) return _categoriesCache!;
 
-    // Tenta cache local primeiro
+    // Cache de disco do cold start (usado como fallback se a rede falhar).
     final cached = _cache.read('categories');
-    if (cached != null) {
-      final parsed = _parseCategories(cached);
-      if (parsed.isNotEmpty) {
-        _categoriesCache = parsed;
-        return parsed;
-      }
-    }
 
-    // Busca remoto: categorias primeiro, depois hinários (sequencial para respeitar rate limit)
+    // Atualiza o catálogo pela API para não esconder categorias novas
+    // atrás de um cache de disco ainda dentro do TTL (apk#116).
     try {
       final categories = await _api.fetchCategories();
       final hymnal = await _api.fetchHymnal();
@@ -101,9 +93,15 @@ class HymnRepositoryImpl implements HymnRepository {
       );
       return _categoriesCache!;
     } catch (_) {
-      // Fallback: cache expirado
-      if (cached != null) {
-        final parsed = _filterExcluded(_parseCategories(cached));
+      // Sem rede, preserva o catálogo mesmo após o TTL de 24h.
+      final fallback = cached ?? _cache.readStale('categories');
+      if (fallback != null) {
+        final parsed = _filterExcluded(_parseCategories(fallback));
+        // Disponibiliza os álbuns offline sem memorizar o catálogo como
+        // remoto: a próxima consulta ainda pode tentar atualizar pela API.
+        _flatAlbumsCache = parsed
+            .expand((category) => category.albums)
+            .toList();
         return parsed;
       }
       rethrow;
