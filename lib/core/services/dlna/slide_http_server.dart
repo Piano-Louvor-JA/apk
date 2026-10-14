@@ -11,6 +11,11 @@ import 'package:flutter/foundation.dart' show debugPrint;
 /// A TV faz HEAD antes do GET (validação LG do PoC) — ambos suportados.
 /// A imagem fica em memória; trocar slide = trocar os bytes servidos.
 class SlideHttpServer {
+  SlideHttpServer({Future<String?> Function()? localIpResolver})
+    : _resolveIp = localIpResolver ?? _localIp;
+
+  final Future<String?> Function() _resolveIp;
+
   HttpServer? _server;
   Uint8List? _currentSlide;
   int _slideCounter = 0;
@@ -24,7 +29,7 @@ class SlideHttpServer {
     try {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
       _server!.listen(_handle, onError: (_) {});
-      final ip = await _localIp();
+      final ip = await _resolveIp();
       _cachedLocalIp = ip;
       if (ip == null) {
         debugPrint('[DLNA] SlideHttpServer: _localIp() = null (sem IP LAN)');
@@ -48,7 +53,7 @@ class SlideHttpServer {
     _currentSlide = imageBytes;
     _jpegMode = jpeg;
     _slideCounter++;
-    final ip = await _localIp();
+    final ip = await _resolveIp();
     if (ip == null || _server == null) return null;
     return 'http://$ip:${_server!.port}/slide'
         '${jpeg ? '.jpg' : '.png'}?v=$_slideCounter';
