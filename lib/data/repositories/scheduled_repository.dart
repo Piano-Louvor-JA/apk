@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:louvorja_piano_mobile/domain/entities/scheduled_item.dart';
+import 'package:louvorja_piano_mobile/core/services/sync/sync_timestamps.dart';
 
 class ScheduledRepository {
   ScheduledRepository(this._prefs);
@@ -28,11 +29,25 @@ class ScheduledRepository {
     }
   }
 
-  Future<void> saveCategories(List<ScheduledCategory> categories) async {
+  Future<void> saveCategories(
+    List<ScheduledCategory> categories, {
+    Future<void> Function(
+      List<ScheduledCategory> categories,
+      List<ScheduledItem> items,
+    )? outbox,
+  }) async {
     await _prefs.setString(
       _catsKey,
       jsonEncode(categories.map((e) => e.toJson()).toList()),
     );
+    await SyncTimestamps.touch('scheduled');
+    if (outbox != null) {
+      try {
+        await outbox(categories, loadItems());
+      } catch (_) {
+        // outbox nunca bloqueia o fluxo local
+      }
+    }
   }
 
   List<ScheduledItem> loadItems() {
@@ -48,11 +63,28 @@ class ScheduledRepository {
     }
   }
 
-  Future<void> saveItems(List<ScheduledItem> items) async {
+  Future<void> saveItems(
+    List<ScheduledItem> items, {
+    Future<void> Function(
+      List<ScheduledCategory> categories,
+      List<ScheduledItem> items,
+    )? outbox,
+  }) async {
     await _prefs.setString(
       _itemsKey,
       jsonEncode(items.map((e) => e.toJson()).toList()),
     );
+    await SyncTimestamps.touch('scheduled');
+    // sync v2 (apk#107): mutação sincronizável grava na outbox (local-first).
+    // Hook injetado pelo chamador — o repo nunca toca rede e segue
+    // funcionando sem hook (testes/unit legados intatos).
+    if (outbox != null) {
+      try {
+        await outbox(loadCategories(), items);
+      } catch (_) {
+        // outbox nunca bloqueia o fluxo local
+      }
+    }
   }
 
   /// Itens de uma data (qualquer categoria).
@@ -72,6 +104,10 @@ class ScheduledRepository {
   Future<int> importFromDelphi({
     required List<Map<String, String>> categories,
     required List<Map<String, String>> items,
+    Future<void> Function(
+      List<ScheduledCategory> categories,
+      List<ScheduledItem> items,
+    )? outbox,
   }) async {
     final cats = loadCategories().toList();
     final catIds = cats.map((c) => c.id).toSet();
@@ -81,7 +117,7 @@ class ScheduledRepository {
       cats.add(ScheduledCategory(id: id, name: row['NOME'] ?? ''));
       catIds.add(id);
     }
-    await saveCategories(cats);
+    await saveCategories(cats, outbox: outbox);
 
     final current = loadItems().toList();
     final byId = {for (final i in current) i.id: i};
@@ -101,7 +137,7 @@ class ScheduledRepository {
       );
       changed++;
     }
-    await saveItems(byId.values.toList());
+    await saveItems(byId.values.toList(), outbox: outbox);
     return changed;
   }
 
