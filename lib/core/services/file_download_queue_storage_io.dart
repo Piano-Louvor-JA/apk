@@ -1,4 +1,3 @@
-// coverage:ignore-file Necessita filesystem nativo.
 library;
 
 import 'dart:io';

@@ -36,6 +36,9 @@
    de **linhas** deve ser de pelo menos **50%**. Nos demais destinos e em push,
    o CI usa o **ratchet** de `scripts/coverage_ratchet.py`: a cobertura não pode
    cair abaixo de `.coverage-baseline` (ou 55,46% quando o arquivo não existe).
+   O job de testes também executa `scripts/coverage-ratchet.dart`, com baseline
+   em `scripts/coverage-baseline.txt` e tolerância de 0,5 ponto percentual
+   quando o baseline é menor que 100%. O piso de staging vale para ambos.
    As regras executadas estão em `.github/workflows/ci.yml`. O CI atual mede
    linhas; não executa gate de mutation testing. Camadas de teste conforme o
    comportamento afetado: **unitários** (TDD, `bloc_test`, `mocktail`),
@@ -260,7 +263,8 @@ A configuração real fica em [.github/workflows/ci.yml](.github/workflows/ci.ym
 e [.github/workflows/security.yml](.github/workflows/security.yml).
 
 - **Lint:** `flutter analyze --fatal-warnings --no-fatal-infos`.
-- **Test:** `flutter test`.
+- **Test + Coverage Ratchet:** `flutter test --coverage` e
+  `dart scripts/coverage-ratchet.dart`, com o mesmo seletor de piso por destino.
 - **Coverage (ratchet):** `flutter test --coverage` e
   `python3 scripts/coverage_ratchet.py`. O workflow define `COVERAGE_MIN=50`
   somente quando o evento é `pull_request` e a base real é `staging`;
@@ -277,9 +281,10 @@ Para verificar localmente o piso de uma PR com base staging:
 ```bash
 flutter test --coverage
 COVERAGE_MIN=50 python3 scripts/coverage_ratchet.py
+COVERAGE_MIN=50 dart scripts/coverage-ratchet.dart
 ```
 
-Nos demais destinos, execute o script sem `COVERAGE_MIN`. Não use o piso de
+Nos demais destinos, execute ambos os scripts sem `COVERAGE_MIN`. Não use o piso de
 staging para validar promoção para main ou publicação.
 
 ### Branch Strategy

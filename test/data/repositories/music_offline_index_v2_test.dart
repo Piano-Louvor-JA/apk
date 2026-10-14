@@ -54,7 +54,9 @@ void main() {
       () async {
         // Formato antigo: {"12_vocal": "/caminho/12.mp3"}
         final oldFile = File('${tmp.path}/12_vocal.mp3');
-        oldFile.createSync(recursive: true);
+        // conteúdo presente: arquivo vazio é tratado como truncado
+        // pela fila resiliente e removido do índice.
+        oldFile.writeAsBytesSync([1, 2, 3]);
         indexFile.writeAsStringSync(jsonEncode({'12_vocal': oldFile.path}));
 
         final repo = MusicOfflineRepository(_dio(), tmp.path);
