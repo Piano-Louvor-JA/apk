@@ -3,9 +3,12 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
 import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 import 'package:louvorja_piano_mobile/presentation/hymns/now_playing_page.dart';
@@ -15,6 +18,19 @@ class _FakePlayer extends HymnPlayerLike {
   final positions = StreamController<Duration>.broadcast();
   final durations = StreamController<Duration>.broadcast();
   Duration? sought;
+  bool failResume = false;
+  final playedUrls = <String>[];
+  bool? lastVolume;
+  double? lastVolumeValue;
+
+  @override
+  Future<void> playSource(String url) async {
+    playedUrls.add(url);
+    _playing.value = true;
+  }
+
+  @override
+  Future<void> setVolume(double v) async => lastVolumeValue = v;
 
   @override
   bool get isPlaying => _playing.value;
@@ -35,7 +51,12 @@ class _FakePlayer extends HymnPlayerLike {
   Future<void> pause() async => _playing.value = false;
 
   @override
-  Future<void> resume() async => _playing.value = true;
+  Future<void> resume() async {
+    if (failResume) {
+      throw StateError('falha ao retomar');
+    }
+    _playing.value = true;
+  }
 
   @override
   Future<void> stop() async => _playing.value = false;
@@ -118,5 +139,168 @@ void main() {
 
     expect(player.sought, const Duration(seconds: 8));
     expect(find.text('O nosso sol'), findsOneWidget);
+  });
+
+  testWidgets('botão instrumental troca a FONTE do áudio e o ícone', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+    final detail = Hymn(
+      id: 1,
+      title: 'Nosso Sol é Jesus',
+      hasInstrumental: true,
+      urlMusic: '/musics/pt/hino.mp3',
+      urlInstrumental: '/musics/pt/hino_instr.mp3',
+      lyricRaw: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: detail,
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Modo cantado: ícone piano (convite pra ir pro instrumental).
+    expect(find.byIcon(TablerIcons.piano), findsOneWidget);
+    expect(player.playedUrls, isEmpty);
+
+    await tester.tap(find.byIcon(TablerIcons.piano));
+    await tester.pump();
+
+    // FONTE trocou pra URL instrumental (mesmo builder do app).
+    expect(
+      player.playedUrls,
+      contains(DownloadUrlBuilder.build('/musics/pt/hino_instr.mp3')),
+    );
+    // Ícone agora reflete modo instrumental (microfone = voltar pro cantado).
+    expect(find.byIcon(TablerIcons.microphone), findsOneWidget);
+    // Posição reinicia: slides seguem o tempo instrumental.
+    expect(find.byIcon(TablerIcons.piano), findsNothing);
+
+    // Volta pro cantado: toca a URL cantada de novo.
+    await tester.tap(find.byIcon(TablerIcons.microphone));
+    await tester.pump();
+    expect(
+      player.playedUrls,
+      contains(DownloadUrlBuilder.build('/musics/pt/hino.mp3')),
+    );
+    expect(find.byIcon(TablerIcons.piano), findsOneWidget);
+  });
+
+  testWidgets('sem áudio pausa o player de verdade e retoma ao desligar', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(player.isPlaying, isTrue);
+
+    // Liga "sem áudio": player PAUSA (não só esconde a timeline).
+    await tester.tap(find.byIcon(TablerIcons.volumeOff));
+    await tester.pump();
+    expect(player.isPlaying, isFalse);
+
+    // Desliga: player retoma.
+    await tester.tap(find.byIcon(TablerIcons.volume));
+    await tester.pump();
+    expect(player.isPlaying, isTrue);
+  });
+  testWidgets('ícone grande alterna play/pause quando o player emite estado', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://api.louvorja.com.br/file',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Tocando: ícone de pausa.
+    expect(find.byIcon(TablerIcons.playerPause), findsOneWidget);
+    expect(find.byIcon(TablerIcons.playerPlay), findsNothing);
+
+    // Player pausa por fora (ex.: MediaSession / mini player): o ícone
+    // grande DEVE re-renderizar sem setState da página (apk#96).
+    player._playing.value = false;
+    await tester.pump();
+
+    expect(find.byIcon(TablerIcons.playerPlay), findsOneWidget);
+    expect(find.byIcon(TablerIcons.playerPause), findsNothing);
+
+    // Retoma: volta a pausa.
+    player._playing.value = true;
+    await tester.pump();
+
+    expect(find.byIcon(TablerIcons.playerPause), findsOneWidget);
+  });
+  testWidgets('retomar com Palco desligado usa o player local', (tester) async {
+    final stage = StageSession.instance;
+    expect(stage.isOn, isFalse);
+    stage.audioRoute = PalcoAudioRoute.tv;
+    addTearDown(() => stage.audioRoute = PalcoAudioRoute.local);
+    final player = _FakePlayer();
+    await player.pause();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://example.com/file',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(TablerIcons.playerPlay));
+    await tester.pump();
+    expect(player.isPlaying, isTrue);
+    expect(player.lastVolumeValue, 1);
+  });
+
+  testWidgets('falha de resume permanece pausado e mostra erro', (
+    tester,
+  ) async {
+    final player = _FakePlayer()..failResume = true;
+    await player.pause();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://example.com/file',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(TablerIcons.playerPlay));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(player.isPlaying, isFalse);
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }
