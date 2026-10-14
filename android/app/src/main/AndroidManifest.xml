@@ -27,6 +27,13 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- SSDP multicast: necessário para descobrir TVs DLNA na rede Wi-Fi. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- apk#90: declara acesso ao estado da rede e dispositivos Wi-Fi próximos.
+         neverForLocation declara finalidade sem inferência de localização;
+         não substitui a concessão em execução das APIs que a exigem. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
 
     <application
         android:label="Piano LouvorJA"

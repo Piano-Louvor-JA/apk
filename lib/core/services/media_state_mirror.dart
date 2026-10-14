@@ -23,6 +23,7 @@ import 'hymn_audio_player.dart';
 import 'dlna/stage_session.dart';
 import 'media_session.dart';
 import 'now_playing.dart';
+import 'palco/palco_controller.dart' show PalcoAudioRoute;
 
 abstract final class MediaStateMirror {
   static const _ch = MethodChannel('app.louvorja/media');
@@ -32,6 +33,7 @@ abstract final class MediaStateMirror {
   static bool _started = false;
   static bool _lastPlaying = false;
   static DateTime? _lastPosSent;
+  static HymnAudioPlayer? _player;
   static Duration? _lastSeenPosition;
 
   static bool get isRunning => _started;
@@ -47,30 +49,8 @@ abstract final class MediaStateMirror {
     // mas o init é idempotente — receiver/sessão nasce uma única vez).
     MediaSession.init();
 
-    // CONTROLES GLOBAIS (23:22 — pipeline provado até o Dart, mas o
-    // onPlayPause da página era null após dispose dela em PiP: o toque
-    // chegava e NINGUÉM pausava). O espelho responde direto no singleton
-    // — independe de página viva. A página pode sobrepor os callbacks pra
-    // efeitos de UI (setState), mas o pause/resume do singleton é daqui.
-    MediaSession.onPlayPause = (play) {
-      debugPrint('LouvorPip(mirror): onPlayPause play=$play');
-      if (play) {
-        // HymnAudioPlayer não tem resume: toggleUrl na URL atual retoma.
-        final url = p.currentUrl;
-        if (url != null) p.playUrl(url);
-      } else {
-        p.pause();
-        StageSession.instance.pauseHymnAudio();
-      }
-    };
-    MediaSession.onPrev = () async {
-      debugPrint('LouvorPip(mirror): onPrev');
-      await _seekBy(p, -15);
-    };
-    MediaSession.onNext = () async {
-      debugPrint('LouvorPip(mirror): onNext');
-      await _seekBy(p, 15);
-    };
+    _player = p;
+    installGlobalHandlers();
 
     // Estado PLAY/PAUSE: fonte da verdade é o evento do player.
     _playingSub = p.playingStream.listen((playing) {
@@ -118,6 +98,50 @@ abstract final class MediaStateMirror {
     _onNowPlayingChanged();
   }
 
+  /// CONTROLES GLOBAIS (23:22 — o onPlayPause da página era null após o
+  /// dispose dela em PiP: o toque chegava e NINGUÉM pausava). O espelho
+  /// responde direto no singleton, sem depender de página viva.
+  ///
+  /// A NowPlayingPage sobrepõe estes callbacks enquanto está montada
+  /// (prev/next trocam slide) e chama este método no dispose para
+  /// devolvê-los ao espelho. Sem [start], não faz nada.
+  static void installGlobalHandlers() {
+    final p = _player;
+    if (!_started || p == null) return;
+    MediaSession.onPlayPause = (play) {
+      debugPrint('LouvorPip(mirror): onPlayPause play=$play');
+      if (play) {
+        unawaited(_resume(p));
+      } else {
+        p.pause();
+        StageSession.instance.pauseHymnAudio();
+      }
+    };
+    MediaSession.onPrev = () async {
+      debugPrint('LouvorPip(mirror): onPrev');
+      await _seekBy(p, -15);
+    };
+    MediaSession.onNext = () async {
+      debugPrint('LouvorPip(mirror): onNext');
+      await _seekBy(p, 15);
+    };
+  }
+
+  /// Retoma como o botão da tela (#125): sem recarregar a faixa e mudo no
+  /// celular quando o Palco toca o áudio na TV.
+  static Future<void> _resume(HymnAudioPlayer p) async {
+    final stage = StageSession.instance;
+    try {
+      await p.setVolume(
+        stage.isPalcoMode && stage.audioRoute == PalcoAudioRoute.tv ? 0 : 1,
+      );
+      await p.resume();
+      stage.resumeHymnAudio();
+    } catch (e) {
+      debugPrint('LouvorPip(mirror): resume falhou: $e');
+    }
+  }
+
   static void _onNowPlayingChanged() {
     final t = nowPlaying.track;
     if (t == null) return;
@@ -158,6 +182,7 @@ abstract final class MediaStateMirror {
     _playingSub = null;
     _posSub = null;
     _completeSub = null;
+    _player = null;
     _started = false;
   }
 }

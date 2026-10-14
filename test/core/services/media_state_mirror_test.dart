@@ -42,16 +42,20 @@ class _FakePlayer implements HymnAudioPlayer {
   Stream<Duration> get positionStream => _positions.stream;
   @override
   Stream<Duration> get durationStream => _durations.stream;
+  final actions = <String>[];
   @override
-  Future<void> seek(Duration position) async {}
+  Future<void> seek(Duration position) async =>
+      actions.add('seek:${position.inSeconds}');
   @override
-  Future<void> setVolume(double v) async {}
+  Future<void> setVolume(double v) async => actions.add('volume:$v');
   @override
   Future<void> toggleUrl(String url) async {}
   @override
-  Future<void> playUrl(String url) async {}
+  Future<void> playUrl(String url) async => actions.add('playUrl');
   @override
-  Future<void> pause() async {}
+  Future<void> resume() async => actions.add('resume');
+  @override
+  Future<void> pause() async => actions.add('pause');
   @override
   Future<void> stop() async {}
   @override
@@ -191,6 +195,60 @@ void main() {
     expect(meta['album'], 'Hinários');
     expect(meta['durationMs'], 137000);
     // postNotification nativo roda dentro do setMetadata (sem 'show' separado).
+  });
+
+  test('play pela notificação retoma sem reiniciar a faixa (#125)', () async {
+    player.currentUrl = 'https://example.test/hino.mp3';
+    MediaStateMirror.start(player: player);
+    await _pump();
+
+    MediaSession.onPlayPause!(true);
+    await _pump();
+
+    expect(player.actions, contains('resume'));
+    expect(player.actions, isNot(contains('playUrl')),
+        reason: 'playUrl recarrega a faixa; o resume mantém a posição');
+    expect(player.actions, contains('volume:1.0'),
+        reason: 'sem Palco em modo TV, o celular toca com volume normal');
+  });
+
+  test('pause pela notificação pausa o player', () async {
+    MediaStateMirror.start(player: player);
+    await _pump();
+
+    MediaSession.onPlayPause!(false);
+    await _pump();
+
+    expect(player.actions, contains('pause'));
+  });
+
+  test('installGlobalHandlers devolve os controles ao espelho após a página',
+      () async {
+    MediaStateMirror.start(player: player);
+    await _pump();
+    player.emitPosition(const Duration(seconds: 40));
+    await _pump();
+
+    // A página viva sobrepõe os callbacks (prev/next trocam slide).
+    var slidePrev = 0;
+    MediaSession.onPrev = () => slidePrev++;
+    MediaSession.onPlayPause = null;
+
+    // Página disposta (ex.: dentro do PiP): os controles voltam ao espelho.
+    MediaStateMirror.installGlobalHandlers();
+    MediaSession.onPrev!();
+    await _pump();
+    await _pump();
+
+    expect(slidePrev, 0);
+    expect(player.actions, contains('seek:25'));
+    expect(MediaSession.onPlayPause, isNotNull);
+  });
+
+  test('installGlobalHandlers sem start não liga controles', () {
+    MediaSession.onPrev = null;
+    MediaStateMirror.installGlobalHandlers();
+    expect(MediaSession.onPrev, isNull);
   });
 
   test('start é idempotente (sem duplicar listeners)', () async {

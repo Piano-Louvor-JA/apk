@@ -8,6 +8,7 @@ import 'package:louvorja_piano_mobile/data/datasources/local/local_custom_store.
 import 'package:louvorja_piano_mobile/data/datasources/remote/custom_catalog_api_impl.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_player_adapter.dart';
+import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/data/datasources/remote/custom_file_api.dart';
 import 'package:louvorja_piano_mobile/domain/entities/custom_collection.dart';
 import 'package:louvorja_piano_mobile/domain/entities/custom_collection_music.dart';
@@ -24,12 +25,16 @@ class CustomCollectionEditPage extends StatefulWidget {
   final String? bearerToken;
   final LocalCustomStore? localStore;
 
+  /// Injeção opcional do player (testes). Null = singleton de plataforma.
+  final HymnAudioPlayer? audioPlayer;
+
   const CustomCollectionEditPage({
     super.key,
     required this.api,
     required this.collection,
     this.bearerToken,
     this.localStore,
+    this.audioPlayer,
   });
 
   @override
@@ -43,6 +48,7 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
   List<CustomCollectionMusic>? _musics;
   String? _error;
   bool _busy = false;
+  bool _openingMusic = false;
 
   @override
   void initState() {
@@ -229,6 +235,8 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
 
   /// Tap na música = tocar (NowPlayingPage com slides/timing custom).
   Future<void> _playCustom(CustomCollectionMusic music) async {
+    if (_openingMusic) return;
+    _openingMusic = true;
     // Sem áudio (ou sem timing gravado) abre em modo slides manuais —
     // mensagem explica o porquê em vez de falhar em silêncio.
     if (music.audioUrl == null) {
@@ -248,8 +256,21 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
                 ? rawUrl
                 : '${widget.api.filesBaseUrl}${rawUrl.startsWith('/') ? '' : '/'}$rawUrl');
 
-      final player = HymnAudioPlayer.instance;
-      if (source != null) await player.playUrl(source);
+      final player = widget.audioPlayer ?? HymnAudioPlayer.instance;
+      if (source != null) {
+        await player.playUrl(source);
+        // Só registra áudio iniciado de verdade. Slides manuais não devem
+        // substituir a faixa que continua tocando na barra global.
+        nowPlaying.start(
+          hymnId: hymn.id,
+          title: hymn.title ?? music.name,
+          album: _name,
+          durationMs: hymn.durationMs,
+          detail: hymn,
+          albumCoverUrl: _coverUrl,
+          audioSource: source,
+        );
+      }
 
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -266,6 +287,8 @@ class _CustomCollectionEditPageState extends State<CustomCollectionEditPage> {
       );
     } catch (_) {
       if (mounted) _showSnack('Falha ao abrir "${music.name}".');
+    } finally {
+      _openingMusic = false;
     }
   }
 
