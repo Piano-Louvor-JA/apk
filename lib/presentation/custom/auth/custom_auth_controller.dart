@@ -1,5 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:louvorja_piano_mobile/core/services/sync/operator_state_boot.dart';
 import 'package:louvorja_piano_mobile/data/datasources/remote/custom_auth_api_impl.dart';
 import 'package:louvorja_piano_mobile/domain/entities/custom_auth.dart';
 
@@ -55,6 +59,9 @@ class CustomAuthController extends ChangeNotifier {
       session = await action();
       status = CustomAuthStatus.authenticated;
       notifyListeners();
+      // sync v2 (apk#107): pós-login, sobe a outbox pendente e puxa o estado
+      // da conta (LWW). Nunca bloqueia o fluxo de login nem lança.
+      unawaited(_flushAfterLogin());
       return true;
     } on CustomAuthException catch (e) {
       errorCode = e.code;
@@ -69,5 +76,15 @@ class CustomAuthController extends ChangeNotifier {
     session = null;
     status = CustomAuthStatus.unauthenticated;
     notifyListeners();
+  }
+
+  /// sync v2 (apk#107): flush pós-login — push da outbox + pull LWW.
+  Future<void> _flushAfterLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await OperatorStateBoot.client(prefs).flush();
+    } catch (_) {
+      // rede indisponível — outbox fica pra próxima tentativa
+    }
   }
 }

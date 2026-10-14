@@ -97,8 +97,16 @@ void main() {
     expect(pause['type'], 'audio');
     expect(pause['action'], 'pause');
 
+    stage.resumeHymnAudio();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(rx.received.last['action'], 'play');
+    expect(rx.received.last.containsKey('url'), isFalse);
+
     stage.stopHymnAudio();
     await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(rx.received.last['action'], 'stop');
+    stage.resumeHymnAudio();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     expect(rx.received.last['action'], 'stop');
   });
 

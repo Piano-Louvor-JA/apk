@@ -61,6 +61,47 @@ void main() {
     tmp.deleteSync(recursive: true);
   });
 
+  for (final expired in [false, true]) {
+    test(
+      'offline recupera catálogo ${expired ? "expirado" : "fresco"} e lista álbuns',
+      () async {
+        final cache = CatalogCache(tmp);
+        cache.write('categories', [
+          const AlbumCategory(
+            id: 98,
+            name: 'Infantis',
+            albums: [Album(id: 9000, name: 'Infantis')],
+          ).toJson(),
+          const AlbumCategory(
+            id: 99,
+            name: 'Doxologia',
+            albums: [Album(id: 9010, name: 'Entrada')],
+          ).toJson(),
+        ]);
+        if (expired) {
+          File('${tmp.path}/catalog_categories.json').setLastModifiedSync(
+            DateTime.now().subtract(const Duration(hours: 25)),
+          );
+        }
+        final api = _OfflineApi()..shouldFail = true;
+        final repo = HymnRepositoryImpl(api, cache);
+        final categories = await repo.getCategories();
+        expect(categories.map((c) => c.id), [98, 99]);
+        expect(repo.getAllAlbums().map((a) => a.id), [9000, 9010]);
+        api.shouldFail = false;
+        api.categoriesResult = const [
+          AlbumCategory(
+            id: 1,
+            name: 'Novo catálogo',
+            albums: [Album(id: 100, name: 'Novo álbum')],
+          ),
+        ];
+        expect((await repo.getCategories()).map((c) => c.id), [1]);
+        expect(repo.getAllAlbums().map((a) => a.id), [100]);
+      },
+    );
+  }
+
   test(
     'cold start offline serve categorias e hinário do cache de disco',
     () async {
