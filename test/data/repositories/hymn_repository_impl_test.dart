@@ -85,6 +85,8 @@ void main() {
     cache = CatalogCache(tempDir);
   });
 
+  tearDown(() => cacheDir.deleteSync(recursive: true));
+
   test('getCategories injeta hinario quando hymnal nao e vazio', () async {
     api.categoriesResult = [
       AlbumCategory(
@@ -375,9 +377,7 @@ void main() {
       expect(antigo.any((c) => c.id == 98), isFalse);
 
       // Simula TTL 24h estourado: backdate o mtime do arquivo em disco.
-      final f = File(
-        '${cacheDir.path}/catalog_categories.json',
-      );
+      final f = File('${cacheDir.path}/catalog_categories.json');
       expect(f.existsSync(), isTrue);
       final oldTime = DateTime.now().subtract(const Duration(hours: 25));
       f.setLastModifiedSync(oldTime);
@@ -416,9 +416,7 @@ void main() {
       );
       // Cache regravado com o catalogo novo.
       final cached = cache.read('categories') as List;
-      final cachedIds = cached
-          .map((e) => (e as Map)['id_category'])
-          .toSet();
+      final cachedIds = cached.map((e) => (e as Map)['id_category']).toSet();
       expect(cachedIds.contains(98), isTrue);
       expect(cachedIds.contains(99), isTrue);
     },
