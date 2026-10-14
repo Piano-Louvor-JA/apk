@@ -31,6 +31,9 @@ abstract class HymnAudioPlayer {
   Future<void> toggleUrl(String url);
   Future<void> playUrl(String url);
   Future<void> pause();
+
+  /// Retoma a faixa pausada mantendo a posição (apk#96).
+  Future<void> resume();
   Future<void> stop();
   void dispose();
 }

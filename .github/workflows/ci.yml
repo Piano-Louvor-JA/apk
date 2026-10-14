@@ -48,6 +48,28 @@ jobs:
       - run: flutter pub get
       - run: flutter test
 
+  coverage:
+    name: Coverage (ratchet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - name: Testes com coverage
+        run: flutter test --coverage
+
+      - name: Ratchet de coverage
+        # PR para staging: piso de 50%. Push e PR para main: ratchet do baseline.
+        env:
+          COVERAGE_MIN: ${{ github.event_name == 'pull_request' && github.base_ref == 'staging' && '50' || '' }}
+        run: python3 scripts/coverage_ratchet.py
+
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
