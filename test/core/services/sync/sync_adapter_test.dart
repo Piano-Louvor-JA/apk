@@ -94,6 +94,41 @@ void main() {
     expect(repo.loadItems(LiturgyWeekday.saturday).single.name, 'local nova');
   });
 
+  test(
+    'item audio num pacote schema 1 importado preserva o tipo (não degrada p/ annotation)',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LiturgyRepository(prefs);
+      await repo.saveItems(LiturgyWeekday.saturday, [item('local')]);
+
+      final remoto = SyncPackage(
+        appVersion: '0.1.17',
+        platform: 'web',
+        exportedAt: DateTime.now().toUtc(),
+        entities: {
+          'liturgy': SyncEntity(
+            type: 'liturgy',
+            modified: DateTime.now().toUtc().add(const Duration(hours: 1)),
+            data: {
+              'saturday': {
+                'items': [
+                  {'id': 'a1', 'type': 'audio', 'name': 'louvor em áudio'},
+                ],
+                'notes': '',
+              },
+            },
+          ),
+        },
+      );
+
+      final r = await SyncAdapter(prefs).importPackage(remoto);
+      expect(r.applied, contains('liturgy'));
+      final importado = repo.loadItems(LiturgyWeekday.saturday).single;
+      expect(importado.type, LiturgyItemType.audio);
+      expect(importado.toJson()['type'], 'audio');
+    },
+  );
+
   test('import de entidade desconhecida é ignorada sem quebrar', () async {
     final prefs = await SharedPreferences.getInstance();
     final pkg = SyncPackage(
