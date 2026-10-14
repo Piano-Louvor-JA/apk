@@ -7,10 +7,11 @@ import 'package:audioplayers/audioplayers.dart';
 
 import 'hymn_audio_player.dart';
 
-HymnAudioPlayer createPlayerImpl() => _NativeAudioPlayer();
+HymnAudioPlayer createPlayerImpl({AudioPlayer? audioPlayer}) =>
+    _NativeAudioPlayer(audioPlayer: audioPlayer);
 
 class _NativeAudioPlayer implements HymnAudioPlayer {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _player;
   String? _currentUrl;
   bool _isPlaying = false;
 
@@ -18,7 +19,8 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
   final _positions = StreamController<Duration>.broadcast();
   final _durations = StreamController<Duration>.broadcast();
 
-  _NativeAudioPlayer() {
+  _NativeAudioPlayer({AudioPlayer? audioPlayer})
+    : _player = audioPlayer ?? AudioPlayer() {
     // AudioContext explicito (F3.3b): sem usage=media o One UI classifica a
     // reproducao como nao-midia em background ("AudioHardening ... would be
     // muted") e muta/pausa o player — que e o relógio dos slides do Palco.
@@ -81,8 +83,12 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
 
   @override
   Future<void> toggleUrl(String url) async {
-    if (_currentUrl == url && _isPlaying) {
-      await _player.pause();
+    if (_currentUrl == url) {
+      if (_isPlaying) {
+        await pause();
+      } else {
+        await resume();
+      }
       return;
     }
     await playUrl(url);
@@ -90,7 +96,7 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
 
   @override
   Future<void> playUrl(String url) async {
-    _currentUrl = url;
+    _currentUrl = null;
     // Offline-first: caminho local (arquivo baixado) usa DeviceFileSource;
     // URL http(s) mantem streaming.
     if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -98,11 +104,25 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
     } else {
       await _player.play(DeviceFileSource(url));
     }
+    _currentUrl = url;
   }
 
   @override
   Future<void> pause() async {
     await _player.pause();
+  }
+
+  @override
+  Future<void> resume() async {
+    final url = _currentUrl;
+    if (url == null) return;
+    // Após conclusão, ReleaseMode.release libera a fonte do audioplayers.
+    // Uma faixa pausada ainda tem fonte e preserva sua posição no resume.
+    if (_player.source == null) {
+      await playUrl(url);
+      return;
+    }
+    await _player.resume();
   }
 
   @override

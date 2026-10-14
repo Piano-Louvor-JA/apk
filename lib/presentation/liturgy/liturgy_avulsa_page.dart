@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
+import 'package:louvorja_piano_mobile/core/services/sync/operator_state_boot.dart';
+import 'package:louvorja_piano_mobile/core/services/sync/operator_state_client.dart';
 import 'package:louvorja_piano_mobile/data/repositories/liturgy_repository.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/services/liturgy_item_executor.dart';
@@ -94,9 +96,20 @@ class _LiturgyAvulsaPageState extends State<LiturgyAvulsaPage> {
     }
 
     final catRows = DataPacketParser.parse(catsXml);
+    final prefs = await SharedPreferences.getInstance();
+    final outboxHook =
+        (
+          categories,
+          items,
+        ) => OperatorStateBoot
+            .client(prefs)
+            .enqueueScheduled(
+              ScheduledStatePayload(categories: categories, items: items),
+            );
     final n = await _scheduled!.importFromDelphi(
       categories: catRows,
       items: itemRows,
+      outbox: outboxHook,
     );
     if (!mounted) return;
     _load();
