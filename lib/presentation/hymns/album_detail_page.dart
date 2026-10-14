@@ -126,6 +126,36 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   Future<void> _togglePlay(Hymn hymn, {required bool instrumental}) async {
     final player = _player;
 
+    // Retomar a faixa pausada não deve consultar a API nem recarregar a fonte.
+    final track = nowPlaying.track;
+    if (!player.isPlaying &&
+        track?.hymnId == hymn.id &&
+        track?.instrumental == instrumental &&
+        track?.audioSource != null &&
+        track?.audioSource == player.currentUrl) {
+      try {
+        final stage = StageSession.instance;
+        await player.setVolume(
+          stage.isPalcoMode && stage.audioRoute == PalcoAudioRoute.tv ? 0 : 1,
+        );
+        await player.resume();
+        if (stage.isPalcoMode && stage.audioRoute != PalcoAudioRoute.local) {
+          stage.resumeHymnAudio();
+        }
+        nowPlaying.setPlaying(true);
+        _playingInstrumental = instrumental;
+        if (mounted) setState(() => _playingHymnId = hymn.id);
+      } catch (error) {
+        debugPrint('Falha ao retomar hino: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('errors.playback'.tr())));
+        }
+      }
+      return;
+    }
+
     // Mesmo hino em execução:
     // - mesmo modo -> pausa (toggle play/pause clássico)
     // - outro modo (cantado <-> playback) -> TROCA o modo sem pausar
@@ -139,6 +169,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         // cai através pro fluxo normal iniciar o novo modo
       } else {
         await player.pause();
+        StageSession.instance.pauseHymnAudio();
         nowPlaying.pause();
         if (mounted) setState(() => _playingHymnId = null);
         return;
@@ -241,7 +272,6 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   /// Abre o player modo vídeo (slides sincronizados — paridade Electron).
   /// Busca o detail (lyric estruturado) e abre a tela cheia; o áudio
   /// inicia pela URL remota ou arquivo local (PlaybackResolver).
-  // coverage:ignore-start
   Future<void> _openNowPlaying(Hymn hymn, {bool instrumental = false}) async {
     setState(() => _loadingMusicId = hymn.id);
     try {
@@ -298,6 +328,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             filesUrl: ApiConfig.urlFiles,
             audioSource: source, // F3.2: roteamento de áudio no Palco
             audioIsLocal: local != null,
+            offlineService: _offline,
             catalogDurationMs: hymn.durationMs,
           ),
         ),
@@ -365,6 +396,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
   Future<void> _removeTrack(Hymn hymn) async {
     try {
+      await _queue?.cancel(hymn.id);
       await _offline.remove(hymn.id);
       if (mounted) setState(() => _downloadedIds.remove(hymn.id));
     } catch (_) {}
@@ -471,7 +503,6 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       return HymnRepositoryImpl(api, CatalogCache.noop());
     }
   }
-  // coverage:ignore-end
 
   @override
   void didChangeDependencies() {

@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 
+import '../core/services/pip_controller.dart';
 import '../core/services/settings_controller.dart';
+import '../presentation/shared/widgets/pip_minimal_overlay.dart';
 import '../presentation/splash/splash_screen.dart';
 import 'router.dart';
 import 'theme/app_accents.dart';
@@ -62,7 +64,16 @@ class _LouvorjaAppState extends State<LouvorjaApp> {
         if (_showSplash) {
           return SplashScreen(onInitializationComplete: _hideSplash);
         }
-        return child ?? const SizedBox.shrink();
+        // SPEC 13 (apk#132): em PiP, QUALQUER tela renderiza o layout mínimo
+        // — se o usuário fechar o NowPlaying dentro da janelinha, a home
+        // aparecia inteira (congestionada). O overlay cobre todas as rotas.
+        return ValueListenableBuilder<bool>(
+          valueListenable: PipController.isActive,
+          builder: (context, isPip, _) {
+            if (!isPip) return child ?? const SizedBox.shrink();
+            return const PipMinimalOverlay();
+          },
+        );
       },
     );
   }

@@ -76,6 +76,19 @@ void main() {
       expect(m.entities['liturgy:d']!.data['v'], 'local');
     });
 
+    test('decode legado preenche defaults, liturgy e copyWith', () {
+      final pkg = SyncPackage.decode('{"schema":1,"entities":{"liturgy":{"type":"liturgy"}}}');
+      expect(pkg.appVersion, isEmpty);
+      expect(pkg.platform, isEmpty);
+      expect(pkg.exportedAt, DateTime.fromMillisecondsSinceEpoch(0));
+      expect(pkg.liturgy!.modified, DateTime.fromMillisecondsSinceEpoch(0));
+      expect(pkg.liturgy!.data, isEmpty);
+
+      final changed = pkg.copyWith(platform: 'desktop');
+      expect(changed.platform, 'desktop');
+      expect(changed.entities, same(pkg.entities));
+    });
+
     test('schema do futuro lança SyncSchemaException', () {
       final j = '{"schema": 99, "entities": {}}';
       expect(() => SyncPackage.decode(j), throwsA(isA<SyncSchemaException>()));

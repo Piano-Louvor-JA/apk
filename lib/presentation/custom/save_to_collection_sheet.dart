@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'package:flutter/material.dart';
 
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
@@ -17,6 +18,7 @@ Future<void> showSaveToCollectionSheet(
   BuildContext context, {
   required int officialMusicId,
   required String hymnTitle,
+  CustomSessionStore? sessionStore,
 }) async {
   final dio = Dio(
     BaseOptions(
@@ -24,7 +26,7 @@ Future<void> showSaveToCollectionSheet(
       receiveTimeout: const Duration(seconds: 15),
     ),
   );
-  final sessionStore = CustomSessionStore();
+  final sessionStore0 = sessionStore ?? CustomSessionStore();
   final auth = CustomAuthApiImpl(
     fetch: (method, url, {body, bearerToken}) => dio.request<dynamic>(
       url,
@@ -32,19 +34,20 @@ Future<void> showSaveToCollectionSheet(
       options: Options(
         method: method,
         headers: {
+          ...clientPlatformHeaders(),
           if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
         },
       ),
     ),
     apiBaseUrl: _apiBase(),
-    sessionStore: sessionStore,
+    sessionStore: sessionStore0,
   );
 
-  var session = await sessionStore.read();
+  var session = await sessionStore0.read();
   if (session == null && context.mounted) {
     final ok = await CustomAuthSheet.show(context, CustomAuthController(auth));
     if (!ok) return;
-    session = await sessionStore.read();
+    session = await sessionStore0.read();
   }
   if (session == null || !context.mounted) return;
 

@@ -139,4 +139,13 @@ class LocalCustomStore {
     data['musics'] = musics;
     _write(data);
   }
+
+  // ---------- Sync `.louvorja` (t_c1ea317a) ----------
+
+  /// Db completo (collections + musics) para export de sync.
+  Map<String, dynamic> exportDb() => _read();
+
+  /// Substituição TOTAL do db local (import de sync `.louvorja`).
+  /// Offline-first: só a entidade recebida é trocada; nada mais é tocado.
+  void replaceAll(Map<String, dynamic> next) => _write(next);
 }

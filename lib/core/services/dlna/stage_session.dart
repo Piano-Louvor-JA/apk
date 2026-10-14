@@ -269,7 +269,12 @@ class StageSession extends ChangeNotifier {
     }
   }
 
+  void resumeHymnAudio() {
+    if (_routesToTv && _currentAudioUrl != null) _audioTarget().resumeAudio();
+  }
+
   void stopHymnAudio() {
+    _currentAudioUrl = null;
     // Para em TODOS os slots conectados: a faixa pode ter começado em
     // outro slot antes da troca de chip ativo (bug 2026-08-21).
     if (_routesToTv) {
@@ -407,6 +412,13 @@ class StageSession extends ChangeNotifier {
   /// F3.3w: true enquanto um vídeo projetado pela liturgia roda na TV.
   bool _videoOnStage = false;
   bool get isVideoOnStage => _videoOnStage;
+
+  /// Testes: simula vídeo em execução sem TV física.
+  @visibleForTesting
+  void markVideoOnStageForTest() {
+    _videoOnStage = true;
+    notifyListeners();
+  }
   bool _stageVideoPaused = false;
   bool get isStageVideoPaused => _stageVideoPaused;
 

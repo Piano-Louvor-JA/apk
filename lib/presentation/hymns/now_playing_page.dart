@@ -3,7 +3,6 @@ library;
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -11,12 +10,17 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'package:louvorja_piano_mobile/data/datasources/local/playlist_storage.dart';
+import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
+import '../../core/services/offline_music_port.dart';
+import '../../core/services/offline_music_service.dart';
+import '../../core/services/playback_resolver.dart';
 import 'package:louvorja_piano_mobile/presentation/custom/save_to_collection_sheet.dart';
 
 import '../../core/services/now_playing.dart';
 import '../../core/services/palco/palco_foreground.dart';
 import '../../core/services/pip_controller.dart';
 import '../../core/services/media_session.dart';
+import '../../core/services/media_state_mirror.dart';
 import '../../core/services/dlna/stage_session.dart';
 import '../../core/services/palco/palco_controller.dart' show PalcoAudioRoute;
 import '../shared/widgets/stage_stop_video_button.dart';
@@ -45,6 +49,7 @@ class NowPlayingPage extends StatefulWidget {
   // para rotear o som pro Palco quando audioRoute != local.
   final String? audioSource;
   final bool audioIsLocal;
+  final OfflineMusicPort? offlineService;
 
   /// Duração vinda da lista do álbum. Hinários trazem este campo mesmo
   /// quando decoder Android não fornece metadata do MP3.
@@ -60,6 +65,7 @@ class NowPlayingPage extends StatefulWidget {
     this.onClose,
     this.audioSource,
     this.audioIsLocal = false,
+    this.offlineService,
     this.catalogDurationMs,
   });
 
@@ -71,10 +77,32 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   late LyricSlides _slides;
   int _index = 0;
   bool _noAudio = false;
+
+  /// SPEC 3 (apk#94): modo de áudio MUTÁVEL em runtime (cantado ↔
+  /// instrumental). Inicia do widget (escolha na lista do álbum) e
+  /// troca de verdade a fonte do player no botão.
+  late bool _modeInstrumental = widget.instrumental;
+  late String? _audioSource = widget.audioSource;
+  late bool _audioIsLocal = widget.audioIsLocal;
+  late final OfflineMusicPort _offline =
+      widget.offlineService ?? OfflineMusicService();
+  bool _switchingMode = false;
   DateTime? _manualSlideUntil;
   StreamSubscription<Duration>? _posSub;
   Duration? _lastPosition; // F3.3g: última posição do player local
   bool _routeListenerAdded = false; // F3.2: listener de mudança de audioRoute
+
+  // SPEC 13 (apk#132): tempo visível no PiP ("m:ss / m:ss").
+  final ValueNotifier<Duration?> _pipPosition = ValueNotifier<Duration?>(null);
+  final ValueNotifier<Duration?> _pipDuration = ValueNotifier<Duration?>(null);
+  StreamSubscription<Duration>? _pipDurSub;
+
+  static String _fmt(Duration? d) {
+    if (d == null) return '0:00';
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
 
   // Palco: sessão GLOBAL (StageSession) — o player projeta no mesmo
   // palco que Liturgia/Bíblia. Sem controller local (bug 2026-08-16:
@@ -94,11 +122,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     _routeListenerAdded = true;
     _posSub = widget.player.positionStream.listen((pos) {
       _lastPosition = pos; // F3.3g
+      _pipPosition.value = pos; // SPEC 13: tempo do PiP
       if (!mounted || _noAudio) return;
       // Evita evento com posição antiga desfazer um toque no chevron antes
       // de Android concluir seek (mais visível nos MP3s do hinário).
       if (_manualSlideUntil?.isAfter(DateTime.now()) ?? false) return;
-      final idx = _slides.indexAt(pos, instrumental: widget.instrumental);
+      final idx = _slides.indexAt(pos, instrumental: _modeInstrumental);
       if (idx != _index) {
         setState(() => _index = idx);
         _projectCurrentSlide();
@@ -107,23 +136,26 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     // Player nativo já usa AudioContext stayAwake em background. Esta tela
     // segura tela ativa durante operação; não depende do notifier do adapter.
     WakelockPlus.enable();
+    // SPEC 13: duração pro PiP (com fallback do catálogo — cache legado
+    // pode não trazer duração no decoder).
+    final fbDur = widget.catalogDurationMs ?? widget.detail.durationMs;
+    _pipDuration.value = fbDur != null ? Duration(milliseconds: fbDur) : null;
+    _pipDurSub = widget.player.durationStream.listen((d) {
+      if (d.inMilliseconds > 0) _pipDuration.value = d;
+    });
     // Serviço mantém áudio/clock/sender vivos fora do app. É compartilhado
     // com Palco e não pode ser parado ao entrar em PiP.
     PalcoForeground.start();
     PipController.setEnabled(true);
     // MediaSession: notificação de mídia + lock screen + ações PiP.
+    //
+    // Com a página viva, ela comanda: play/pause pelo mesmo caminho do botão
+    // (retoma sem reiniciar e respeita a rota do Palco) e prev/next trocam o
+    // slide. No dispose os controles voltam ao MediaStateMirror (±15s), que
+    // responde mesmo sem página — era o bug do PiP com a página disposta.
     MediaSession.onPlayPause = (play) {
-      if (!mounted) return;
-      if (play) {
-        if (StageSession.instance.audioRoute == PalcoAudioRoute.tv) {
-          StageSession.instance.palco?.resumeAudio();
-        } else {
-          widget.player.resume();
-        }
-      } else {
-        _pauseAudioEverywhere();
-      }
-      if (mounted) setState(() {});
+      if (_switchingMode) return;
+      _setAudioPlaying(play);
     };
     MediaSession.onPrev = () => _goToSlide(_index - 1);
     MediaSession.onNext = () => _goToSlide(_index + 1);
@@ -146,7 +178,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   void _onAudioRouteChanged() {
     if (!mounted) return;
     final route = StageSession.instance.audioRoute;
-    if (route == PalcoAudioRoute.tv) {
+    if (_noAudio || route == PalcoAudioRoute.tv) {
       widget.player.setVolume(0); // TV vira a caixa de som; celular = controle
     } else {
       widget.player.setVolume(1); // local/mirror: som volta no celular
@@ -157,7 +189,14 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   @override
   void dispose() {
     PipController.setEnabled(false);
-    MediaSession.release();
+    // SPEC 13 (apk#132): NÃO dar MediaSession.release() aqui — os botões
+    // NATIVOS do PiP (RemoteActions) e da notificação disparam broadcasts
+    // que o receiver da sessão recebe; destruir a sessão no dispose matava
+    // os controles quando o usuário fechava a página dentro da janelinha
+    // (log: "Ignoring call to destroyed session"). A sessão vive enquanto o
+    // app vive; aqui só esconde a notificação (o receiver continua ativo).
+    MediaSession.hide();
+    MediaStateMirror.installGlobalHandlers();
     if (!StageSession.instance.isOn) {
       WakelockPlus.disable();
       PalcoForeground.stop();
@@ -166,6 +205,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       StageSession.instance.removeListener(_onAudioRouteChanged);
     }
     _posSub?.cancel();
+    _pipDurSub?.cancel();
+    _pipPosition.dispose();
+    _pipDuration.dispose();
     // Multi-palco: minimizar (voltar pro mini player) NÃO para a música
     // na TV — o player singleton segue tocando e a projeção permanece.
     // Parar de verdade é o long-press no X (_stopAudioEverywhere) ou o
@@ -179,26 +221,25 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   /// F3.2/F3.3e: roteia o áudio pro palco (se ativo e modo != local).
   /// Em modo tv, o player LOCAL fica MUDO (não pausado) — continua sendo
   /// o relógio dos slides; a TV toca via proxy do sender.
-  void _routeAudio() {
+  Future<void> _routeAudio() async {
     final stage = StageSession.instance;
-    if (!stage.isOn || widget.audioSource == null) return;
+    final source = _audioSource;
+    if (!mounted || !stage.isOn || source == null || _noAudio) return;
     if (stage.audioRoute == PalcoAudioRoute.tv) {
       widget.player.setVolume(0); // mudo, não pausado (relógio dos slides)
     } else {
       widget.player.setVolume(1);
     }
-    _resolveCoverForPalco().then((cover) {
-      stage.playHymnAudio(
-        widget.audioSource!,
-        title: widget.detail.title ?? '',
-        subtitle: widget.instrumental ? 'Instrumental' : null,
-        // Quadradinho na TV = cover do ALBUM (nao a imagem da música/slide).
-        cover: cover,
-        // BG do slide atual atrás do now-playing (senão caía no fallback).
-        background: _bgUrl,
-        position: widget.audioIsLocal ? null : _currentLocalPosition(),
-      );
-    });
+    final cover = await _resolveCoverForPalco();
+    if (!mounted || _noAudio || source != _audioSource) return;
+    stage.playHymnAudio(
+      source,
+      title: widget.detail.title ?? '',
+      subtitle: _modeInstrumental ? 'Instrumental' : null,
+      cover: cover,
+      background: _bgUrl,
+      position: _audioIsLocal ? null : _currentLocalPosition(),
+    );
   }
 
   /// Cover do álbum resolvido pra uma URL que a TV alcança.
@@ -232,9 +273,35 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   /// play de tela no meio da faixa). Null quando não dá pra saber.
   Duration? _currentLocalPosition() => _lastPosition;
 
-  void _pauseAudioEverywhere() {
-    widget.player.pause();
-    StageSession.instance.pauseHymnAudio();
+  /// Retoma o relógio local e o Palco ativo; no modo TV o celular fica mudo.
+  Future<bool> _setAudioPlaying(bool play) async {
+    if (!mounted || (play && _noAudio)) return false;
+    final stage = StageSession.instance;
+    try {
+      if (play) {
+        await widget.player.setVolume(
+          stage.isPalcoMode && stage.audioRoute == PalcoAudioRoute.tv ? 0 : 1,
+        );
+        await widget.player.resume();
+        stage.resumeHymnAudio();
+      } else {
+        await widget.player.pause();
+        stage.pauseHymnAudio();
+      }
+      await MediaSession.setPlaybackState(
+        isPlaying: play,
+        positionMs: _lastPosition?.inMilliseconds ?? 0,
+      );
+      if (mounted) setState(() {});
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('errors.playback'.tr())));
+      }
+      return false;
+    }
   }
 
   void _stopAudioEverywhere() {
@@ -286,7 +353,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     _manualSlideUntil = DateTime.now().add(const Duration(milliseconds: 800));
     _projectCurrentSlide();
     if (!_noAudio) {
-      final t = widget.instrumental
+      final t = _modeInstrumental
           ? _slides.slides[index].instrumentalTime
           : _slides.slides[index].time;
       if (t != null) {
@@ -297,6 +364,115 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           widget.player.seek(t);
         }
       }
+    }
+  }
+
+  /// SPEC 3 (apk#94): botão "sem áudio" PAUSA o player de verdade (local +
+  /// palco) — antes só escondia a timeline e o áudio continuava tocando.
+  /// Desligar retoma de onde parou.
+  Future<void> _toggleNoAudio() async {
+    if (_switchingMode) return;
+    final turningOff = !_noAudio;
+    setState(() {
+      _noAudio = turningOff;
+      _switchingMode = true;
+    });
+    try {
+      if (turningOff) {
+        await widget.player.setVolume(0);
+        await widget.player.pause();
+        StageSession.instance.pauseHymnAudio();
+      } else {
+        // O adapter recarrega a fonte: restaura a posição antes de liberar som.
+        final position = _lastPosition;
+        await widget.player.setVolume(0);
+        await widget.player.resume();
+        if (position != null) await widget.player.seek(position);
+        await widget.player.setVolume(
+          StageSession.instance.audioRoute == PalcoAudioRoute.tv ? 0 : 1,
+        );
+        await _routeAudio();
+      }
+      MediaSession.setPlaybackState(
+        isPlaying: !turningOff,
+        positionMs: _lastPosition?.inMilliseconds ?? 0,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _noAudio = !turningOff);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('errors.unknown'.tr())));
+      }
+    } finally {
+      if (mounted) setState(() => _switchingMode = false);
+    }
+  }
+
+  /// Troca a fonte uma vez e só confirma o modo após sucesso do player.
+  Future<void> _switchInstrumentalMode() async {
+    if (_switchingMode) return;
+    final goInstrumental = !_modeInstrumental;
+    final originalTrack = nowPlaying.track;
+    setState(() => _switchingMode = true);
+    try {
+      final local = await PlaybackResolver.localFor(
+        musicId: widget.detail.id,
+        instrumental: goInstrumental,
+        offline: _offline,
+      );
+      final relative = goInstrumental
+          ? widget.detail.urlInstrumental
+          : widget.detail.urlMusic;
+      if (local == null && (relative == null || relative.isEmpty)) return;
+      final source = local ?? DownloadUrlBuilder.build(relative!);
+      if (!mounted) return;
+      // Carregar a nova fonte não deve produzir som em só-slides ou só-TV.
+      if (_noAudio || StageSession.instance.audioRoute == PalcoAudioRoute.tv) {
+        await widget.player.setVolume(0);
+      }
+      await widget.player.playSource(source);
+      if (_noAudio) await widget.player.pause();
+      _modeInstrumental = goInstrumental;
+      _audioSource = source;
+      _audioIsLocal = local != null;
+      _index = 0;
+      _lastPosition = Duration.zero;
+      _manualSlideUntil = null;
+      MediaSession.setPlaybackState(isPlaying: !_noAudio, positionMs: 0);
+      // Minimizar durante o carregamento mantém o mini player coerente.
+      // Outra faixa iniciada entretanto não deve ser sobrescrita.
+      if (identical(nowPlaying.track, originalTrack)) {
+        nowPlaying.start(
+          hymnId: widget.detail.id,
+          title: widget.detail.title ?? '',
+          album: originalTrack?.album ?? '',
+          albumId: originalTrack?.albumId,
+          durationMs: widget.catalogDurationMs ?? widget.detail.durationMs,
+          detail: widget.detail,
+          instrumental: goInstrumental,
+          albumCoverUrl: widget.albumCoverUrl ?? widget.detail.imageUrl,
+          audioSource: source,
+          audioIsLocal: local != null,
+        );
+      }
+      if (mounted) {
+        await _routeAudio();
+        _projectCurrentSlide();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('errors.unknown'.tr())));
+      }
+    } finally {
+      await widget.player.setVolume(
+        _noAudio || StageSession.instance.audioRoute == PalcoAudioRoute.tv
+            ? 0
+            : 1,
+      );
+      if (mounted) setState(() => _switchingMode = false);
     }
   }
 
@@ -399,10 +575,102 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   @override
   Widget build(BuildContext context) {
+    // SPEC 13 (apk#132): o switch tela-cheia ↔ PiP TEM que reagir ao
+    // notifier (ValueListenableBuilder) — leitura direta de .value no build
+    // não subscreve e a UI não troca quando o Android entra/sai do PiP.
+    return ValueListenableBuilder<bool>(
+      valueListenable: PipController.isActive,
+      builder: (context, isPip, _) => isPip
+          ? _buildPip(context)
+          : _buildFullScreen(context),
+    );
+  }
+
+  /// Janela PiP: título 1 linha + tempo + prev/play/next. Todo o resto
+  /// (fila, stop, cast, modos, timeline, navegação) fica pra tela cheia.
+  /// Cores: tokens do TEMA ATIVO (accent do usuário + dark/light).
+  Widget _buildPip(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Scaffold(
+        backgroundColor: scheme.surface,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.detail.title ?? '',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // SPEC 13 (ajuste Ezequias 05/10): tempo da faixa visível no PiP.
+              // Linha única "m:ss / m:ss" — sem seek (controle é da notificação).
+              ValueListenableBuilder<Duration?>(
+                valueListenable: _pipPosition,
+                builder: (context, pos, _) => Text(
+                  '${_fmt(pos)} / ${_fmt(_pipDuration.value)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ValueListenableBuilder<bool>(
+                valueListenable: widget.player.playingListenable,
+                builder: (context, livePlaying, _) => Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        TablerIcons.chevronLeft,
+                        color: scheme.onSurface,
+                      ),
+                      onPressed: () => _goToSlide(_index - 1),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      iconSize: 44,
+                      icon: Icon(
+                        livePlaying
+                            ? TablerIcons.playerPause
+                            : TablerIcons.playerPlay,
+                        color: scheme.primary,
+                      ),
+                      onPressed: () =>
+                          _setAudioPlaying(!widget.player.isPlaying),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: Icon(
+                        TablerIcons.chevronRight,
+                        color: scheme.onSurface,
+                      ),
+                      onPressed: () => _goToSlide(_index + 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
+  /// Tela cheia: layout integral, sem regressão (SPEC 13 RF2).
+  Widget _buildFullScreen(BuildContext context) {
     final theme = Theme.of(context);
     final slide = _slides.slides.isEmpty ? null : _slides.slides[_index];
-    final playing = widget.player.isPlaying;
 
+    // apk#96: o ícone grande deve refletir o estado REAL do player (que
+    // muda por fora desta página: MediaSession, mini player, notificação).
+    // Escuta o playingListenable em vez de ler isPlaying uma única vez.
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -495,18 +763,16 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     // Configura uma vez; cada hino não repete o controle.
                     if (widget.detail.hasInstrumental)
                       IconButton(
-                        tooltip: widget.instrumental
-                            ? 'Cantado'
-                            : 'Instrumental',
+                        tooltip: _modeInstrumental ? 'Cantado' : 'Instrumental',
                         icon: Icon(
-                          widget.instrumental
+                          _modeInstrumental
                               ? TablerIcons.microphone
                               : TablerIcons.piano,
                           color: Colors.white,
                         ),
-                        onPressed: () => setState(() {
-                          // Alterna modo local na exibição; reabrir troca fonte.
-                        }),
+                        onPressed: _switchingMode
+                            ? null
+                            : _switchInstrumentalMode,
                       ),
                     IconButton(
                       tooltip: _noAudio ? 'Com áudio' : 'Sem áudio',
@@ -514,7 +780,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                         _noAudio ? TablerIcons.volume : TablerIcons.volumeOff,
                         color: Colors.white,
                       ),
-                      onPressed: () => setState(() => _noAudio = !_noAudio),
+                      onPressed: _switchingMode ? null : _toggleNoAudio,
                     ),
                   ],
                 ),
@@ -615,36 +881,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                       onPressed: () => _goToSlide(_index - 1),
                     ),
                     const SizedBox(width: 24),
-                    IconButton(
-                      iconSize: 56,
-                      icon: Icon(
-                        playing
-                            ? TablerIcons.playerPause
-                            : TablerIcons.playerPlay,
-                        color: Colors.white,
+                    ValueListenableBuilder<bool>(
+                      valueListenable: widget.player.playingListenable,
+                      builder: (context, playing, _) => IconButton(
+                        iconSize: 56,
+                        icon: Icon(
+                          playing
+                              ? TablerIcons.playerPause
+                              : TablerIcons.playerPlay,
+                          color: Colors.white,
+                        ),
+                        onPressed: _noAudio || _switchingMode
+                            ? null
+                            : () => _setAudioPlaying(!widget.player.isPlaying),
                       ),
-                      onPressed: () async {
-                        if (widget.player.isPlaying) {
-                          _pauseAudioEverywhere();
-                          MediaSession.setPlaybackState(
-                            isPlaying: false,
-                            positionMs: _lastPosition?.inMilliseconds ?? 0,
-                          );
-                        } else if (StageSession.instance.audioRoute ==
-                            PalcoAudioRoute.tv) {
-                          // só-TV: retoma SÓ no palco; player local nunca
-                          // volta a tocar neste modo (F3.3 T3).
-                          StageSession.instance.palco?.resumeAudio();
-                        } else {
-                          await widget.player.resume();
-                          _routeAudio();
-                          MediaSession.setPlaybackState(
-                            isPlaying: true,
-                            positionMs: _lastPosition?.inMilliseconds ?? 0,
-                          );
-                        }
-                        if (mounted) setState(() {});
-                      },
                     ),
                     const SizedBox(width: 24),
                     IconButton(

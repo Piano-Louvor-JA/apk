@@ -61,6 +61,27 @@ void main() {
     expect(find.text('Minha Coletânea'), findsOneWidget); // AppBar
   });
 
+  testWidgets('falha ao carregar mostra erro sem travar edição', (tester) async {
+    api = CustomCatalogApiImpl(
+      fetch: (m, u, {body, bearerToken}) async => throw StateError('offline'),
+      apiBaseUrl: 'https://api.test',
+      filesBaseUrl: 'https://api.test/file',
+    );
+    await tester.pumpWidget(
+      wrap(
+        CustomCollectionEditPage(
+          api: api,
+          collection: collection,
+          bearerToken: 'tok',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Não foi possível carregar as músicas.'), findsOneWidget);
+    expect(find.byIcon(Icons.edit), findsOneWidget);
+  });
+
   testWidgets('vazio mostra orientação de adicionar', (tester) async {
     api = CustomCatalogApiImpl(
       fetch: (m, u, {body, bearerToken}) async => {'data': []},
