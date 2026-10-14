@@ -98,4 +98,27 @@ void main() {
 
     expect(find.textContaining('500 KB'), findsOneWidget);
   });
+
+  testWidgets('UpdateBanner expande e recolhe notas da versão', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UpdateBanner(
+            version: '0.6.0',
+            releaseNotes: 'Correção offline-first',
+            onUpdate: () {},
+            onDismiss: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Correção offline-first'), findsNothing);
+    await tester.tap(find.textContaining('0.6.0'));
+    await tester.pump();
+    expect(find.text('Correção offline-first'), findsOneWidget);
+    await tester.tap(find.textContaining('0.6.0'));
+    await tester.pump();
+    expect(find.text('Correção offline-first'), findsNothing);
+  });
 }
