@@ -43,7 +43,10 @@ void main() async {
   unawaited(OperatorStateBoot.flushOnBoot(prefs));
   // SPEC 7 (apk#92): quando a rede volta, a outbox sobe sem ação do usuário.
   unawaited(offlineStatus.start());
-  OperatorStateBoot.bindSyncRetry(prefs, offlineStream: offlineStatus.onOfflineChanged);
+  OperatorStateBoot.bindSyncRetry(
+    prefs,
+    offlineStream: offlineStatus.onOfflineChanged,
+  );
 
   runApp(
     ChangeNotifierProvider.value(

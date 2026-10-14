@@ -10,7 +10,10 @@
 // - startOffline fixa o estado inicial pra testes; produção começa online
 library;
 
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+import 'operator_state_client.dart';
 
 /// Observa transições offline→online e dispara o flush da outbox.
 class SyncRetry {
@@ -26,9 +29,16 @@ class SyncRetry {
   bool _offline;
 
   /// true quando há itens pendentes na outbox (informativo p/ telemetria/UI).
-  bool get hasPending => _prefs
-      .getString('louvorja.sync.outbox.v1')
-      ?.isNotEmpty == true;
+  bool get hasPending {
+    final raw = _prefs.getString(OperatorStateClient.outboxStorageKey);
+    if (raw == null) return false;
+    try {
+      final entries = jsonDecode(raw);
+      return entries is Map && entries.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Chamar a cada mudança de conectividade. Dispara o flush apenas na
   /// transição para ONLINE.

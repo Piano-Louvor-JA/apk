@@ -66,10 +66,10 @@ class OfflineStatusController {
 
   final ConnectivityService _service;
   StreamSubscription<bool>? _subscription;
-  final StreamController<bool> _offline =
-      StreamController<bool>.broadcast();
+  final StreamController<bool> _offline = StreamController<bool>.broadcast();
   bool _isOffline = false;
-  bool _started = false;
+  Future<void>? _starting;
+  bool _disposed = false;
 
   /// Último estado conhecido (replay imediato após start()).
   bool get isOffline => _isOffline;
@@ -77,22 +77,36 @@ class OfflineStatusController {
   /// Emite `true` ao perder rede e `false` ao voltar.
   Stream<bool> get onOfflineChanged => _offline.stream;
 
-  Future<void> start() async {
-    if (_started) return;
-    _started = true;
-    _setOffline(!(await _service.isConnected));
-    _subscription = _service.onConnectionChanged.listen(
-      (connected) => _setOffline(!connected),
-    );
+  Future<void> start() {
+    if (_disposed) return Future<void>.value();
+    return _starting ??= _start();
+  }
+
+  Future<void> _start() async {
+    var receivedChange = false;
+    _subscription = _service.onConnectionChanged.listen((connected) {
+      receivedChange = true;
+      _setOffline(!connected);
+    }, onError: (Object _) {});
+    try {
+      final connected = await _service.isConnected;
+      if (!receivedChange) _setOffline(!connected);
+    } catch (_) {
+      // Um erro do plugin não pode impedir o arranque do app.
+      await _subscription?.cancel();
+      _subscription = null;
+      _starting = null;
+    }
   }
 
   void _setOffline(bool offline) {
-    if (_isOffline == offline) return;
+    if (_disposed || _isOffline == offline) return;
     _isOffline = offline;
     _offline.add(offline);
   }
 
   Future<void> dispose() async {
+    _disposed = true;
     await _subscription?.cancel();
     await _offline.close();
   }

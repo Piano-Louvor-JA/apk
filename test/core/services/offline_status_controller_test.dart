@@ -12,6 +12,8 @@ class _FakeConnectivity implements Connectivity {
   final StreamController<List<ConnectivityResult>> _changes =
       StreamController<List<ConnectivityResult>>.broadcast();
   List<ConnectivityResult> _current;
+  Completer<List<ConnectivityResult>>? pending;
+  bool failCheck = false;
 
   _FakeConnectivity(List<ConnectivityResult> initial) : _current = initial;
 
@@ -21,11 +23,13 @@ class _FakeConnectivity implements Connectivity {
   }
 
   @override
-  Stream<List<ConnectivityResult>> get onConnectivityChanged =>
-      _changes.stream;
+  Stream<List<ConnectivityResult>> get onConnectivityChanged => _changes.stream;
 
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async => _current;
+  Future<List<ConnectivityResult>> checkConnectivity() async {
+    if (failCheck) throw StateError('sem plugin');
+    return pending == null ? _current : await pending!.future;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -34,6 +38,53 @@ class _FakeConnectivity implements Connectivity {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('falha inicial permite tentar novamente', () async {
+    final fake = _FakeConnectivity([ConnectivityResult.none])..failCheck = true;
+    final controller = OfflineStatusController(
+      service: ConnectivityService(connectivity: fake),
+    );
+    try {
+      await controller.start();
+    } catch (_) {}
+    fake.failCheck = false;
+    await controller.start();
+    expect(controller.isOffline, isTrue);
+    await controller.dispose();
+  });
+
+  test(
+    'mudança durante consulta inicial prevalece sobre resultado antigo',
+    () async {
+      final fake = _FakeConnectivity([ConnectivityResult.wifi])
+        ..pending = Completer<List<ConnectivityResult>>();
+      final controller = OfflineStatusController(
+        service: ConnectivityService(connectivity: fake),
+      );
+      final starting = controller.start();
+      fake.change([ConnectivityResult.none]);
+      await Future<void>.delayed(Duration.zero);
+      fake.pending!.complete([ConnectivityResult.wifi]);
+      await starting;
+      expect(controller.isOffline, isTrue);
+      await controller.dispose();
+    },
+  );
+
+  test(
+    'dispose durante consulta inicial não emite em stream fechado',
+    () async {
+      final fake = _FakeConnectivity([ConnectivityResult.none])
+        ..pending = Completer<List<ConnectivityResult>>();
+      final controller = OfflineStatusController(
+        service: ConnectivityService(connectivity: fake),
+      );
+      final starting = controller.start();
+      await controller.dispose();
+      fake.pending!.complete([ConnectivityResult.none]);
+      await expectLater(starting, completes);
+    },
+  );
 
   test('OfflineStatusController inicia refletindo o estado atual', () async {
     final fake = _FakeConnectivity([ConnectivityResult.none]);

@@ -8,6 +8,17 @@ import 'package:louvorja_piano_mobile/core/services/sync/sync_retry.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('hasPending distingue fila vazia de entradas salvas', () async {
+    SharedPreferences.setMockInitialValues({'louvorja.sync.outbox.v1': '{}'});
+    final prefs = await SharedPreferences.getInstance();
+    final retry = SyncRetry(prefs, flush: () async {});
+    expect(retry.hasPending, isFalse);
+    await prefs.setString('louvorja.sync.outbox.v1', '{"prefs::values":{}}');
+    expect(retry.hasPending, isTrue);
+    await prefs.setString('louvorja.sync.outbox.v1', 'inválido');
+    expect(retry.hasPending, isFalse);
+  });
+
   test('onNetworkBack dispara flush quando a rede retorna', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();

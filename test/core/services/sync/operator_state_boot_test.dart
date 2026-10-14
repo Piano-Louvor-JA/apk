@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,7 @@ import 'package:louvorja_piano_mobile/core/services/sync/operator_state_boot.dar
 import 'package:louvorja_piano_mobile/core/services/settings_controller.dart';
 
 class _CaptureAdapter implements HttpClientAdapter {
+  int requests = 0;
   RequestOptions? request;
   String response = '{"operator_state":[]}';
 
@@ -20,6 +23,7 @@ class _CaptureAdapter implements HttpClientAdapter {
     Stream<List<int>>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    requests++;
     request = options;
     return ResponseBody.fromString(
       response,
@@ -39,6 +43,36 @@ void main() {
   tearDown(() {
     OperatorStateBoot.resetForTest();
     debugDefaultTargetPlatformOverride = null;
+  });
+
+  test('retry sincroniza ao voltar online e preserva a fila offline', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final adapter = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final states = StreamController<bool>();
+    final applied = Completer<void>();
+    addTearDown(() async {
+      OperatorStateBoot.unbindSyncRetry();
+      await states.close();
+      dio.close();
+    });
+    final client = OperatorStateBoot.client(
+      prefs,
+      dio: dio,
+      apiBaseUrl: 'https://api.test',
+      sessionToken: () async => 'sessao-teste',
+      onApplied: () async => applied.complete(),
+    );
+    await client.enqueuePrefs({'accent': 'azure'});
+    OperatorStateBoot.bindSyncRetry(prefs, offlineStream: states.stream);
+    states.add(true);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(adapter.requests, 0);
+    expect(client.outboxCount(), 1);
+    states.add(false);
+    await applied.future.timeout(const Duration(seconds: 3));
+    expect(adapter.requests, 1);
+    expect(client.outboxCount(), 0);
   });
 
   for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {

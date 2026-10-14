@@ -7,14 +7,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/offline_status.dart';
+import '../../../../core/services/connectivity_service.dart';
 import 'offline_banner.dart';
 
 /// Envelope do shell de navegação: escuta o status global e empurra o banner
 /// acima do conteúdo (Stack), sem afetar layout das páginas.
 class OfflineStatusScope extends StatefulWidget {
-  const OfflineStatusScope({super.key, required this.child});
+  const OfflineStatusScope({super.key, required this.child, this.controller});
 
   final Widget child;
+  final OfflineStatusController? controller;
 
   @override
   State<OfflineStatusScope> createState() => _OfflineStatusScopeState();
@@ -23,18 +25,21 @@ class OfflineStatusScope extends StatefulWidget {
 class _OfflineStatusScopeState extends State<OfflineStatusScope> {
   StreamSubscription<bool>? _sub;
   bool _offline = false;
+  late final OfflineStatusController _controller;
 
   @override
   void initState() {
     super.initState();
-    _sub = offlineStatus.onOfflineChanged.listen((offline) {
+    _controller = widget.controller ?? offlineStatus;
+    _offline = _controller.isOffline;
+    _sub = _controller.onOfflineChanged.listen((offline) {
       if (mounted) setState(() => _offline = offline);
     });
     // start é idempotente: boot e scope podem chamar sem duplicar assinatura.
     unawaited(
-      offlineStatus.start().then((_) {
-        if (mounted && offlineStatus.isOffline != _offline) {
-          setState(() => _offline = offlineStatus.isOffline);
+      _controller.start().then((_) {
+        if (mounted && _controller.isOffline != _offline) {
+          setState(() => _offline = _controller.isOffline);
         }
       }),
     );
@@ -57,7 +62,7 @@ class _OfflineStatusScopeState extends State<OfflineStatusScope> {
           right: 0,
           child: SafeArea(
             bottom: false,
-            child: OfflineBanner(isOffline: _offline),
+            child: IgnorePointer(child: OfflineBanner(isOffline: _offline)),
           ),
         ),
       ],

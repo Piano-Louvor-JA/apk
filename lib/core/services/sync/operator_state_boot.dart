@@ -110,7 +110,10 @@ abstract final class OperatorStateBoot {
     required Stream<bool> offlineStream,
   }) {
     final retry = SyncRetry(prefs, flush: () => client(prefs).flush());
-    _retrySub = offlineStream.listen(retry.onNetworkBack);
+    unbindSyncRetry();
+    _retrySub = offlineStream.listen(
+      (offline) => retry.onNetworkBack(!offline),
+    );
     return retry;
   }
 
