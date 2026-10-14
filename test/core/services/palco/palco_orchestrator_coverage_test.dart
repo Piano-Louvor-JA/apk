@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart';
-import 'package:louvorja_piano_mobile/core/services/palco/palco_models.dart';
 import 'package:louvorja_piano_mobile/core/services/palco/palco_orchestrator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
