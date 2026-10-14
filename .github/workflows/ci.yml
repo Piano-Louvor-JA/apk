@@ -62,10 +62,12 @@ jobs:
 
       - run: flutter pub get
       - name: Testes com coverage
-        # 2 falhas conhecidas em stage_session_audio_route — resolvidas pelo PR #119
-        run: flutter test --coverage || true
+        run: flutter test --coverage
 
       - name: Ratchet de coverage
+        # PR para staging: piso de 50%. Push e PR para main: ratchet do baseline.
+        env:
+          COVERAGE_MIN: ${{ github.event_name == 'pull_request' && github.base_ref == 'staging' && '50' || '' }}
         run: python3 scripts/coverage_ratchet.py
 
   build-android:

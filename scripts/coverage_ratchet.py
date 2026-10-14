@@ -3,7 +3,10 @@
 
 - coverage < baseline  → exit 1 (trava regressão no CI)
 - coverage > baseline  → atualiza .coverage-baseline e exit 0
+- COVERAGE_MIN definido → usa esse piso fixo (PR para staging) e não
+  altera o baseline
 """
+import os
 import sys
 from pathlib import Path
 
@@ -19,11 +22,10 @@ def lcov_lines_percent() -> float:
             lf += int(line.split(":", 1)[1])
         elif line.startswith("LH:"):
             lh += int(line.split(":", 1)[1])
-    pct = round(lh / lf * 100, 2)
     if lf == 0:
         print("ERRO: lcov.info sem dados (LF total = 0)")
         sys.exit(2)
-    return pct
+    return round(lh / lf * 100, 2)
 
 
 def baseline() -> float:
@@ -37,12 +39,14 @@ def main() -> None:
         print("ERRO: coverage/lcov.info nao encontrado. Rode flutter test --coverage.")
         sys.exit(2)
     pct = lcov_lines_percent()
-    base = baseline()
-    print(f"coverage lines: {pct:.2f}% | baseline: {base:.2f}%")
+    floor = os.environ.get("COVERAGE_MIN", "").strip()
+    base = float(floor) if floor else baseline()
+    label = "piso" if floor else "baseline"
+    print(f"coverage lines: {pct:.2f}% | {label}: {base:.2f}%")
     if pct < base:
-        print(f"FALHA: coverage {pct:.2f}% < baseline {base:.2f}% (regressao travada)")
+        print(f"FALHA: coverage {pct:.2f}% < {label} {base:.2f}% (regressao travada)")
         sys.exit(1)
-    if pct > base:
+    if not floor and pct > base:
         BASELINE_FILE.write_text(f"{pct:.2f}\n")
         print(f"baseline atualizado para {pct:.2f}%")
     print("OK: coverage nao regrediu")
