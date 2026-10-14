@@ -11,9 +11,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
+import 'core/services/media_state_mirror.dart';
 import 'core/services/offline_status.dart';
 import 'core/services/settings_controller.dart';
 import 'core/services/sync/operator_state_boot.dart';
+import 'core/telemetry/telemetry.dart';
 
 void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
@@ -48,21 +50,29 @@ void main() async {
     offlineStream: offlineStatus.onOfflineChanged,
   );
 
-  runApp(
-    ChangeNotifierProvider.value(
-      value: settings,
-      child: EasyLocalization(
-        supportedLocales: const [
-          Locale('pt', 'BR'),
-          Locale('en'),
-          Locale('es'),
-        ],
-        path: 'assets/translations',
-        fallbackLocale: const Locale('pt', 'BR'),
-        // Segue o idioma do OS por padrao. Usuario pode trocar nas Configuracoes.
-        useOnlyLangCode: false,
-        child: const LouvorjaApp(),
+  // SPEC media-service (apk#132 follow-up): espelho player → MediaSession.
+  // Notificação MediaStyle, lock screen e barra do PiP leem a MESMA sessão
+  // (padrão YouTube/Spotify). Sem isso a barra nativa nasce com estado
+  // congelado e nenhum controle tem efeito (evidência A15 15:57).
+  MediaStateMirror.start();
+
+  await runWithTelemetry(() async {
+    runApp(
+      ChangeNotifierProvider.value(
+        value: settings,
+        child: EasyLocalization(
+          supportedLocales: const [
+            Locale('pt', 'BR'),
+            Locale('en'),
+            Locale('es'),
+          ],
+          path: 'assets/translations',
+          fallbackLocale: const Locale('pt', 'BR'),
+          // Segue o idioma do OS por padrao. Usuario pode trocar nas Configuracoes.
+          useOnlyLangCode: false,
+          child: const LouvorjaApp(),
+        ),
       ),
-    ),
-  );
+    );
+  });
 }
