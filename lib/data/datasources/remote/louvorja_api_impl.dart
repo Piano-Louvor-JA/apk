@@ -1,6 +1,7 @@
 library;
 
 import 'package:louvorja_piano_mobile/core/errors/louvorja_api_exception.dart';
+import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'dart:convert';
 import 'dart:math';
 
@@ -61,7 +62,7 @@ class LouvorjaApiImpl implements LouvorjaApiClient {
          BaseOptions(
            connectTimeout: const Duration(seconds: 10),
            receiveTimeout: const Duration(seconds: 30),
-           headers: {'Api-Token': apiToken},
+           headers: {'Api-Token': apiToken, ...clientPlatformHeaders()},
          ),
        );
 

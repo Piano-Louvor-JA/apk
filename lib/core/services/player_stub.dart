@@ -22,6 +22,8 @@ class _StubAudioPlayer implements HymnAudioPlayer {
   @override
   Future<void> pause() async {}
   @override
+  Future<void> resume() async {}
+  @override
   Future<void> setVolume(double v) async {}
   @override
   Future<void> seek(Duration position) async {}

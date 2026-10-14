@@ -1,0 +1,94 @@
+name: PR APK Build (bot)
+
+# Builda APK de uma PR sob demanda.
+# REGRA: builds de PR apontam SEMPRE pra API STAGING (api-stg.pianolouvorja.com.br) — nunca produção. (disparado pelo bot de alertas) e publica
+# como ARTIFACT efêmero (3 dias). Zero disco na VM: o binário vive no GitHub.
+# Uso pelo bot: /apk apk#123 → workflow_dispatch(pr_number=123) → download + envio no Telegram.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Número da PR pra buildar'
+        required: true
+        type: string
+      requester:
+        description: 'Quem pediu (usuário Telegram, pra auditoria)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-apk-${{ inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: APK da PR #${{ inputs.pr_number }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Valida PR antes do checkout
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+        with:
+          script: |
+            const value = process.env.PR_NUMBER;
+            const number = Number(value);
+            if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(number)) {
+              core.setFailed('Número de PR inválido');
+              return;
+            }
+            const { owner, repo } = context.repo;
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            if (pr.state !== 'open' || pr.head.repo?.full_name !== `${owner}/${repo}`) {
+              core.setFailed('Use uma PR aberta com origem neste repositório');
+            }
+
+      - name: Checkout do head da PR
+        uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ inputs.pr_number }}/head
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build APK (debug, mesmo perfil do CI)
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: >-
+          flutter build apk --debug --no-tree-shake-icons
+          --dart-define=LOUVORJA_URL_DATABASE=https://api-stg.pianolouvorja.com.br/json_db
+          --dart-define=LOUVORJA_URL_FILES=https://api-stg.pianolouvorja.com.br/file
+          --dart-define=LOUVORJA_FALLBACK_URLS=
+          --dart-define=API_TOKEN=$API_TOKEN
+
+      - name: Renomeia artefato com número da PR
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          mkdir -p out
+          cp build/app/outputs/flutter-apk/app-debug.apk "out/louvorja-pr${PR_NUMBER}-debug.apk"
+          ls -la out/
+
+      - name: Upload artifact (efêmero — 3 dias)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-pr-${{ inputs.pr_number }}
+          path: out/*.apk
+          retention-days: 3
+          if-no-files-found: error
