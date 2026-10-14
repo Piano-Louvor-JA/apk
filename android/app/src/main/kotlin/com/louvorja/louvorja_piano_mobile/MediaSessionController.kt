@@ -33,6 +33,7 @@ object MediaSessionController {
     private var ctx: Context? = null
     private var isPlaying = false
     private var posMs = 0L
+    private var lastPipSentPlaying: Boolean? = null
     private var durMs = 0L
     private var trackTitle = ""
     private var trackAlbum = ""
@@ -45,24 +46,70 @@ object MediaSessionController {
     var onNext: (() -> Unit)? = null
 
     fun init(context: Context) {
+        if (session != null) return // já iniciada (idempotente)
         ctx = context
         nMgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createChannel(context)
         session = MediaSessionCompat(context, "LouvorJa").apply {
             isActive = true
+            // SPEC 13 (apk#132): PlaybackState INICIAL obrigatório — sem ele
+            // `dumpsys media_session` mostra state=null e o sistema NÃO roteia
+            // os botões do PiP/lock pra sessão (o PiP do One UI ignora
+            // RemoteActions e sessões sem estado).
+            setPlaybackState(
+                PlaybackStateCompat.Builder()
+                    .setActions(
+                        PlaybackStateCompat.ACTION_PLAY or
+                            PlaybackStateCompat.ACTION_PAUSE or
+                            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                            PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                            PlaybackStateCompat.ACTION_SEEK_TO
+                    )
+                    .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1f)
+                    .build()
+            )
             setCallback(object : MediaSessionCompat.Callback() {
-                override fun onPlay() { onPlayPause?.invoke(true) }
-                override fun onPause() { onPlayPause?.invoke(false) }
-                override fun onSkipToPrevious() { onPrev?.invoke() }
-                override fun onSkipToNext() { onNext?.invoke() }
+                override fun onPlay() {
+                    android.util.Log.d("LouvorPip", "session onPlay")
+                    // Callbacks da página podem não estar setados (PiP sem
+                    // página viva): cai no pokeDart, que roteia pro player
+                    // global via Dart.
+                    if (onPlayPause != null) onPlayPause?.invoke(true)
+                    else MainActivity.pokeDart("mediaPlay")
+                }
+                override fun onPause() {
+                    android.util.Log.d("LouvorPip", "session onPause")
+                    if (onPlayPause != null) onPlayPause?.invoke(false)
+                    else MainActivity.pokeDart("mediaPause")
+                }
+                override fun onSkipToPrevious() {
+                    android.util.Log.d("LouvorPip", "session onSkipToPrevious")
+                    if (onPrev != null) onPrev?.invoke()
+                    else MainActivity.pokeDart("mediaPrev")
+                }
+                override fun onSkipToNext() {
+                    android.util.Log.d("LouvorPip", "session onSkipToNext")
+                    if (onNext != null) onNext?.invoke()
+                    else MainActivity.pokeDart("mediaNext")
+                }
             })
         }
         val filter = IntentFilter().apply {
             addAction(ACT_PLAY); addAction(ACT_PAUSE)
             addAction(ACT_PREV); addAction(ACT_NEXT)
         }
+        // SPEC 13 (apk#132): receiver DINÂMICO com RECEIVER_EXPORTED.
+        //
+        // Provas no dumpsys (12:44/13:22):
+        //  - NOT_EXPORTED: broadcast "skipped by policy" (One UI não entrega
+        //    cross-app pra receiver não exportado);
+        //  - receiver de MANIFEST: mesmo bloqueio ("Background execution not
+        //    allowed" com app em PiP/background).
+        // Receiver dinâmico EXPORTED é entregue com o processo vivo — e em
+        // PiP o processo está vivo. As actions são namespaced; spoofing de
+        // outro app no máximo pausa/retoma o player (sem dado sensível).
         if (Build.VERSION.SDK_INT >= 33)
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         else
             @Suppress("DEPRECATION")
             context.registerReceiver(receiver, filter)
@@ -110,6 +157,13 @@ object MediaSessionController {
         session?.setPlaybackState(PlaybackStateCompat.Builder()
             .setActions(actions).setState(state, positionMs, 1f).build())
         postNotification()
+        // PiP RemoteActions são uma fotografia dos parâmetros. Reenvia ao
+        // sistema SÓ na transição PLAY↔PAUSE (posição/segundo não muda os
+        // ícones — reenviar a cada tick custa IPC e o One UI derruba).
+        if (playing != lastPipSentPlaying) {
+            lastPipSentPlaying = playing
+            MainActivity.refreshPipActions?.invoke()
+        }
     }
 
     fun show() = postNotification()
@@ -150,12 +204,43 @@ object MediaSessionController {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
+            android.util.Log.d("LouvorPip", "receiver action=${i.action}")
             when (i.action) {
-                ACT_PLAY -> onPlayPause?.invoke(true)
-                ACT_PAUSE -> onPlayPause?.invoke(false)
-                ACT_PREV -> onPrev?.invoke()
-                ACT_NEXT -> onNext?.invoke()
+                ACT_PLAY -> dispatchAction(i.action)
+                ACT_PAUSE -> dispatchAction(i.action)
+                ACT_PREV -> dispatchAction(i.action)
+                ACT_NEXT -> dispatchAction(i.action)
             }
+        }
+    }
+
+    /// Init idempotente (chamado antes de setar os params do PiP).
+    fun ensureInit(context: Context) = init(context)
+
+    /// Token da sessão pro PiP usar os botões da MediaSession (API 31+).
+    /// MediaSessionCompat.Token.getToken() retorna Object (framework Token).
+    fun sessionToken(): android.media.session.MediaSession.Token? {
+        val s = session ?: return null
+        @Suppress("UNCHECKED_CAST", "CAST_NEVER_SUCCEEDS")
+        return s.sessionToken.getToken() as? android.media.session.MediaSession.Token
+    }
+
+    /// Dispatch único usado pelo MediaActionReceiver (manifest) — os
+    /// callbacks podem não estar setados (página fechada): o handler padrão
+    /// do Flutter Engine roteia pro player global.
+    fun dispatchAction(action: String?) {
+        android.util.Log.d("LouvorPip", "dispatchAction=$action hasPlayCb=${onPlayPause != null}")
+        when (action) {
+            ACT_PLAY -> {
+                if (onPlayPause != null) onPlayPause?.invoke(true)
+                else MainActivity.pokeDart("mediaPlay")
+            }
+            ACT_PAUSE -> {
+                if (onPlayPause != null) onPlayPause?.invoke(false)
+                else MainActivity.pokeDart("mediaPause")
+            }
+            ACT_PREV -> if (onPrev != null) onPrev?.invoke() else MainActivity.pokeDart("mediaPrev")
+            ACT_NEXT -> if (onNext != null) onNext?.invoke() else MainActivity.pokeDart("mediaNext")
         }
     }
 
