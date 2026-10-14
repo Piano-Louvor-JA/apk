@@ -655,12 +655,12 @@ class _AlbumCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           placeholder: (_, __) =>
                               _CoverPlaceholder(theme: theme, album: album),
-                          errorWidget: (_, error, stackTrace) {
+                          errorWidget: (_, url, error) {
                             // apk#117: deixa diagnostico no logcat sem
                             // transformar uma falha de cover em crash.
                             debugPrint(
                               '[AlbumCover] falha ao carregar '
-                              '"$fullCoverUrl": $error\n$stackTrace',
+                              '"$url": $error',
                             );
                             return _CoverPlaceholder(
                               theme: theme,
