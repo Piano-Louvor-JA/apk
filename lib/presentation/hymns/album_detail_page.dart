@@ -140,7 +140,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         );
         await player.resume();
         if (stage.isPalcoMode && stage.audioRoute != PalcoAudioRoute.local) {
-          stage.palco?.resumeAudio();
+          stage.resumeHymnAudio();
         }
         nowPlaying.setPlaying(true);
         _playingInstrumental = instrumental;

@@ -3,6 +3,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,7 @@ class _FakePlayer extends HymnPlayerLike {
   final positions = StreamController<Duration>.broadcast();
   final durations = StreamController<Duration>.broadcast();
   Duration? sought;
+  bool failResume = false;
   final playedUrls = <String>[];
   bool? lastVolume;
   double? lastVolumeValue;
@@ -48,7 +51,12 @@ class _FakePlayer extends HymnPlayerLike {
   Future<void> pause() async => _playing.value = false;
 
   @override
-  Future<void> resume() async => _playing.value = true;
+  Future<void> resume() async {
+    if (failResume) {
+      throw StateError('falha ao retomar');
+    }
+    _playing.value = true;
+  }
 
   @override
   Future<void> stop() async => _playing.value = false;
@@ -248,5 +256,51 @@ void main() {
     await tester.pump();
 
     expect(find.byIcon(TablerIcons.playerPause), findsOneWidget);
+  });
+  testWidgets('retomar com Palco desligado usa o player local', (tester) async {
+    final stage = StageSession.instance;
+    expect(stage.isOn, isFalse);
+    stage.audioRoute = PalcoAudioRoute.tv;
+    addTearDown(() => stage.audioRoute = PalcoAudioRoute.local);
+    final player = _FakePlayer();
+    await player.pause();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://example.com/file',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(TablerIcons.playerPlay));
+    await tester.pump();
+    expect(player.isPlaying, isTrue);
+    expect(player.lastVolumeValue, 1);
+  });
+
+  testWidgets('falha de resume permanece pausado e mostra erro', (
+    tester,
+  ) async {
+    final player = _FakePlayer()..failResume = true;
+    await player.pause();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: _detail(),
+          instrumental: false,
+          player: player,
+          filesUrl: 'https://example.com/file',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(TablerIcons.playerPlay));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(player.isPlaying, isFalse);
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

@@ -114,7 +114,14 @@ class _NativeAudioPlayer implements HymnAudioPlayer {
 
   @override
   Future<void> resume() async {
-    if (_currentUrl == null) return;
+    final url = _currentUrl;
+    if (url == null) return;
+    // Após conclusão, ReleaseMode.release libera a fonte do audioplayers.
+    // Uma faixa pausada ainda tem fonte e preserva sua posição no resume.
+    if (_player.source == null) {
+      await playUrl(url);
+      return;
+    }
     await _player.resume();
   }
 

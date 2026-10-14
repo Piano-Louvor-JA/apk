@@ -98,4 +98,20 @@ void main() {
     await player.resume();
     expect(audio.resumes, 0);
   });
+  test(
+    'resume após conclusão recarrega a fonte liberada desde o início',
+    () async {
+      final audio = _Audio();
+      final player = native.createPlayerImpl(audioPlayer: audio);
+      addTearDown(player.dispose);
+      await player.playUrl('https://example.com/hino.mp3');
+      audio.position = const Duration(seconds: 60);
+      audio.source = null; // ReleaseMode.release do audioplayers ao concluir.
+      audio.states.add(PlayerState.completed);
+      await player.resume();
+      expect(audio.plays, 2);
+      expect(audio.source, isA<UrlSource>());
+      expect(audio.position, Duration.zero);
+    },
+  );
 }
