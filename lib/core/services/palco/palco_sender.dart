@@ -7,7 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 
 import 'palco_models.dart';
 import 'palco_proxy.dart';
@@ -77,6 +77,15 @@ class PalcoSender {
   final int httpPortFixed;
   final int wsPortFixed;
 
+  /// Teste: faz bind em porta efêmera (0) mesmo quando o sender tem porta
+  /// fixa configurada (ex.: slots do orchestrator, 7080+2n). `flutter test`
+  /// roda arquivos em processos paralelos e portas fixas colidem
+  /// (`Address already in use`). A porta configurada segue como identidade
+  /// enquanto o sender está parado; a real fica em [effectiveHttpPort] /
+  /// [effectiveWsPort]. Ligado para a suíte em test/flutter_test_config.dart.
+  @visibleForTesting
+  static bool bindEphemeralPortsForTesting = false;
+
   /// Identidade persistente do slot; receiver mostra no idle para o operador.
   final String slotId;
   final String slotLabel;
@@ -95,14 +104,14 @@ class PalcoSender {
     try {
       _http = await HttpServer.bind(
         InternetAddress.anyIPv4,
-        httpPortFixed,
+        bindEphemeralPortsForTesting ? 0 : httpPortFixed,
         shared: true,
       );
       _http!.listen(_handleHttp, onError: (_) {});
 
       _ws = await HttpServer.bind(
         InternetAddress.anyIPv4,
-        wsPortFixed,
+        bindEphemeralPortsForTesting ? 0 : wsPortFixed,
         shared: true,
       );
       _ws!.listen(_handleWsUpgrade, onError: (_) {});

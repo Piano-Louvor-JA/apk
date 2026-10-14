@@ -39,9 +39,9 @@ void main() {
     final ok = await stage.turnOnPalco(
       PalcoTarget(name: 'TV teste', ip: '127.0.0.1', wsPort: 0),
     );
-    // turnOnPalco usa PalcoController com portas FIXAS — em teste precisamos
-    // de efêmeras. Como StageSession cria o controller interno, montamos o
-    // cenário via o controller exposto (palco) quando disponível.
+    // turnOnPalco usa o slot "principal" (portas fixas 7080/7081); em teste
+    // o bind é efêmero (test/flutter_test_config.dart) e o receiver conecta
+    // na porta real exposta por stage.palco.wsPort.
     expect(ok, isTrue, reason: 'sender deve subir em loopback');
     final rx = FakeReceiverRx();
     await rx.connect('127.0.0.1', stage.palco!.wsPort);
