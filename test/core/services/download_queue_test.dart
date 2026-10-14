@@ -2,6 +2,7 @@ library;
 
 import 'package:louvorja_piano_mobile/core/errors/louvorja_api_exception.dart';
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:dio/dio.dart' show ProgressCallback;
 import 'package:flutter_test/flutter_test.dart';
@@ -64,6 +65,27 @@ class _FakeOffline implements OfflineMusicPort {
   }
 }
 
+class _GatedOffline extends _FakeOffline {
+  final entered = Completer<void>();
+  final release = Completer<void>();
+  @override
+  Future<String> download({
+    required int musicId,
+    required String url,
+    bool instrumental = false,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    entered.complete();
+    await release.future;
+    return super.download(
+      musicId: musicId,
+      url: url,
+      instrumental: instrumental,
+      onReceiveProgress: onReceiveProgress,
+    );
+  }
+}
+
 DownloadQueueItem _item(int id) =>
     DownloadQueueItem(musicId: id, title: 'Hino $id', url: 'https://x/$id.mp3');
 
@@ -96,6 +118,31 @@ class _RateLimitedOffline implements OfflineMusicPort {
 }
 
 void main() {
+  test('download em andamento permanece persistido para reinício', () async {
+    final offline = _GatedOffline();
+    final storage = _MemStorage();
+    final queue = DownloadQueue(
+      offline: offline,
+      storage: storage,
+      interItemDelay: Duration.zero,
+    );
+    await queue.done;
+    queue.enqueue([_item(1)]);
+    await offline.entered.future;
+    try {
+      expect(
+        (jsonDecode(await storage.read())['pending'] as List).map(
+          (e) => e['musicId'],
+        ),
+        [1],
+      );
+    } finally {
+      offline.release.complete();
+      await queue.done;
+    }
+    expect(jsonDecode(await storage.read())['pending'], isEmpty);
+  });
+
   test('fila processa serialmente (nunca 2 simultaneos)', () async {
     final offline = _FakeOffline();
     final queue = DownloadQueue(
