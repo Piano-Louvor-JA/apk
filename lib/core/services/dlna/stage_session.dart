@@ -269,7 +269,12 @@ class StageSession extends ChangeNotifier {
     }
   }
 
+  void resumeHymnAudio() {
+    if (_routesToTv && _currentAudioUrl != null) _audioTarget().resumeAudio();
+  }
+
   void stopHymnAudio() {
+    _currentAudioUrl = null;
     // Para em TODOS os slots conectados: a faixa pode ter começado em
     // outro slot antes da troca de chip ativo (bug 2026-08-21).
     if (_routesToTv) {

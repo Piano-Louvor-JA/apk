@@ -102,19 +102,21 @@ void main() {
     expect(result[0].title, 'Cached Hino');
   });
 
-  test('getCategories le do cache local valido (nao expirado)', () async {
+  test('getCategories le do cache local valido quando API falha', () async {
     // Escreve cache valido (sem expirar)
     cache.write('categories', [
       {'id_category': 1, 'name': 'From Cache', 'albums': []},
     ]);
 
-    final api = _MockApi();
+    // API FORA: o cache em disco e a unica fonte (offline-first).
+    // Com a API saudavel o remoto prevalece (apk#116 — cache nunca
+    // esconde categoria nova da API).
+    final api = _MockApi()..fail = true;
     final repo = HymnRepositoryImpl(api, cache);
     final result = await repo.getCategories();
 
-    // Mesmo que a API funcione, se o cache e valido, le do cache primeiro
-    // (a nao ser que o cache em memoria ja esteja populado de teste anterior)
     expect(result, isNotEmpty);
+    expect(result.first.name, 'From Cache');
   });
 
   test(

@@ -1,17 +1,21 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:louvorja_piano_mobile/data/datasources/remote/custom_file_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  tearDown(() => debugDefaultTargetPlatformOverride = null);
 
   test('upload monta multipart com kind e Bearer, parseia resposta', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     RequestInfo? captured;
     final dio = Dio()
       ..httpClientAdapter = _CaptureAdapter((options, body) {
+        expect(options.headers['X-Client-Platform'], 'apk-ios');
         captured = RequestInfo(
           method: options.method,
           url: options.uri.toString(),

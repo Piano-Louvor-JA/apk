@@ -25,6 +25,7 @@ class ScheduledItem {
     this.filePath = '',
     this.isRelativePath = false,
     this.notes = '',
+    this.content,
   });
 
   final String id;
@@ -42,6 +43,10 @@ class ScheduledItem {
   /// Observações de equipe — extensão NOSSA (Delphi não tem o campo).
   final String notes;
 
+  /// Conteúdo compartilhado do app/web. Preservado mesmo quando o APK ainda
+  /// não possui um executor para esse tipo de item.
+  final Map<String, dynamic>? content;
+
   ScheduledItem copyWith({String? notes, String? filePath}) => ScheduledItem(
     id: id,
     categoryId: categoryId,
@@ -50,6 +55,7 @@ class ScheduledItem {
     filePath: filePath ?? this.filePath,
     isRelativePath: isRelativePath,
     notes: notes ?? this.notes,
+    content: content,
   );
 
   Map<String, dynamic> toJson() => {
@@ -60,6 +66,7 @@ class ScheduledItem {
     'filePath': filePath,
     'isRelativePath': isRelativePath,
     'notes': notes,
+    if (content != null) 'content': content,
   };
 
   factory ScheduledItem.fromJson(Map<String, dynamic> json) => ScheduledItem(
@@ -70,5 +77,6 @@ class ScheduledItem {
     filePath: (json['filePath'] as String?) ?? '',
     isRelativePath: (json['isRelativePath'] as bool?) ?? false,
     notes: (json['notes'] as String?) ?? '',
+    content: json['content'] as Map<String, dynamic>?,
   );
 }
