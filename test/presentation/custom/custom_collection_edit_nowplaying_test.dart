@@ -43,6 +43,13 @@ class _FakePlayer implements HymnAudioPlayer {
   }
 
   @override
+  Future<void> resume() async {
+    if (playedUrl == null) return;
+    paused = false;
+    _stream.add(true);
+  }
+
+  @override
   Future<void> playUrl(String url) async {
     playCalls++;
     if (pendingPlay != null) await pendingPlay!.future;

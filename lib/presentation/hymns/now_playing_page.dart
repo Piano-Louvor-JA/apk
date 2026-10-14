@@ -119,17 +119,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     PipController.setEnabled(true);
     // MediaSession: notificação de mídia + lock screen + ações PiP.
     MediaSession.onPlayPause = (play) {
-      if (!mounted) return;
-      if (play) {
-        if (StageSession.instance.audioRoute == PalcoAudioRoute.tv) {
-          StageSession.instance.palco?.resumeAudio();
-        } else {
-          widget.player.resume();
-        }
-      } else {
-        _pauseAudioEverywhere();
-      }
-      if (mounted) setState(() {});
+      _setAudioPlaying(play);
     };
     MediaSession.onPrev = () => _goToSlide(_index - 1);
     MediaSession.onNext = () => _goToSlide(_index + 1);
@@ -238,9 +228,35 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   /// play de tela no meio da faixa). Null quando não dá pra saber.
   Duration? _currentLocalPosition() => _lastPosition;
 
-  void _pauseAudioEverywhere() {
-    widget.player.pause();
-    StageSession.instance.pauseHymnAudio();
+  /// Retoma o relógio local e o Palco ativo; no modo TV o celular fica mudo.
+  Future<bool> _setAudioPlaying(bool play) async {
+    if (!mounted || (play && _noAudio)) return false;
+    final stage = StageSession.instance;
+    try {
+      if (play) {
+        await widget.player.setVolume(
+          stage.isPalcoMode && stage.audioRoute == PalcoAudioRoute.tv ? 0 : 1,
+        );
+        await widget.player.resume();
+        stage.resumeHymnAudio();
+      } else {
+        await widget.player.pause();
+        stage.pauseHymnAudio();
+      }
+      await MediaSession.setPlaybackState(
+        isPlaying: play,
+        positionMs: _lastPosition?.inMilliseconds ?? 0,
+      );
+      if (mounted) setState(() {});
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('errors.playback'.tr())));
+      }
+      return false;
+    }
   }
 
   void _stopAudioEverywhere() {
@@ -309,28 +325,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   /// SPEC 3 (apk#94): botão "sem áudio" PAUSA o player de verdade (local +
   /// palco) — antes só escondia a timeline e o áudio continuava tocando.
   /// Desligar retoma de onde parou.
-  void _toggleNoAudio() {
-    final turningOff = !_noAudio;
-    setState(() => _noAudio = turningOff);
-    if (turningOff) {
-      _pauseAudioEverywhere();
-      MediaSession.setPlaybackState(
-        isPlaying: false,
-        positionMs: _lastPosition?.inMilliseconds ?? 0,
-      );
-    } else {
-      // Retoma: em modo só-TV o som vive no receiver (F3.3 T3).
-      if (StageSession.instance.audioRoute == PalcoAudioRoute.tv) {
-        StageSession.instance.palco?.resumeAudio();
-      } else {
-        widget.player.resume();
-        _routeAudio();
-      }
-      MediaSession.setPlaybackState(
-        isPlaying: true,
-        positionMs: _lastPosition?.inMilliseconds ?? 0,
-      );
-    }
+  Future<void> _toggleNoAudio() async {
+    final previous = _noAudio;
+    setState(() => _noAudio = !previous);
+    final success = await _setAudioPlaying(!_noAudio);
+    if (!success && mounted) setState(() => _noAudio = previous);
   }
 
   /// SPEC 3 (apk#94): alterna cantado ↔ instrumental TROCANDO A FONTE do
@@ -476,8 +475,10 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final slide = _slides.slides.isEmpty ? null : _slides.slides[_index];
-    final playing = widget.player.isPlaying;
 
+    // apk#96: o ícone grande deve refletir o estado REAL do player (que
+    // muda por fora desta página: MediaSession, mini player, notificação).
+    // Escuta o playingListenable em vez de ler isPlaying uma única vez.
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -570,9 +571,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     // Configura uma vez; cada hino não repete o controle.
                     if (widget.detail.hasInstrumental)
                       IconButton(
-                        tooltip: _modeInstrumental
-                            ? 'Cantado'
-                            : 'Instrumental',
+                        tooltip: _modeInstrumental ? 'Cantado' : 'Instrumental',
                         icon: Icon(
                           _modeInstrumental
                               ? TablerIcons.microphone
@@ -688,36 +687,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                       onPressed: () => _goToSlide(_index - 1),
                     ),
                     const SizedBox(width: 24),
-                    IconButton(
-                      iconSize: 56,
-                      icon: Icon(
-                        playing
-                            ? TablerIcons.playerPause
-                            : TablerIcons.playerPlay,
-                        color: Colors.white,
+                    ValueListenableBuilder<bool>(
+                      valueListenable: widget.player.playingListenable,
+                      builder: (context, playing, _) => IconButton(
+                        iconSize: 56,
+                        icon: Icon(
+                          playing
+                              ? TablerIcons.playerPause
+                              : TablerIcons.playerPlay,
+                          color: Colors.white,
+                        ),
+                        onPressed: _noAudio
+                            ? null
+                            : () => _setAudioPlaying(!widget.player.isPlaying),
                       ),
-                      onPressed: () async {
-                        if (widget.player.isPlaying) {
-                          _pauseAudioEverywhere();
-                          MediaSession.setPlaybackState(
-                            isPlaying: false,
-                            positionMs: _lastPosition?.inMilliseconds ?? 0,
-                          );
-                        } else if (StageSession.instance.audioRoute ==
-                            PalcoAudioRoute.tv) {
-                          // só-TV: retoma SÓ no palco; player local nunca
-                          // volta a tocar neste modo (F3.3 T3).
-                          StageSession.instance.palco?.resumeAudio();
-                        } else {
-                          await widget.player.resume();
-                          _routeAudio();
-                          MediaSession.setPlaybackState(
-                            isPlaying: true,
-                            positionMs: _lastPosition?.inMilliseconds ?? 0,
-                          );
-                        }
-                        if (mounted) setState(() {});
-                      },
                     ),
                     const SizedBox(width: 24),
                     IconButton(
