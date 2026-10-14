@@ -25,9 +25,11 @@ abstract class HymnPlayerLike {
   Future<void> stop();
 
   /// SPEC 3 (apk#94): troca a FONTE do áudio em runtime (cantado ↔
-  /// instrumental). Default inofensivo — implementações que suportam
-  /// sobrescrevem (HymnPlayerAdapter → playUrl).
-  Future<void> playSource(String url) async {}
+  /// instrumental). Implementações que suportam
+  /// sobrescrevem (HymnPlayerAdapter → playUrl); outras falham explicitamente.
+  Future<void> playSource(String url) async {
+    throw UnsupportedError('Player não suporta troca de fonte');
+  }
 }
 
 /// Faixa em execucao exibida pelo miniplayer.
