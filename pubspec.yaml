@@ -24,7 +24,7 @@ dependencies:
 
   # Fonts
   # 9.0.0 troca TextTheme do Flutter por material_ui e não compila com ThemeData.
-  google_fonts: ^9.0.0
+  google_fonts: ^8.2.1
 
   # Internationalization
   easy_localization: ^3.0.7
