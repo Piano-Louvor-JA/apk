@@ -86,7 +86,7 @@ jobs:
           ls -la out/
 
       - name: Upload artifact (efêmero — 3 dias)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-pr-${{ inputs.pr_number }}
           path: out/*.apk
