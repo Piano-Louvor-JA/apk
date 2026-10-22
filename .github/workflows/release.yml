@@ -123,3 +123,62 @@ jobs:
         with:
           tag_name: ${{ needs.resolve.outputs.version }}
           files: build/ios/louvorja-piano-ios-unsigned.ipa
+
+  ios-testflight:
+    name: iOS TestFlight (assinado)
+    needs: resolve
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Configurar projeto iOS (dart-defines)
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        # --config-only grava os dart-defines no Generated.xcconfig; o
+        # archive assinado é feito pelo xcodebuild logo abaixo.
+        run: |
+          flutter build ios --release --config-only --no-tree-shake-icons \
+            --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
+            --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
+            --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
+            --dart-define=API_TOKEN="$API_TOKEN"
+          cd ios && pod install
+
+      - name: Restaurar chave da App Store Connect API
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$APP_STORE_CONNECT_API_KEY" > "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Archive assinado e envio ao TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        # Assinatura automática na nuvem (cloud signing) via chave da API:
+        # dispensa importar certificado/profile. ExportOptions.plist usa
+        # destination=upload, então o export já envia o build ao TestFlight.
+        run: |
+          AUTH=(-allowProvisioningUpdates
+                -authenticationKeyPath "$ASC_KEY_PATH"
+                -authenticationKeyID "$ASC_KEY_ID"
+                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath build/ios/Runner.xcarchive archive "${AUTH[@]}"
+          xcodebuild -exportArchive -archivePath build/ios/Runner.xcarchive \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -exportPath build/ios/export "${AUTH[@]}"
+
+      - name: Remover chave da API
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
