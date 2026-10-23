@@ -1,7 +1,7 @@
 name: louvorja_piano_mobile
 description: "LouvorJA PIANO Mobile — App Flutter para gerenciamento de cultos adventistas"
 publish_to: "none"
-version: 0.5.3+3005
+version: 0.5.4+3006
 
 environment:
   sdk: ^3.8.0
@@ -112,8 +112,10 @@ dev_dependencies:
 
 flutter_launcher_icons:
   android: true
-  # iOS será ativado quando a plataforma iOS for criada em ambiente macOS/Xcode.
-  ios: false
+  # iOS: fonte 1024 opaca (a App Store recusa ícone com transparência).
+  ios: true
+  image_path_ios: "tool/branding/app-icon-ios.png"
+  remove_alpha_ios: true
   image_path: "assets/images/app-icon-large.png"
   adaptive_icon_background: "#131313"
   adaptive_icon_foreground: "assets/images/app-icon-large.png"
