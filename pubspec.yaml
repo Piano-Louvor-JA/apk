@@ -112,8 +112,10 @@ dev_dependencies:
 
 flutter_launcher_icons:
   android: true
-  # iOS será ativado quando a plataforma iOS for criada em ambiente macOS/Xcode.
-  ios: false
+  # iOS: fonte 1024 opaca (a App Store recusa ícone com transparência).
+  ios: true
+  image_path_ios: "tool/branding/app-icon-ios.png"
+  remove_alpha_ios: true
   image_path: "assets/images/app-icon-large.png"
   adaptive_icon_background: "#131313"
   adaptive_icon_foreground: "assets/images/app-icon-large.png"
