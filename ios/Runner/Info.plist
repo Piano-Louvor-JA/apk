@@ -70,6 +70,8 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>O LouvorJA PIANO usa a câmera para ler códigos QR e conectar o aplicativo ao computador ou a outro dispositivo para controle remoto.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>LouvorJA PIANO precisa acessar sua galeria para selecionar imagens e videos para a liturgia do culto.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
