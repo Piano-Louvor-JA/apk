@@ -69,6 +69,8 @@ class AlbumDetailPage extends StatefulWidget {
 
 class _AlbumDetailPageState extends State<AlbumDetailPage> {
   Future<List<Hymn>>? _hymnsFuture;
+  final _hymnNumberController = TextEditingController();
+  final _hymnNumberFocusNode = FocusNode();
   int? _loadingMusicId;
   int? _expandedHymnId;
   int? _playingHymnId;
@@ -93,6 +95,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   @override
   void initState() {
     super.initState();
+    _hymnNumberFocusNode.addListener(_selectHymnNumberOnFocus);
     // Sincroniza o ícone quando a faixa termina, falha ou é pausada externamente.
     _playingSubscription = _player.playingStream.listen((playing) {
       if (!playing && mounted) {
@@ -103,6 +106,22 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     _completionSubscription = _player.completionStream.listen((_) {
       _playNextInQueue();
     });
+  }
+
+  void _selectHymnNumberOnFocus() {
+    if (!_hymnNumberFocusNode.hasFocus) return;
+    final text = _hymnNumberController.text;
+    _hymnNumberController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: text.length,
+    );
+  }
+
+  Future<void> _submitHymnNumber(List<Hymn> hymns) async {
+    final number = int.tryParse(_hymnNumberController.text.trim());
+    if (number == null) return;
+    final hymn = hymns.where((item) => item.number == number).firstOrNull;
+    if (hymn != null) await _togglePlay(hymn, instrumental: false);
   }
 
   /// Avança para a próxima faixa da fila (Tocar tudo). Fim da fila encerra
@@ -538,6 +557,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   void dispose() {
     _playingSubscription?.cancel();
     _completionSubscription?.cancel();
+    _hymnNumberFocusNode
+      ..removeListener(_selectHymnNumberOnFocus)
+      ..dispose();
+    _hymnNumberController.dispose();
     super.dispose();
   }
 
@@ -800,8 +823,14 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.s4),
                 child: TextField(
+                  key: const Key('hymn-number-input'),
+                  controller: _hymnNumberController,
+                  focusNode: _hymnNumberFocusNode,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
                   decoration: InputDecoration(
-                    hintText: 'hymns.searchPlaceholder'.tr(),
+                    hintText: 'Número do hino',
                     prefixIcon: const Icon(TablerIcons.search),
                     border: OutlineInputBorder(
                       borderRadius: const BorderRadius.only(
@@ -810,11 +839,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                       ),
                     ),
                   ),
-                  onChanged: (query) {
-                    // TODO: filtro local com debounce
-                  },
+                  onSubmitted: (value) => _submitHymnNumber(hymns),
                 ),
               ),
+
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(

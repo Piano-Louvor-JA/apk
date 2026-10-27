@@ -216,10 +216,49 @@ void main() {
     expect(find.byIcon(TablerIcons.alertCircle), findsOneWidget);
   });
 
-  testWidgets('AlbumDetailPage tem campo de busca', (tester) async {
-    final api = _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1')]);
-    final repo = HymnRepositoryImpl(api, CatalogCache.noop());
-    final bloc = HymnsBloc(repo);
+  testWidgets('campo de número recebe foco e Enter toca hino correspondente', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+    final api = _MockApi(
+      hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)],
+      detail: const Hymn(id: 1, urlMusic: '/musics/test.mp3'),
+    );
+    final bloc = HymnsBloc(HymnRepositoryImpl(api, CatalogCache.noop()));
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(
+          albumId: 100,
+          audioPlayer: player,
+          offlineService: _FakeOfflinePort(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    expect(field, findsOneWidget);
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isTrue);
+
+    await tester.enterText(field, '1');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(player.playCalls, 1);
+    expect(player.playedUrl, contains('/musics/test.mp3'));
+  });
+
+  testWidgets('campo de número seleciona valor inteiro ao receber foco', (
+    tester,
+  ) async {
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
 
     await tester.pumpWidget(
       _wrap(
@@ -229,8 +268,49 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(TablerIcons.search), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '123');
+    FocusScope.of(tester.element(field)).unfocus();
+    await tester.pump();
+    tester.widget<TextField>(field).focusNode!.requestFocus();
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(field).controller!.selection,
+      const TextSelection(baseOffset: 0, extentOffset: 3),
+    );
+  });
+
+  testWidgets('foco e número inválido não tocam hino', (tester) async {
+    final player = _FakePlayer();
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(
+          hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)],
+          detail: const Hymn(id: 1, urlMusic: '/musics/test.mp3'),
+        ),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(
+          albumId: 100,
+          audioPlayer: player,
+          offlineService: _FakeOfflinePort(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '999');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(player.playCalls, 0);
   });
 
   testWidgets('AlbumDetailPage mostra botao play e instrumental', (
