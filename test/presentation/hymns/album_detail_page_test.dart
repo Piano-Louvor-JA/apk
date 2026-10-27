@@ -73,30 +73,6 @@ class _MockApi implements LouvorjaApiClient {
       {};
 }
 
-class _DelayedHymnRepository implements HymnRepository {
-  final Future<List<Hymn>> hymns;
-
-  _DelayedHymnRepository(this.hymns);
-
-  @override
-  Future<List<AlbumCategory>> getCategories() => Future.value(const []);
-
-  @override
-  Future<List<Hymn>> getHymnsByAlbum(int albumId) => hymns;
-
-  @override
-  Future<List<Hymn>> searchHymns(String query) => Future.value(const []);
-
-  @override
-  Future<Hymn?> getHymn(int id) => Future.value(null);
-
-  @override
-  Future<Hymn> getHymnDetails(int hymnId) => Future.error(UnimplementedError());
-
-  @override
-  List<Album> getAllAlbums() => const [];
-}
-
 class _FakePlayer implements HymnAudioPlayer {
   @override
   Stream<Duration> get positionStream => const Stream.empty();
@@ -265,6 +241,11 @@ void main() {
 
     final field = find.byKey(const Key('hymn-number-input'));
     expect(field, findsOneWidget);
+    final textField = tester.widget<TextField>(field);
+    expect(textField.focusNode!.hasFocus, isTrue);
+    expect(textField.controller!.selection.baseOffset, 0);
+    expect(textField.controller!.selection.extentOffset, 0);
+    expect(player.playCalls, 0);
 
     await tester.enterText(field, '1');
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -274,7 +255,7 @@ void main() {
     expect(player.playedUrl, contains('/musics/test.mp3'));
   });
 
-  testWidgets('campo de número seleciona valor inteiro ao receber foco', (
+  testWidgets('campo de número preserva seleção manual ao refocar', (
     tester,
   ) async {
     final bloc = HymnsBloc(
@@ -296,11 +277,46 @@ void main() {
     await tester.enterText(field, '123');
     FocusScope.of(tester.element(field)).unfocus();
     await tester.pump();
-    tester.widget<TextField>(field).focusNode!.requestFocus();
+    final textField = tester.widget<TextField>(field);
+    textField.controller!.selection = const TextSelection.collapsed(offset: 1);
+    textField.focusNode!.requestFocus();
     await tester.pump();
 
     expect(
-      tester.widget<TextField>(field).controller!.selection,
+      textField.controller!.selection,
+      const TextSelection.collapsed(offset: 1),
+    );
+  });
+
+  testWidgets('campo recupera foco e seleciona tudo ao voltar ao app', (
+    tester,
+  ) async {
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '123');
+    final textField = tester.widget<TextField>(field);
+    FocusScope.of(tester.element(field)).unfocus();
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(textField.focusNode!.hasFocus, isTrue);
+    expect(
+      textField.controller!.selection,
       const TextSelection(baseOffset: 0, extentOffset: 3),
     );
   });
@@ -491,11 +507,15 @@ void main() {
     expect(tester.widget<TextField>(field).controller!.text, '999');
   });
 
-  testWidgets('AC-6 dispose não gera callback tardio ou exceção', (
+  testWidgets('AC-6 dispose após foco não gera callback tardio ou exceção', (
     tester,
   ) async {
-    final completer = Completer<List<Hymn>>();
-    final bloc = HymnsBloc(_DelayedHymnRepository(completer.future));
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
 
     await tester.pumpWidget(
       _wrap(
@@ -503,10 +523,12 @@ void main() {
         AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
+    final field = find.byKey(const Key('hymn-number-input'));
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isTrue);
+
     await tester.pumpWidget(const SizedBox());
-    completer.complete(const [Hymn(id: 1, title: 'Tardio', number: 1)]);
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
 
     expect(tester.takeException(), isNull);
   });
