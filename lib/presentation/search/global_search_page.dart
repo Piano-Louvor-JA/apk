@@ -72,6 +72,17 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     setState(() => _results = all);
   }
 
+  /// SPEC v1.2.0 RF-01..RF-04: Enter/OK/Done roda a busca e, se houver
+  /// exatamente UM resultado de hino, reproduz esse hino. Múltiplos, zero,
+  /// query curta ou resultados só-bíblia não tocam.
+  void _submit(String query) {
+    _runSearch(query);
+    final hymnResults =
+        _results.where((r) => r.groupKey == 'hymns').toList(growable: false);
+    if (hymnResults.length != 1) return;
+    widget.onHymnSelected?.call(hymnResults.first.item as Hymn);
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -99,7 +110,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onSubmitted: _runSearch,
+              onSubmitted: _submit,
               onChanged: (v) => _runSearch(v),
             ),
           ),

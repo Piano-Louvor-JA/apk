@@ -86,4 +86,92 @@ void main() {
 
     expect(selected?.id, 2);
   });
+
+  testWidgets('AC-1: OK/Done com exatamente 1 hino resultado toca o hino', (
+    tester,
+  ) async {
+    Hymn? selected;
+    final hymns = <Hymn>[
+      Hymn(id: 7, title: 'Grande Amor', number: 5, hasInstrumental: false),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GlobalSearchPage(
+          service: GlobalSearchService(),
+          hymnsProvider: () async => hymns,
+          versesProvider: () async => <BibleVerseRef>[],
+          onHymnSelected: (h) => selected = h,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'grande amor');
+    await tester.pumpAndSettle();
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(selected?.id, 7);
+  });
+
+  testWidgets('AC-2: OK/Done com 2 resultados nao toca', (tester) async {
+    Hymn? selected;
+    final hymns = <Hymn>[
+      Hymn(id: 7, title: 'Grande Amor', number: 5, hasInstrumental: false),
+      Hymn(id: 8, title: 'Grande Amor Eterno', number: 6, hasInstrumental: false),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GlobalSearchPage(
+          service: GlobalSearchService(),
+          hymnsProvider: () async => hymns,
+          versesProvider: () async => <BibleVerseRef>[],
+          onHymnSelected: (h) => selected = h,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'grande amor');
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsAtLeast(2));
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(selected, isNull);
+  });
+
+  testWidgets('AC-3: OK/Done com query curta nao toca e nao busca', (
+    tester,
+  ) async {
+    Hymn? selected;
+    final hymns = <Hymn>[
+      Hymn(id: 7, title: 'Grande Amor', number: 5, hasInstrumental: false),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GlobalSearchPage(
+          service: GlobalSearchService(),
+          hymnsProvider: () async => hymns,
+          versesProvider: () async => <BibleVerseRef>[],
+          onHymnSelected: (h) => selected = h,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'am');
+    await tester.pumpAndSettle();
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(selected, isNull);
+    expect(find.byType(ListTile), findsNothing);
+  });
 }
