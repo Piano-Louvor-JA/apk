@@ -67,8 +67,41 @@ class AlbumDetailPage extends StatefulWidget {
   State<AlbumDetailPage> createState() => _AlbumDetailPageState();
 }
 
-class _AlbumDetailPageState extends State<AlbumDetailPage> {
+class _AlbumDetailPageState extends State<AlbumDetailPage>
+    with WidgetsBindingObserver {
   Future<List<Hymn>>? _hymnsFuture;
+  final _hymnNumberController = TextEditingController();
+  final _hymnNumberFocusNode = FocusNode();
+  bool _autoFocusRequested = false;
+  bool _inputVisible = false;
+
+  void _requestHymnNumberFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_inputVisible || _hymnNumberFocusNode.hasFocus) return;
+      final focused = FocusManager.instance.primaryFocus;
+      // Bloqueia roubo de foco apenas se OUTRO campo editável está ativo
+      // (RF-01/AC-4); FocusScope/auxiliares não são editáveis e não bloqueiam.
+      if (focused != null &&
+          focused != _hymnNumberFocusNode &&
+          focused.context?.widget is EditableText) {
+        return;
+      }
+      _autoFocusRequested = true;
+      _hymnNumberFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _requestHymnNumberFocus();
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
+    _requestHymnNumberFocus();
+  }
+
   int? _loadingMusicId;
   int? _expandedHymnId;
   int? _playingHymnId;
@@ -93,6 +126,8 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _hymnNumberFocusNode.addListener(_selectHymnNumberOnFocus);
     // Sincroniza o ícone quando a faixa termina, falha ou é pausada externamente.
     _playingSubscription = _player.playingStream.listen((playing) {
       if (!playing && mounted) {
@@ -103,6 +138,23 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     _completionSubscription = _player.completionStream.listen((_) {
       _playNextInQueue();
     });
+  }
+
+  void _selectHymnNumberOnFocus() {
+    if (!_hymnNumberFocusNode.hasFocus || !_autoFocusRequested) return;
+    _autoFocusRequested = false;
+    final text = _hymnNumberController.text;
+    _hymnNumberController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: text.length,
+    );
+  }
+
+  Future<void> _submitHymnNumber(List<Hymn> hymns) async {
+    final number = int.tryParse(_hymnNumberController.text.trim());
+    if (number == null) return;
+    final hymn = hymns.where((item) => item.number == number).firstOrNull;
+    if (hymn != null) await _togglePlay(hymn, instrumental: false);
   }
 
   /// Avança para a próxima faixa da fila (Tocar tudo). Fim da fila encerra
@@ -538,6 +590,11 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   void dispose() {
     _playingSubscription?.cancel();
     _completionSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _hymnNumberFocusNode
+      ..removeListener(_selectHymnNumberOnFocus)
+      ..dispose();
+    _hymnNumberController.dispose();
     super.dispose();
   }
 
@@ -795,13 +852,21 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             );
           }
 
+          _inputVisible = true;
+          _requestHymnNumberFocus();
           return Column(
             children: [
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.s4),
                 child: TextField(
+                  key: const Key('hymn-number-input'),
+                  controller: _hymnNumberController,
+                  focusNode: _hymnNumberFocusNode,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
                   decoration: InputDecoration(
-                    hintText: 'hymns.searchPlaceholder'.tr(),
+                    hintText: 'Número do hino',
                     prefixIcon: const Icon(TablerIcons.search),
                     border: OutlineInputBorder(
                       borderRadius: const BorderRadius.only(
@@ -810,18 +875,17 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                       ),
                     ),
                   ),
-                  onChanged: (query) {
-                    // TODO: filtro local com debounce
-                  },
+                  onSubmitted: (value) => _submitHymnNumber(hymns),
                 ),
               ),
+
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.s4,
                   ),
                   itemCount: hymns.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final hymn = hymns[index];
                     final isExpanded = _expandedHymnId == hymn.id;
