@@ -17,14 +17,14 @@ dependencies:
 
   # Networking
   dio: ^5.11.1
-  crypto: ^3.0.6
+  crypto: ^3.0.8
 
   # Routing
   go_router: ^18.0.2
 
   # Fonts
   # 9.0.0 troca TextTheme do Flutter por material_ui e não compila com ThemeData.
-  google_fonts: ^8.2.1
+  google_fonts: ^9.0.0
 
   # Internationalization
   easy_localization: ^3.0.7
@@ -66,16 +66,16 @@ dependencies:
 
   # Seleção de mídia local para itens da liturgia (mobile/web).
   # 13.x é federado: FilePicker.pickFile/pickFiles, sem FilePicker.platform.
-  file_picker: 13.1.0
+  file_picker: 13.3.0
 
   # Abrir URLs externas (site, video online) da liturgia
   url_launcher: ^6.3.3
 
   # Manter tela acesa durante o culto
-  wakelock_plus: ^1.8.0
-  flutter_local_notifications: ^22.3.2
+  wakelock_plus: ^1.8.2
+  flutter_local_notifications: ^22.3.3
   timezone: ^0.11.2
-  open_filex: ^4.7.0
+  open_filex: ^5.0.0
   image_picker: ^1.2.4
   flutter_colorpicker: ^1.1.0
   image: ^4.12.0
@@ -83,11 +83,11 @@ dependencies:
   flutter_foreground_task: ^11.0.3
   multicast_dns: ^0.3.3+1
   mobile_scanner: ^7.4.2
-  flutter_webrtc: ^1.6.2+hotfix.3
+  flutter_webrtc: ^1.6.3
   qr_flutter: ^4.1.0
   flutter_secure_storage: ^11.2.0
   file_selector: ^1.1.0
-  sentry_flutter: ^9.30.0
+  sentry_flutter: ^10.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -100,7 +100,7 @@ dev_dependencies:
   # Code generation
   build_runner: ^2.16.1
   freezed: ^4.0.1
-  json_serializable: ^6.8.0
+  json_serializable: ^6.15.2
 
   # Testing
   bloc_test: ^10.0.0
