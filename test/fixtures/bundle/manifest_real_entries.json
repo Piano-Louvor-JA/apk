@@ -1,0 +1,44 @@
+[
+  {
+    "file": "config.json",
+    "table": "config",
+    "path": "/db/config",
+    "hash": "439d3ab9a3db7c041593715d0f9ebfd5"
+  },
+  {
+    "file": "pt_categories.json",
+    "table": "pt_categories",
+    "path": "/db/pt_categories",
+    "hash": "7f49d1693bd7dda9ba0a00c60213c7fc"
+  },
+  {
+    "file": "album_1.json",
+    "table": "album_1",
+    "path": "/db/album_1",
+    "hash": "0a191817499d3db8c1bd89156996b7af"
+  },
+  {
+    "file": "pt_musics.json",
+    "table": "pt_musics",
+    "path": "/db/pt_musics",
+    "hash": "71547d3ea192ddf87e2e42ca33e19456"
+  },
+  {
+    "file": "bible_10_100_1.json",
+    "table": "bible_10_100_1",
+    "path": "/db/bible_10_100_1",
+    "hash": "115b3ef31c499af129e3de5a55e56270"
+  },
+  {
+    "file": "bible_10_100_2.json",
+    "table": "bible_10_100_2",
+    "path": "/db/bible_10_100_2",
+    "hash": "7b128b0473c8216ff4c020190dd9d291"
+  },
+  {
+    "file": "bible_10_100_3.json",
+    "table": "bible_10_100_3",
+    "path": "/db/bible_10_100_3",
+    "hash": "5345feb868bcd417e3a91c9dec5c4052"
+  }
+]

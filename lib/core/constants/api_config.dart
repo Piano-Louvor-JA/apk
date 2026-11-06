@@ -14,7 +14,17 @@ library;
 /// (virgula = separador). Env vazia = sem fallback. Redundancia futura da
 /// nossa API = incluir o host na lista do build, sem tocar em codigo.
 class ApiConfig {
-  /// Sem dart-define = string vazia (sem base primaria).
+  /// ADR-11 (SPEC piano-bundle-sync v1.2.0): origem de `/db/*` (manifest +
+  /// bundles) é PRÓPRIA e NUNCA derivada de [urlDatabase] — quem publica
+  /// /db/* é o UPSTREAM (api.louvorja.com.br), não a nossa API (/json_db).
+  /// Default público documentado; override apenas via --dart-define.
+  static const String defaultBundlesOrigin = 'https://api.louvorja.com.br';
+
+  static const String _bundlesUrlRaw = String.fromEnvironment(
+    'LOUVORJA_URL_BUNDLES',
+  );
+
+  /// Sem dart-define = string vazia (sem base primária).
   static const String urlDatabase = String.fromEnvironment(
     'LOUVORJA_URL_DATABASE',
   );
@@ -60,5 +70,14 @@ class ApiConfig {
   static List<String> filesUrls() => [
     if (urlFiles.isNotEmpty) urlFiles,
     for (final host in fallbackHosts) '$host/file',
+  ];
+
+  /// Origens candidatas pra /db/* (bundles ADR-11): env própria
+  /// LOUVORJA_URL_BUNDLES, senão o default público upstream. NUNCA contém
+  /// a origem de [urlDatabase] nem dos fallbacks de database/files — /db/*
+  /// não existe na nossa API e o fallback legado não é origem de bundles.
+  static List<String> bundlesUrls() => [
+    if (_bundlesUrlRaw.trim().isNotEmpty) _bundlesUrlRaw.trim(),
+    defaultBundlesOrigin,
   ];
 }
