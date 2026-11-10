@@ -22,6 +22,7 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:louvorja_piano_mobile/core/services/home_location_preferences.dart';
 import 'package:louvorja_piano_mobile/data/repositories/scheduled_repository.dart';
 import 'package:louvorja_piano_mobile/domain/entities/scheduled_item.dart';
 
@@ -141,6 +142,7 @@ abstract final class SyncablePrefKeys {
     'accent',
     'interaction',
     'glassIntensity',
+    HomeLocationPreferences.storageKey,
   };
 
   /// Adapta chaves/valores locais ao contrato compartilhado. Tema permanece
@@ -460,6 +462,14 @@ Future<void> _applyPref(
           key,
           key == 'interaction' && value == 'dynamic' ? 'dynamic_' : value,
         );
+      }
+    case HomeLocationPreferences.storageKey:
+      if (value is Map) {
+        await prefs.setString(
+          key,
+          jsonEncode(HomeLocation.fromJson(value).toJson()),
+        );
+        HomeLocationPreferences.notifyExternalChange();
       }
   }
 }

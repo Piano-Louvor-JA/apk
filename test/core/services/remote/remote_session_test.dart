@@ -60,6 +60,45 @@ void main() {
     await desktop?.close();
   });
 
+  test('quadro do video vira bytes prontos; video fechado limpa a previa', () async {
+    // PNG 1x1 valido em base64.
+    const png =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP4//8/AAX+Av6n1qOiAAAAAElFTkSuQmCC';
+    WebSocket? desktop;
+    final connected = Completer<void>();
+    server.listen((req) async {
+      desktop = await WebSocketTransformer.upgrade(req);
+      desktop!.listen((_) {});
+      connected.complete();
+    });
+
+    final session = RemoteSession.instance;
+    await session.connectDesktop(host: '127.0.0.1', port: server.port, token: 'T');
+    await connected.future;
+
+    desktop!.add('{"v":1,"type":"frame","data":"$png"}');
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(session.videoFrame.value, isNotNull);
+    expect(session.videoFrame.value!.length, greaterThan(0));
+
+    // Estado sem barra de video (video fechado): a previa some.
+    desktop!.add(
+      const RemotePlayerState(
+        playing: false,
+        position: Duration.zero,
+        duration: Duration.zero,
+        slideIndex: 0,
+        slideCount: 0,
+        volume: 50,
+        canPrevious: false,
+        canNext: false,
+      ).encode(),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(session.videoFrame.value, isNull);
+    await desktop?.close();
+  });
+
   test('desktop_closed derruba sessão remota imediatamente', () async {
     WebSocket? desktop;
     server.listen((req) async {

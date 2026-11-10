@@ -33,6 +33,8 @@ import 'package:louvorja_piano_mobile/presentation/liturgy/bloc/liturgy_bloc.dar
 import 'package:louvorja_piano_mobile/presentation/liturgy/services/liturgy_item_executor.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/liturgy_item_dialog.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/liturgy_avulsa_page.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/remote_site_browser_page.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_bar.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
 /// Converte LiturgyItemType enum para a chave snake_case do i18n.
@@ -426,7 +428,7 @@ class _LiturgyViewState extends State<_LiturgyView> {
           }
           // Espelho: Controle Remoto conectado → liturgia do DESKTOP.
           if (_isMirroring) {
-            return _RemoteLiturgyMirror(state: _remoteState!);
+            return RemoteLiturgyMirror(state: _remoteState!);
           }
           return _Body(state: state);
         },
@@ -435,19 +437,137 @@ class _LiturgyViewState extends State<_LiturgyView> {
   }
 }
 
-/// Lista espelhada da liturgia do desktop. Tap = liturgy.select.
-class _RemoteLiturgyMirror extends StatelessWidget {
+/// Lista espelhada da liturgia do desktop com os controles no rodapé.
+///
+/// Tocar no item só escolhe; quem executa no desktop (liturgy.select) é o play.
+/// Item concluído não executa, igual ao botão play da linha no desktop.
+class RemoteLiturgyMirror extends StatefulWidget {
   final RemotePlayerState state;
 
-  const _RemoteLiturgyMirror({required this.state});
+  /// Injetável para testes; default = sessão global.
+  final Future<void> Function(RemoteCommand command)? send;
+
+  /// Abre o navegador do celular para um item de site. Injetável para testes.
+  final Future<void> Function(
+    BuildContext context,
+    RemoteSiteBrowserPage page,
+  )?
+  openSite;
+
+  const RemoteLiturgyMirror({
+    super.key,
+    required this.state,
+    this.send,
+    this.openSite,
+  });
+
+  @override
+  State<RemoteLiturgyMirror> createState() => _RemoteLiturgyMirrorState();
+}
+
+class _RemoteLiturgyMirrorState extends State<RemoteLiturgyMirror> {
+  int? _chosenIndex;
+
+  RemotePlayerState get state => widget.state;
 
   Future<void> _select(int index, {bool toggleDone = false}) {
-    return RemoteSession.instance.send(
+    return (widget.send ?? RemoteSession.instance.send)(
       RemoteCommand(
         id: 'l${DateTime.now().microsecondsSinceEpoch}',
         action: toggleDone
             ? RemoteAction.liturgyToggleDone
             : RemoteAction.liturgySelect,
+        index: index,
+      ),
+    );
+  }
+
+  /// A escolha só vale enquanto o item existe e não foi concluído.
+  int? get _validChosen {
+    if (state.hasOpenMedia) return null;
+    final chosen = _chosenIndex;
+    if (chosen == null) return null;
+    for (final item in state.liturgyItems) {
+      if (item.index == chosen) return item.done ? null : chosen;
+    }
+    return null;
+  }
+
+  void _toggleChosen(int index) {
+    setState(() => _chosenIndex = _validChosen == index ? null : index);
+  }
+
+  Future<void> _sendCommand(RemoteCommand command) =>
+      (widget.send ?? RemoteSession.instance.send)(command);
+
+  String _commandId() => 's${DateTime.now().microsecondsSinceEpoch}';
+
+  /// Link de site navegável no celular, ou null para seguir o fluxo normal.
+  String? _siteUrlOf(int index) {
+    for (final item in state.liturgyItems) {
+      if (item.index != index) continue;
+      final url = item.type == 'site' ? item.url?.trim() : null;
+      if (url == null || RemoteSiteBrowserPage.normalize(url) == null) {
+        return null;
+      }
+      return url;
+    }
+    return null;
+  }
+
+  /// Play no site: abre o site no desktop (sem projetar) e o navegador do
+  /// celular, que espelha página e rolagem; a seta de lá projeta.
+  Future<void> _openSite(int index, String url) {
+    final item = state.liturgyItems.firstWhere((e) => e.index == index);
+    _sendCommand(
+      RemoteCommand(
+        id: _commandId(),
+        action: RemoteAction.liturgyOpen,
+        index: index,
+      ),
+    );
+    final page = RemoteSiteBrowserPage(
+      url: url,
+      title: item.title ?? url,
+      onToggleScreens: () => _sendCommand(
+        RemoteCommand(
+          id: _commandId(),
+          action: RemoteAction.videoToggleProjection,
+        ),
+      ),
+      onNavigate: (url) => _sendCommand(
+        RemoteCommand(
+          id: _commandId(),
+          action: RemoteAction.siteNavigate,
+          url: url,
+        ),
+      ),
+      onScroll: (ratio) => _sendCommand(
+        RemoteCommand(
+          id: _commandId(),
+          action: RemoteAction.siteScroll,
+          ratio: ratio,
+        ),
+      ),
+    );
+    return (widget.openSite ?? RemoteSiteBrowserPage.open)(context, page);
+  }
+
+  void _executeChosen(int index) {
+    setState(() => _chosenIndex = null);
+    final siteUrl = _siteUrlOf(index);
+    if (siteUrl != null && state.liturgyCanOpen) {
+      _openSite(index, siteUrl);
+      return;
+    }
+    if (!state.liturgyCanOpen) {
+      _select(index);
+      return;
+    }
+    (widget.send ?? RemoteSession.instance.send)(
+      RemoteCommand(
+        id: 'l${DateTime.now().microsecondsSinceEpoch}',
+        action: RemoteAction.liturgyOpen,
         index: index,
       ),
     );
@@ -477,21 +597,30 @@ class _RemoteLiturgyMirror extends StatelessWidget {
     // list não traz categoryId — usa isCategory + ordem).
     final children = <Widget>[];
     final items = state.liturgyItems;
+    final chosen = _validChosen;
+    // Com mídia aberta, um toque acidental iniciaria outro item junto.
+    final locked = state.hasOpenMedia;
     for (final e in items) {
       final item = _toItem(e);
-      final isSel = e.index == state.liturgySelectedIndex;
+      // Com escolha pendente, só ela fica destacada.
+      final isSel = e.index == (chosen ?? state.liturgySelectedIndex);
       final isCat = e.isCategory;
       children.add(
         Padding(
           key: Key('mirror-liturgy-${e.index}'),
           padding: EdgeInsets.only(left: isCat ? 0 : 32, bottom: isCat ? 0 : 4),
           child: _MirrorItemCard(
+            key: Key('mirror-liturgy-tap-${e.index}'),
             item: item,
             isCategory: isCat,
             theme: theme,
             selected: isSel,
-            onTap: isCat ? null : () => _select(e.index),
-            onToggleDone: () => _select(e.index, toggleDone: true),
+            onTap: isCat || e.done || locked
+                ? null
+                : () => _toggleChosen(e.index),
+            onToggleDone: locked
+                ? null
+                : () => _select(e.index, toggleDone: true),
           ),
         ),
       );
@@ -529,10 +658,19 @@ class _RemoteLiturgyMirror extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.s3),
-            children: children,
+          child: Opacity(
+            opacity: locked ? 0.5 : 1,
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.s3),
+              children: children,
+            ),
           ),
+        ),
+        RemotePlayerBar(
+          state: state,
+          showTransport: true,
+          send: widget.send,
+          pendingOpen: chosen == null ? null : () => _executeChosen(chosen),
         ),
       ],
     );
@@ -547,9 +685,10 @@ class _MirrorItemCard extends StatelessWidget {
   final ThemeData theme;
   final bool selected;
   final VoidCallback? onTap;
-  final VoidCallback onToggleDone;
+  final VoidCallback? onToggleDone;
 
   const _MirrorItemCard({
+    super.key,
     required this.item,
     required this.isCategory,
     required this.theme,

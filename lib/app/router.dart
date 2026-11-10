@@ -26,10 +26,10 @@ import '../presentation/settings/terms_page.dart';
 import '../presentation/shared/widgets/main_navigation.dart';
 import '../presentation/tools/tools_page.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
   routes: [
     StatefulShellRoute.indexedStack(

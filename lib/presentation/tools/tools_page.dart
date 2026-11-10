@@ -63,6 +63,14 @@ class _ToolsPageState extends State<ToolsPage> {
   }
 
   Widget _buildToolView(_ToolView view) {
+    if (view == _ToolView.timer) {
+      return TimerPage(onBack: () => setState(() => _activeView = null));
+    }
+    if (view == _ToolView.remoteControl) {
+      return RemoteControlToolPage(
+        onBack: () => setState(() => _activeView = null),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(

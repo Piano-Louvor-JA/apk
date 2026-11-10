@@ -29,15 +29,22 @@ class DesktopConnection {
       Duration(seconds: 3),
       Duration(seconds: 7),
     ],
+    this.closeTimeout = const Duration(seconds: 1),
   });
 
   final Duration heartbeat;
   final List<Duration> reconnectDelays;
 
+  /// Quanto esperar o outro lado confirmar o fechamento do socket.
+  final Duration closeTimeout;
+
   WebSocket? _ws;
+  StreamSubscription<dynamic>? _socketSub;
   String? _host;
   int? _port;
   String? _token;
+  String? _device;
+  String? _appVersion;
   var _attempt = 0;
   var _closingByUser = false;
   Timer? _heartbeatTimer;
@@ -46,12 +53,16 @@ class DesktopConnection {
   final _statusCtrl = StreamController<DesktopConnectionStatus>.broadcast();
   final _statesCtrl = StreamController<RemotePlayerState>.broadcast();
   final _acksCtrl = StreamController<RemoteAck>.broadcast();
+  final _framesCtrl = StreamController<RemoteVideoFrame>.broadcast();
   final _errorsCtrl = StreamController<RemoteError>.broadcast();
 
   static final _allForTest = <DesktopConnection>[];
 
   Stream<DesktopConnectionStatus> get status => _statusCtrl.stream;
   Stream<RemotePlayerState> get states => _statesCtrl.stream;
+
+  /// Quadros da prévia do vídeo/YouTube aberto no desktop.
+  Stream<RemoteVideoFrame> get frames => _framesCtrl.stream;
   Stream<RemoteAck> get acks => _acksCtrl.stream;
   Stream<RemoteError> get errors => _errorsCtrl.stream;
 
@@ -85,11 +96,13 @@ class DesktopConnection {
 
   /// Envia a identificação do aparelho ao desktop (logo após conectar).
   void sendHello({required String device, String? appVersion}) {
-    _ws?.add(RemoteHello(device: device, appVersion: appVersion).encode());
+    _device = device;
+    _appVersion = appVersion;
+    if (isConnected) _ws?.add(RemoteHello(device: device, appVersion: appVersion, token: _token).encode());
   }
 
   void _listen() {
-    _ws!.listen(
+    _socketSub = _ws!.listen(
       (data) {
         _lastPeerActivity = DateTime.now();
         final msg = RemoteProtocol.parse(data as String);
@@ -103,6 +116,8 @@ class DesktopConnection {
             _errorsCtrl.add(msg);
           case RemotePing():
             _ws?.add(const RemotePong().encode());
+          case RemoteVideoFrame():
+            _framesCtrl.add(msg);
           case RemotePong():
             break;
           case RemoteHello():
@@ -149,6 +164,7 @@ class DesktopConnection {
     _lastPeerActivity = DateTime.now();
     _listen();
     _startHeartbeat();
+    if (_device != null) sendHello(device: _device!, appVersion: _appVersion);
   }
 
   void _startHeartbeat() {
@@ -156,11 +172,31 @@ class DesktopConnection {
     _heartbeatTimer = Timer.periodic(heartbeat, (_) {
       final last = _lastPeerActivity;
       if (last != null && DateTime.now().difference(last) > heartbeat * 2) {
-        _ws?.close(); // dispara onDone → reconexão
+        unawaited(_abandonSocket());
         return;
       }
       _ws?.add(const RemotePing().encode());
     });
+  }
+
+  /// O outro lado parou de responder: não dá para esperar o `onDone` do
+  /// fechamento educado, a queda e a reconexão começam na hora.
+  Future<void> _abandonSocket() async {
+    final sub = _socketSub;
+    final ws = _ws;
+    _socketSub = null;
+    _ws = null;
+    _onDown();
+    await sub?.cancel();
+    await _closeSocket(ws);
+  }
+
+  Future<void> _closeSocket(WebSocket? ws) async {
+    try {
+      await ws?.close().timeout(closeTimeout);
+    } catch (_) {
+      // Socket já perdido: nada mais a fazer.
+    }
   }
 
   void _stopHeartbeat() {
@@ -193,7 +229,7 @@ class DesktopConnection {
   Future<void> disconnect() async {
     _closingByUser = true;
     _stopHeartbeat();
-    await _ws?.close();
+    await _closeSocket(_ws);
     _ws = null;
     _statusCtrl.add(DesktopConnectionStatus.disconnected);
   }
@@ -203,6 +239,7 @@ class DesktopConnection {
     await _statusCtrl.close();
     await _statesCtrl.close();
     await _acksCtrl.close();
+    await _framesCtrl.close();
     await _errorsCtrl.close();
   }
 }
