@@ -11,6 +11,7 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_slide_gallery.dart';
 
 /// Controles do player do alvo conectado.
@@ -25,12 +26,20 @@ class RemotePlayerBar extends StatefulWidget {
     this.showTransport = false,
     this.send,
     this.videoFrame,
+    this.compact = false,
+    this.onExpand,
+    this.onMinimize,
+    this.navigatorKey,
   });
 
   /// Quadros da prévia do vídeo; default = sessão global. Injetável em teste.
   final ValueListenable<Uint8List?>? videoFrame;
 
   final RemotePlayerState state;
+  final bool compact;
+  final VoidCallback? onExpand;
+  final VoidCallback? onMinimize;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   /// Item escolhido aguardando o play. Não nulo = botão pulsa e executa isto.
   final VoidCallback? pendingOpen;
@@ -113,6 +122,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => remotePlayerPresence.update(this, false));
     _closeVolume();
     _seekEchoTimeout?.cancel();
     _slideEchoTimeout?.cancel();
@@ -284,6 +294,11 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final visible = !widget.compact && TickerMode.valuesOf(context).enabled && (ModalRoute.isCurrentOf(context) ?? true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      remotePlayerPresence.update(this, mounted && visible);
+    });
+    if (widget.compact) return _compact(theme);
     final showPause = _st.playing && widget.pendingOpen == null;
     final slideCount = _st.slideCount;
     final durationMs = _st.duration.inMilliseconds;
@@ -304,7 +319,19 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_st.title != null)
+            if (widget.onMinimize != null)
+              Row(children: [
+                Expanded(child: Text(_st.title ?? '', maxLines: 1,
+                  overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                  style: theme.textTheme.labelLarge)),
+                IconButton(
+                  key: const Key('remote-player-minimize'),
+                  tooltip: 'common.minimize'.tr(),
+                  onPressed: widget.onMinimize,
+                  icon: const Icon(TablerIcons.minus),
+                ),
+              ])
+            else if (_st.title != null)
               Text(
                 _st.title!,
                 maxLines: 1,
@@ -378,10 +405,94 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
     );
   }
 
+  Widget _compact(ThemeData theme) {
+    return Material(
+      key: const Key('remote-mini-player'),
+      elevation: 8,
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(20),
+        bottomRight: Radius.circular(20),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: AppSpacing.s2,
+          right: AppSpacing.s2,
+          bottom: AppSpacing.s2,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _st.title ?? 'remote.title'.tr(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium,
+                  ),
+                ),
+                IconButton(
+                  key: const Key('remote-mini-close'),
+                  tooltip: 'remote.video.closeMedia'.tr(),
+                  icon: const Icon(TablerIcons.x),
+                  onPressed: _confirmClose,
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                SizedBox(
+                  width: 112,
+                  height: 72,
+                  child: _previewBytes != null
+                      ? _preview(_previewBytes!)
+                      : _currentLyric != null
+                      ? _lyricPreview(theme, _currentLyric!)
+                      : _st.videoControls != null
+                      ? _videoFramePreview()
+                      : const Icon(TablerIcons.music),
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        key: const Key('remote-mini-toggle'),
+                        tooltip: (_st.playing ? 'remote.pause' : 'remote.play')
+                            .tr(),
+                        icon: Icon(
+                          _st.playing
+                              ? TablerIcons.playerPause
+                              : TablerIcons.playerPlay,
+                        ),
+                        onPressed: _playAction,
+                      ),
+                      IconButton(
+                        key: const Key('remote-mini-expand'),
+                        tooltip: 'remote.title'.tr(),
+                        icon: const Icon(TablerIcons.maximize),
+                        onPressed: widget.onExpand,
+                      ),
+                      if (_st.videoControls != null)
+                        _lastAction(theme, includeClose: false),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Com barra de vídeo o último botão projeta; hino aberto mantém o stop.
-  Widget _lastAction(ThemeData theme) {
+  Widget _lastAction(ThemeData theme, {bool includeClose = true}) {
     final video = _st.videoControls;
-    final keepStop = !widget.showTransport || (video == null && _mediaOpen);
+    final keepStop = (!widget.showTransport && !widget.compact) || (video == null && _mediaOpen);
     if (keepStop) {
       return IconButton(
         tooltip: 'remote.stop'.tr(),
@@ -427,7 +538,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
         ),
       ),
     );
-    if (video == null) return project;
+    if (video == null || !includeClose) return project;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -583,7 +694,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   /// Fechar encerra o que toca no desktop: um toque acidental não pode fazer isso.
   Future<void> _confirmClose() async {
     final confirmed = await showDialog<bool>(
-      context: context,
+      context: widget.navigatorKey?.currentContext ?? context,
       builder: (context) => AlertDialog(
         key: const Key('remote-close-confirm'),
         title: Text('remote.video.closeConfirmTitle'.tr()),

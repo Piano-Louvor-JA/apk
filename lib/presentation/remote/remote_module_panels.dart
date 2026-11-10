@@ -1104,89 +1104,93 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
         media.query!.isNotEmpty) {
       hits = const [];
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: TextField(
-            key: const Key('remote-hymns-query'),
-            controller: _queryCtrl,
-            autofocus: false,
-            onChanged: _onQuery,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(TablerIcons.search),
-              suffixIcon: _queryCtrl.text.isEmpty
-                  ? null
-                  : IconButton(
-                      key: const Key('remote-hymns-clear'),
-                      tooltip: 'remote.hymns.clear'.tr(),
-                      icon: const Icon(TablerIcons.x),
-                      onPressed: _clearQuery,
-                    ),
-              labelText: 'remote.hymns.search'.tr(),
-              isDense: true,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-          child: Wrap(
-            spacing: AppSpacing.s2,
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
             children: [
-              for (final (m, label) in _modes)
-                ChoiceChip(
-                  key: Key('remote-hymns-mode-$m'),
-                  label: Text(label),
-                  selected: _mode == m,
-                  onSelected: (_) {
-                    setState(() => _mode = m);
-                    final selected = widget.selectedMusicId;
-                    if (selected != null) {
-                      widget.onSelectionChanged?.call(
-                        RemoteHymnSelection(musicId: selected, mode: m),
-                      );
-                    }
-                  },
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.s4),
+                child: TextField(
+                  key: const Key('remote-hymns-query'),
+                  controller: _queryCtrl,
+                  autofocus: false,
+                  onChanged: _onQuery,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(TablerIcons.search),
+                    suffixIcon: _queryCtrl.text.isEmpty
+                        ? null
+                        : IconButton(
+                            key: const Key('remote-hymns-clear'),
+                            tooltip: 'remote.hymns.clear'.tr(),
+                            icon: const Icon(TablerIcons.x),
+                            onPressed: _clearQuery,
+                          ),
+                    labelText: 'remote.hymns.search'.tr(),
+                    isDense: true,
+                  ),
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+                child: Wrap(
+                  spacing: AppSpacing.s2,
+                  children: [
+                    for (final (m, label) in _modes)
+                      ChoiceChip(
+                        key: Key('remote-hymns-mode-$m'),
+                        label: Text(label),
+                        selected: _mode == m,
+                        onSelected: (_) {
+                          setState(() => _mode = m);
+                          final selected = widget.selectedMusicId;
+                          if (selected != null) {
+                            widget.onSelectionChanged?.call(
+                              RemoteHymnSelection(musicId: selected, mode: m),
+                            );
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              if (_searching) const LinearProgressIndicator(),
             ],
           ),
         ),
-        if (_searching) const LinearProgressIndicator(),
-        Expanded(
-          child: hits.isEmpty
-              ? Center(
-                  child: Text(
-                    'remote.hymns.empty'.tr(),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: hits.length,
-                  itemBuilder: (_, i) {
-                    final h = hits[i];
-                    final selected = h.musicId == widget.selectedMusicId;
-                    return ListTile(
-                      key: Key('remote-hymns-result-$i'),
-                      dense: true,
-                      selected: selected,
-                      selectedTileColor: theme.colorScheme.primary.withValues(
-                        alpha: 0.16,
-                      ),
-                      title: Text(
-                        h.track != null ? '${h.track} — ${h.name}' : h.name,
-                      ),
-                      onTap: () => widget.onSelectionChanged?.call(
-                        selected
-                            ? null
-                            : RemoteHymnSelection(
-                                musicId: h.musicId,
-                                mode: _mode,
-                              ),
-                      ),
-                    );
-                  },
+        if (hits.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Text(
+                'remote.hymns.empty'.tr(),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate((_, i) {
+              final h = hits[i];
+              final selected = h.musicId == widget.selectedMusicId;
+              return ListTile(
+                key: Key('remote-hymns-result-$i'),
+                dense: true,
+                selected: selected,
+                selectedTileColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.16,
                 ),
-        ),
+                title: Text(
+                  h.track != null ? '${h.track} — ${h.name}' : h.name,
+                ),
+                onTap: () => widget.onSelectionChanged?.call(
+                  selected
+                      ? null
+                      : RemoteHymnSelection(musicId: h.musicId, mode: _mode),
+                ),
+              );
+            }, childCount: hits.length),
+          ),
       ],
     );
   }

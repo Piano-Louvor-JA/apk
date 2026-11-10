@@ -21,6 +21,7 @@
     "loading": "Cargando..."
   },
   "common": {
+    "minimize": "Minimizar",
     "retry": "Intentar de nuevo",
     "error": "Algo salió mal",
     "empty": "Sin resultados",

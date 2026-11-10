@@ -200,6 +200,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('busca de Hinos rola sem overflow quando o player ocupa a tela', (tester) async {
+    await tester.pumpWidget(wrap(const Align(
+      alignment: Alignment.topCenter,
+      child: SizedBox(height: 100, child: RemoteHymnsPanel()),
+    )));
+    expect(tester.takeException(), isNull);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -100));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('RemoteBiblePanel seleciona livro por nome e navega capítulo', (
     tester,
   ) async {

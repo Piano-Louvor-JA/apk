@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
@@ -64,6 +65,32 @@ void main() {
 
   IconButton iconButton(WidgetTester tester, Key key) =>
       tester.widget<IconButton>(find.byKey(key));
+
+  testWidgets('hino usa seta pulsante, seta para baixo e fechar como o vídeo', (tester) async {
+    Future<void> hymn(bool projecting) => pump(tester, RemotePlayerState(
+      hymnId: 1, title: 'Hino', playing: true,
+      position: Duration.zero, duration: const Duration(minutes: 3),
+      slideIndex: 0, slideCount: 2, slideLyrics: const ['Letra', 'Final'],
+      volume: 60, canPrevious: false, canNext: false,
+      videoControls: RemoteVideoControls(
+        audioOutput: 'player', canProject: true, projecting: projecting,
+        canControlCaptions: false, captionsHidden: false,
+        monitors: const [], tvs: const [],
+      ),
+    ), showTransport: true);
+    const project = Key('remote-video-project');
+    const close = Key('remote-close-media');
+    await hymn(false);
+    expect(find.byKey(const Key('remote-project-pulse')), findsOneWidget);
+    expect(find.byKey(close), findsOneWidget);
+    await tester.tap(find.byKey(project));
+    expect(sent.single.action, RemoteAction.videoToggleProjection);
+    await hymn(true);
+    expect(find.byKey(const Key('remote-project-pulse')), findsNothing);
+    expect(tester.widget<Icon>(find.descendant(of: find.byKey(project), matching: find.byType(Icon))).icon, TablerIcons.arrowDown);
+    expect(tester.getCenter(find.byKey(close)).dx, greaterThan(tester.getCenter(find.byKey(project)).dx));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('icone de som fica na linha dos controles, antes do anterior', (
     tester,

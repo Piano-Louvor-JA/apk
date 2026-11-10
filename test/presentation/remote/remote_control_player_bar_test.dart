@@ -74,6 +74,9 @@ void main() {
 
     expect(find.byKey(_barKey), findsOneWidget);
     expect(find.text('Hino 100'), findsOneWidget);
+    expect(find.byKey(const Key('remote-seek')), findsOneWidget);
+    expect(find.byKey(const Key('remote-slide-prev')), findsOneWidget);
+    expect(find.byKey(const Key('remote-slide-next')), findsOneWidget);
     await _disconnect(tester);
   });
 

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../core/services/pip_controller.dart';
 import '../core/services/settings_controller.dart';
 import '../presentation/shared/widgets/pip_minimal_overlay.dart';
+import '../presentation/remote/widgets/remote_mini_player_overlay.dart';
 import '../presentation/splash/splash_screen.dart';
 import 'router.dart';
 import 'theme/app_accents.dart';
@@ -70,7 +71,12 @@ class _LouvorjaAppState extends State<LouvorjaApp> {
         return ValueListenableBuilder<bool>(
           valueListenable: PipController.isActive,
           builder: (context, isPip, _) {
-            if (!isPip) return child ?? const SizedBox.shrink();
+            if (!isPip) {
+              return RemoteMiniPlayerOverlay(
+                navigatorKey: rootNavigatorKey,
+                child: child ?? const SizedBox.shrink(),
+              );
+            }
             return const PipMinimalOverlay();
           },
         );

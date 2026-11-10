@@ -237,6 +237,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                 if (_playerTabs.contains(_tabCtrl?.index) && !_keyboardOpen)
                   RemotePlayerBar(
                     state: st,
+                    showTransport: true,
                     pendingOpen: _hymnSelection == null
                         ? null
                         : () => _openSelectedHymn(_hymnSelection!),
