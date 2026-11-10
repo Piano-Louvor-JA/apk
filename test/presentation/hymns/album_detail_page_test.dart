@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart' show ProgressCallback;
 import 'package:louvorja_piano_mobile/core/services/offline_music_port.dart';
+import 'package:louvorja_piano_mobile/domain/entities/album.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
 import 'package:louvorja_piano_mobile/domain/entities/bible_book.dart';
 import 'package:louvorja_piano_mobile/domain/entities/bible_version.dart';
@@ -216,10 +217,53 @@ void main() {
     expect(find.byIcon(TablerIcons.alertCircle), findsOneWidget);
   });
 
-  testWidgets('AlbumDetailPage tem campo de busca', (tester) async {
-    final api = _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1')]);
-    final repo = HymnRepositoryImpl(api, CatalogCache.noop());
-    final bloc = HymnsBloc(repo);
+  testWidgets('campo de número recebe foco e Enter toca hino correspondente', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+    final api = _MockApi(
+      hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)],
+      detail: const Hymn(id: 1, urlMusic: '/musics/test.mp3'),
+    );
+    final bloc = HymnsBloc(HymnRepositoryImpl(api, CatalogCache.noop()));
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(
+          albumId: 100,
+          audioPlayer: player,
+          offlineService: _FakeOfflinePort(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    expect(field, findsOneWidget);
+    final textField = tester.widget<TextField>(field);
+    expect(textField.focusNode!.hasFocus, isTrue);
+    expect(textField.controller!.selection.baseOffset, 0);
+    expect(textField.controller!.selection.extentOffset, 0);
+    expect(player.playCalls, 0);
+
+    await tester.enterText(field, '1');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(player.playCalls, 1);
+    expect(player.playedUrl, contains('/musics/test.mp3'));
+  });
+
+  testWidgets('campo de número preserva seleção manual ao refocar', (
+    tester,
+  ) async {
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
 
     await tester.pumpWidget(
       _wrap(
@@ -229,8 +273,296 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(TablerIcons.search), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '123');
+    FocusScope.of(tester.element(field)).unfocus();
+    await tester.pump();
+    final textField = tester.widget<TextField>(field);
+    textField.controller!.selection = const TextSelection.collapsed(offset: 1);
+    textField.focusNode!.requestFocus();
+    await tester.pump();
+
+    expect(
+      textField.controller!.selection,
+      const TextSelection.collapsed(offset: 1),
+    );
+  });
+
+  testWidgets('campo recupera foco e seleciona tudo ao voltar ao app', (
+    tester,
+  ) async {
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '123');
+    final textField = tester.widget<TextField>(field);
+    FocusScope.of(tester.element(field)).unfocus();
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(textField.focusNode!.hasFocus, isTrue);
+    expect(
+      textField.controller!.selection,
+      const TextSelection(baseOffset: 0, extentOffset: 3),
+    );
+  });
+
+  testWidgets('AC-2 substitui valor selecionado na primeira digitação', (
+    tester,
+  ) async {
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '123');
+    FocusScope.of(tester.element(field)).unfocus();
+    await tester.pump();
+    tester.widget<TextField>(field).focusNode!.requestFocus();
+    await tester.pump();
+    await tester.enterText(field, '4');
+
+    expect(tester.widget<TextField>(field).controller!.text, '4');
+  });
+
+  testWidgets('AC-3 digitar, focar e trocar aba não tocam sem Done', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(
+          hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)],
+          detail: const Hymn(id: 1, urlMusic: '/musics/test.mp3'),
+        ),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            appBar: const TabBar(
+              tabs: [
+                Tab(text: 'A'),
+                Tab(text: 'B'),
+              ],
+            ),
+            body: TabBarView(
+              children: [
+                AlbumDetailPage(
+                  albumId: 100,
+                  audioPlayer: player,
+                  offlineService: _FakeOfflinePort(),
+                ),
+                const SizedBox(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '1');
+    await tester.tap(find.text('B'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('A'));
+    await tester.pumpAndSettle();
+
+    expect(player.playCalls, 0);
+  });
+
+  testWidgets('AC-4 foco manual em outro controle não é roubado', (
+    tester,
+  ) async {
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
+    final otherFocus = FocusNode();
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        Scaffold(
+          body: Column(
+            children: [
+              Expanded(
+                child: AlbumDetailPage(
+                  albumId: 100,
+                  offlineService: _FakeOfflinePort(),
+                ),
+              ),
+              TextField(key: const Key('other-input'), focusNode: otherFocus),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('other-input')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(otherFocus.hasFocus, isTrue);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('hymn-number-input')))
+          .focusNode!
+          .hasFocus,
+      isFalse,
+    );
+    otherFocus.dispose();
+  });
+
+  testWidgets('AC-5 loading e erro não exibem campo nem tocam', (tester) async {
+    final player = _FakePlayer();
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(_MockApi(fail: true), CatalogCache.noop()),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(
+          albumId: 100,
+          audioPlayer: player,
+          offlineService: _FakeOfflinePort(),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('hymn-number-input')), findsNothing);
+    expect(player.playCalls, 0);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('hymn-number-input')), findsNothing);
+    expect(player.playCalls, 0);
+  });
+
+  testWidgets('AC-5 número inexistente preserva campo editável e não toca', (
+    tester,
+  ) async {
+    final player = _FakePlayer();
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(
+          hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)],
+          detail: const Hymn(id: 1, urlMusic: '/musics/test.mp3'),
+        ),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(
+          albumId: 100,
+          audioPlayer: player,
+          offlineService: _FakeOfflinePort(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '999');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(player.playCalls, 0);
+    expect(tester.widget<TextField>(field).controller!.text, '999');
+  });
+
+  testWidgets('AC-6 dispose após foco não gera callback tardio ou exceção', (
+    tester,
+  ) async {
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)]),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(albumId: 100, offlineService: _FakeOfflinePort()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final field = find.byKey(const Key('hymn-number-input'));
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('foco e número inválido não tocam hino', (tester) async {
+    final player = _FakePlayer();
+    final bloc = HymnsBloc(
+      HymnRepositoryImpl(
+        _MockApi(
+          hymns: [const Hymn(id: 1, title: 'Hino 1', number: 1)],
+          detail: const Hymn(id: 1, urlMusic: '/musics/test.mp3'),
+        ),
+        CatalogCache.noop(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        bloc,
+        AlbumDetailPage(
+          albumId: 100,
+          audioPlayer: player,
+          offlineService: _FakeOfflinePort(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const Key('hymn-number-input'));
+    await tester.enterText(field, '999');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(player.playCalls, 0);
   });
 
   testWidgets('AlbumDetailPage mostra botao play e instrumental', (
