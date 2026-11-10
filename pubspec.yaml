@@ -90,6 +90,7 @@ dependencies:
   file_selector: ^1.1.0
   # 10.x exige Android API 26 (o app usa 24), remove CocoaPods e liga logs/métricas sempre.
   sentry_flutter: ^9.30.0
+  webview_flutter: ^4.14.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

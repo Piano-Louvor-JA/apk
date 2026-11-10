@@ -9,7 +9,12 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import 'package:louvorja_piano_mobile/core/services/global_search_service.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
+import 'widgets/remote_bible_preview.dart';
+import 'remote_announcements_panel.dart';
+import 'remote_sabbath_panel.dart';
 
 typedef RemoteSend =
     Future<void> Function(
@@ -89,15 +94,27 @@ class RemoteBiblePanel extends StatelessWidget {
 
   RemoteSend get _send => send ?? _defaultSend;
 
-  void _open(RemoteBibleState bible, {int? bookId, int? chapter, int? verse}) {
+  void _open(RemoteBibleState bible, {int? bookId, int? chapter, int? verse, bool project = false}) {
     _send(
-      RemoteAction.bibleOpen,
+      project ? RemoteAction.bibleOpen : RemoteAction.bibleSelect,
       versionId: bible.versionId ?? 1,
       bookId: bookId ?? bible.bookId ?? 1,
       chapter: chapter ?? bible.chapter ?? 1,
       verse: verse,
     );
   }
+
+  String _bookLabel(RemoteBibleBook book) =>
+      book.number > 0 ? '${book.number}. ${book.name}' : book.name;
+
+  Future<int?> _chooseBook(BuildContext context, RemoteBibleState bible) =>
+      _showBiblePicker(
+        context,
+        title: 'remote.bible.book'.tr(),
+        keyPrefix: 'book',
+        entries: [for (final book in bible.books) (id: book.id, label: _bookLabel(book))],
+        selectedId: bible.bookId,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -126,95 +143,197 @@ class RemoteBiblePanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
-        if (versions.length > 1)
-          DropdownButtonFormField<int>(
-            key: const Key('remote-bible-version'),
-            initialValue: bible.versionId,
-            decoration: InputDecoration(
-              labelText: 'remote.bible.version'.tr(),
-              isDense: true,
-            ),
-            items: [
-              for (final v in versions)
-                DropdownMenuItem(value: v.id, child: Text(v.abbreviation)),
-            ],
-            onChanged: (id) {
-              if (id != null) {
-                _send(
-                  RemoteAction.bibleOpen,
-                  versionId: id,
-                  bookId: bible.bookId ?? 1,
-                  chapter: chapter,
-                );
-              }
-            },
-          ),
-        if (versions.length > 1) const SizedBox(height: AppSpacing.s3),
-        DropdownButtonFormField<int>(
-          key: const Key('remote-bible-book-select'),
-          initialValue: bible.bookId,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: 'remote.bible.book'.tr(),
-            isDense: true,
-          ),
-          items: [
-            for (final b in books)
-              DropdownMenuItem(
-                value: b.id,
-                child: Text(b.number > 0 ? '${b.number}. ${b.name}' : b.name),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (versions.isNotEmpty)
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<int>(
+                  key: const Key('remote-bible-version'),
+                  isExpanded: true,
+                  initialValue: bible.versionId,
+                  decoration: InputDecoration(
+                    labelText: 'remote.bible.version'.tr(),
+                    isDense: true,
+                  ),
+                  items: [
+                    for (final v in versions)
+                      DropdownMenuItem(
+                        value: v.id,
+                        child: Text(v.abbreviation),
+                      ),
+                  ],
+                  onChanged: (id) {
+                    if (id != null) {
+                      _send(
+                        RemoteAction.bibleSelect,
+                        versionId: id,
+                        bookId: bible.bookId ?? 1,
+                        chapter: chapter,
+                      );
+                    }
+                  },
+                ),
               ),
+            if (versions.isNotEmpty) const SizedBox(width: AppSpacing.s3),
+            Expanded(
+              flex: 3,
+              child: InkWell(
+                key: const Key('remote-bible-book-select'),
+                onTap: () async {
+                  final id = await _chooseBook(context, bible);
+                  if (id != null) _open(bible, bookId: id, chapter: 1, verse: 1);
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'remote.bible.book'.tr(),
+                    isDense: true,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(
+                        selectedBook == null ? '' : _bookLabel(selectedBook),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )),
+                      const Icon(TablerIcons.chevronDown, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
-          onChanged: (id) {
-            if (id != null) _open(bible, bookId: id, chapter: 1, verse: 1);
-          },
         ),
         const SizedBox(height: AppSpacing.s3),
-        _ChevronField(
-          label: 'remote.bible.chapter'.tr(),
-          value: chapter,
-          min: 1,
-          max: maxChapters,
-          keyPrefix: 'chapter',
-          onChanged: (c) => _open(bible, chapter: c, verse: 1),
-        ),
-        const SizedBox(height: AppSpacing.s3),
-        _ChevronField(
-          label: 'remote.bible.verse'.tr(),
-          value: (bible.selectedVerses.isNotEmpty
-              ? bible.selectedVerses.last
-              : 1),
-          min: 1,
-          max: 200,
-          keyPrefix: 'verse',
-          onChanged: (v) => _send(RemoteAction.bibleSelectVerse, verse: v),
+        Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: _ChevronField(
+                label: 'remote.bible.chapter'.tr(),
+                value: chapter,
+                min: 1,
+                max: maxChapters,
+                keyPrefix: 'chapter',
+                onChanged: (c) => _open(bible, chapter: c, verse: 1),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.s3),
+            Expanded(
+              flex: 1,
+              child: _ChevronField(
+                label: 'remote.bible.verse'.tr(),
+                value: (bible.selectedVerses.isNotEmpty
+                    ? bible.selectedVerses.last
+                    : 1),
+                min: 1,
+                max: 200,
+                keyPrefix: 'verse',
+                onChanged: (v) =>
+                    _send(RemoteAction.bibleSelectVerse, verse: v),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.s4),
         FilledButton.icon(
           key: const Key('remote-bible-project'),
           // Sem seleção no estado: usa o primeiro livro do catálogo (não
           // desabilita — operador espera que "abrir" sempre abra algo).
-          onPressed: () => _open(
-            bible,
-            bookId: bible.bookId ?? (books.isNotEmpty ? books.first.id : 1),
-            chapter: bible.chapter ?? 1,
-            verse: bible.selectedVerses.isNotEmpty
-                ? bible.selectedVerses.last
-                : 1,
+          onPressed: bible.isProjecting
+              ? () => _send(RemoteAction.bibleClose)
+              : () => _open(
+                  bible,
+                  project: true,
+                  bookId: bible.bookId ?? (books.isNotEmpty ? books.first.id : 1),
+                  chapter: bible.chapter ?? 1,
+                  verse: bible.selectedVerses.isNotEmpty
+                      ? bible.selectedVerses.last
+                      : 1,
+                ),
+          icon: Icon(bible.isProjecting ? TablerIcons.squareX : TablerIcons.book),
+          label: Text(
+            (bible.isProjecting ? 'remote.bible.close' : 'remote.bible.open').tr(),
           ),
-          icon: const Icon(TablerIcons.book),
-          label: Text('remote.bible.open'.tr()),
         ),
-        const SizedBox(height: AppSpacing.s2),
-        OutlinedButton.icon(
-          onPressed: () => _send(RemoteAction.bibleClose),
-          icon: const Icon(TablerIcons.squareX),
-          label: Text('remote.bible.close'.tr()),
+        const SizedBox(height: AppSpacing.s4),
+        ValueListenableBuilder<bool>(
+          valueListenable: remoteBibleMinimized,
+          builder: (_, minimized, _) => minimized ? const SizedBox.shrink() : RemoteBiblePreview(
+            bible: bible,
+            bookName: selectedBook?.name ?? '',
+            onMinimize: () => remoteBibleMinimized.value = true,
+            onChanged: (verse) => _send(RemoteAction.bibleSelectVerse, verse: verse),
+          ),
         ),
       ],
     );
   }
 }
+
+Future<int?> _showBiblePicker(
+  BuildContext context, {
+  required String title,
+  required String keyPrefix,
+  required List<({int id, String label})> entries,
+  required int? selectedId,
+}) {
+    var query = '';
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) {
+          final matches = entries.where((entry) =>
+            GlobalSearchService.normalize(entry.label).contains(query),
+          ).toList();
+          return AlertDialog(
+            title: Text(title),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: MediaQuery.sizeOf(context).height * 0.4,
+              child: Column(
+                children: [
+                  TextField(
+                    key: Key('remote-bible-$keyPrefix-search'),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'common.search'.tr(),
+                      prefixIcon: const Icon(TablerIcons.search),
+                    ),
+                    onChanged: (value) => update(() {
+                      query = GlobalSearchService.normalize(value);
+                    }),
+                  ),
+                  const SizedBox(height: AppSpacing.s2),
+                  Expanded(
+                    child: matches.isEmpty
+                        ? Center(child: Text('common.empty'.tr()))
+                        : ListView.builder(
+                            itemCount: matches.length,
+                            itemBuilder: (context, index) {
+                              final entry = matches[index];
+                              return ListTile(
+                                key: Key('remote-bible-$keyPrefix-${entry.id}'),
+                                title: Text(entry.label),
+                                selected: entry.id == selectedId,
+                                onTap: () => Navigator.pop(dialogContext, entry.id),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('common.cancel'.tr()),
+            )],
+          );
+        },
+      ),
+    );
+  }
 
 /// Campo numérico híbrido: dropdown (select) + navegação por chevron (±).
 class _ChevronField extends StatelessWidget {
@@ -239,18 +358,27 @@ class _ChevronField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: DropdownButtonFormField<int>(
+          child: InkWell(
             key: Key('remote-bible-$keyPrefix-select'),
-            initialValue: value.clamp(min, max),
-            isExpanded: true,
-            decoration: InputDecoration(labelText: label, isDense: true),
-            items: [
-              for (var n = min; n <= max; n++)
-                DropdownMenuItem(value: n, child: Text('$n')),
-            ],
-            onChanged: (n) {
-              if (n != null) onChanged(n);
+            onTap: () async {
+              final selected = await _showBiblePicker(
+                context,
+                title: label,
+                keyPrefix: keyPrefix,
+                entries: [for (var n = min; n <= max; n++) (id: n, label: '$n')],
+                selectedId: value.clamp(min, max),
+              );
+              if (selected != null) onChanged(selected);
             },
+            child: InputDecorator(
+              decoration: InputDecoration(labelText: label, isDense: true),
+              child: Row(
+                children: [
+                  Expanded(child: Text('${value.clamp(min, max)}')),
+                  const Icon(TablerIcons.chevronDown, size: 18),
+                ],
+              ),
+            ),
           ),
         ),
         IconButton(
@@ -270,7 +398,9 @@ class _ChevronField extends StatelessWidget {
 
 /// Painel Tempo: timer + countdown lado a lado, espelhando o estado v2.
 class RemoteTimePanel extends StatelessWidget {
-  const RemoteTimePanel({super.key, this.send, this.state});
+  const RemoteTimePanel({super.key, this.send, this.state, this.embedded = false});
+
+  final bool embedded;
 
   final RemoteSend? send;
   final RemotePlayerState? state;
@@ -282,6 +412,8 @@ class RemoteTimePanel extends StatelessWidget {
     final timer = state?.timerModule;
     final countdown = state?.countdownModule;
     return ListView(
+      shrinkWrap: embedded,
+      physics: embedded ? const NeverScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
         _TimeCard(
@@ -303,6 +435,8 @@ class RemoteTimePanel extends StatelessWidget {
           countdown: countdown,
           send: _send,
         ),
+        const SizedBox(height: AppSpacing.s4),
+        _ClockCard(clock: state?.clockModule, send: _send),
       ],
     );
   }
@@ -468,27 +602,20 @@ class _TimeCard extends StatelessWidget {
         ? (totalMs! - elapsedMs).clamp(0, totalMs!)
         : null;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(title, style: theme.textTheme.titleMedium),
-                ),
-                if (finished)
-                  Icon(TablerIcons.alertCircle, color: theme.colorScheme.error),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.s2),
-            Text(
-              remaining != null ? _fmt(remaining) : _fmt(elapsedMs),
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
+      child: ExpansionTile(
+        key: Key('remote-$tag-expand'),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        childrenPadding: const EdgeInsets.all(AppSpacing.s4),
+        title: Text(title, style: theme.textTheme.titleMedium),
+        subtitle: Text(
+          remaining != null ? _fmt(remaining) : _fmt(elapsedMs),
+          style: theme.textTheme.displaySmall?.copyWith(
+            color: finished ? theme.colorScheme.error : null,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        children: [
             if (marks.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.s2),
               Text(
@@ -540,6 +667,95 @@ class _TimeCard extends StatelessWidget {
                 ),
               ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Recursos complementares do controle remoto, agrupados por finalidade.
+class RemoteMorePanel extends StatefulWidget {
+  const RemoteMorePanel({super.key, this.state, this.send});
+  final RemotePlayerState? state;
+  final RemoteSend? send;
+
+  @override
+  State<RemoteMorePanel> createState() => _RemoteMorePanelState();
+}
+
+enum _MoreFeature { time, random, announcements, sabbath }
+
+class _RemoteMorePanelState extends State<RemoteMorePanel> {
+  _MoreFeature? _feature;
+
+  @override
+  Widget build(BuildContext context) {
+    final feature = _feature;
+    if (feature != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            IconButton(
+              key: const Key('remote-more-back'),
+              tooltip: 'remote.tabMore'.tr(),
+              icon: const Icon(TablerIcons.arrowLeft),
+              onPressed: () => setState(() => _feature = null),
+            ),
+            Expanded(child: Text(
+              (switch (feature) { _MoreFeature.time => 'remote.tabTime', _MoreFeature.random => 'remote.random.title', _MoreFeature.announcements => 'remote.tabAnnouncements', _MoreFeature.sabbath => 'remote.sabbath.title' }).tr(),
+              style: Theme.of(context).textTheme.titleMedium,
+            )),
+          ]),
+          Expanded(child: switch (feature) {
+            _MoreFeature.time => RemoteTimePanel(state: widget.state, send: widget.send),
+            _MoreFeature.random => RemoteClockRandomPanel(random: widget.state?.randomModule, send: widget.send),
+            _MoreFeature.announcements => RemoteAnnouncementsPanel(state: widget.state?.announcementsModule),
+            _MoreFeature.sabbath => RemoteSabbathPanel(state: widget.state?.sabbathModule),
+          }),
+        ],
+      );
+    }
+    return GridView.count(
+      crossAxisCount: 2,
+      padding: const EdgeInsets.all(AppSpacing.s4),
+      mainAxisSpacing: AppSpacing.s4,
+      crossAxisSpacing: AppSpacing.s4,
+      children: [
+        _featureCard(context, _MoreFeature.time, TablerIcons.clock, 'remote.tabTime'),
+        _featureCard(context, _MoreFeature.random, TablerIcons.dice, 'remote.random.title'),
+        _featureCard(context, _MoreFeature.announcements, TablerIcons.speakerphone, 'remote.tabAnnouncements'),
+        _featureCard(context, _MoreFeature.sabbath, TablerIcons.book2, 'remote.sabbath.title'),
+      ],
+    );
+  }
+
+  Widget _featureCard(BuildContext context, _MoreFeature feature, IconData icon, String label) {
+    final theme = Theme.of(context);
+    return Material(
+      key: Key(switch (feature) { _MoreFeature.time => 'remote-more-time', _MoreFeature.random => 'remote-more-random', _MoreFeature.announcements => 'remote-more-announcements', _MoreFeature.sabbath => 'remote-more-sabbath' }),
+      color: theme.colorScheme.surfaceContainer,
+      borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => setState(() => _feature = feature),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
+              ),
+              child: Icon(icon, color: theme.colorScheme.primary, size: 26),
+            ),
+            const SizedBox(height: AppSpacing.s2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s2),
+              child: Text(label.tr(), textAlign: TextAlign.center, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
       ),
@@ -566,8 +782,6 @@ class RemoteClockRandomPanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
-        _ClockCard(clock: clock, send: _send),
-        const SizedBox(height: AppSpacing.s4),
         _RandomCard(random: random, send: _send),
       ],
     );
@@ -584,19 +798,14 @@ class _ClockCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = clock;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(TablerIcons.clock),
-                const SizedBox(width: AppSpacing.s2),
-                Expanded(child: Text('remote.clock.title'.tr())),
-                Text(c == null ? '—' : (c.format24h ? '24h' : '12h')),
-              ],
-            ),
+      child: ExpansionTile(
+        key: const Key('remote-clock-expand'),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        title: Text('remote.clock.title'.tr()),
+        subtitle: Text(c == null ? '—' : (c.format24h ? '24h' : '12h')),
+        childrenPadding: const EdgeInsets.all(AppSpacing.s3),
+        children: [
             const SizedBox(height: AppSpacing.s3),
             OutlinedButton.icon(
               key: const Key('remote-clock-projection'),
@@ -612,8 +821,7 @@ class _ClockCard extends StatelessWidget {
                     : 'remote.project'.tr(),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -631,13 +839,100 @@ class _RandomCard extends StatefulWidget {
 }
 
 class _RandomCardState extends State<_RandomCard> {
-  final _namesCtrl = TextEditingController();
+  static const _nameRowHeight = 48.0;
+  static const _visibleNames = 5;
+  final _participantsScroll = ScrollController();
+  String _importDraft = '';
   final _minCtrl = TextEditingController();
   final _maxCtrl = TextEditingController();
 
+  Future<void> _confirmClearList() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('remote.random.clearList'.tr()),
+        content: Text('remote.random.clearListConfirm'.tr()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('common.cancel'.tr())),
+          FilledButton(
+            key: const Key('remote-random-clear-list-confirm'),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error, foregroundColor: Theme.of(context).colorScheme.onError),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('remote.random.clearList'.tr()),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await widget.send(RemoteAction.randomClearAvailable);
+  }
+
+  Future<void> _importNames() async {
+    final form = GlobalKey<FormState>();
+    final names = await showDialog<String>(context: context, builder: (context) {
+      void submit() {
+        if (form.currentState!.validate()) Navigator.pop(context, _importDraft.trim());
+      }
+      return AlertDialog(
+        title: Text('remote.random.importNames'.tr()),
+        content: Form(key: form, child: TextFormField(
+          key: const Key('remote-random-names'),
+          initialValue: _importDraft,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 8,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: 'remote.random.namesHint'.tr(), hintText: 'Maria\nJoão\nAna', alignLabelWithHint: true),
+          onChanged: (value) => _importDraft = value,
+          validator: (value) => (value ?? '').trim().isEmpty ? 'remote.random.nameRequired'.tr() : null,
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('common.cancel'.tr())),
+          FilledButton(key: const Key('remote-random-import-save'), onPressed: submit, child: Text('remote.random.importNames'.tr())),
+        ],
+      );
+    });
+    if (names == null || names.isEmpty) return;
+    _importDraft = '';
+    await widget.send(RemoteAction.randomImportNames, namesText: names);
+  }
+
+  Future<void> _addReceptionName() async {
+    final form = GlobalKey<FormState>();
+    var draft = '';
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        void submit() {
+          if (form.currentState!.validate()) Navigator.pop(context, draft.trim());
+        }
+        return AlertDialog(
+          title: Text('remote.random.addName'.tr()),
+          content: Form(
+            key: form,
+            child: TextFormField(
+              key: const Key('remote-random-name-input'),
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(labelText: 'remote.random.personName'.tr(), helperText: 'remote.random.receptionHint'.tr(), helperMaxLines: 3),
+              onChanged: (value) => draft = value,
+              validator: (value) => (value ?? '').trim().isEmpty ? 'remote.random.nameRequired'.tr() : null,
+              onFieldSubmitted: (_) => submit(),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('common.cancel'.tr())),
+            FilledButton.icon(key: const Key('remote-random-name-save'), onPressed: submit, icon: const Icon(TablerIcons.userPlus), label: Text('remote.random.includeName'.tr())),
+          ],
+        );
+      },
+    );
+    if (name != null && name.isNotEmpty) await widget.send(RemoteAction.randomAddName, name: name);
+  }
+
   @override
   void dispose() {
-    _namesCtrl.dispose();
+    _participantsScroll.dispose();
     _minCtrl.dispose();
     _maxCtrl.dispose();
     super.dispose();
@@ -662,6 +957,10 @@ class _RandomCardState extends State<_RandomCard> {
                 Text('${r?.drawnCount ?? 0} / ${r?.availableCount ?? 0}'),
               ],
             ),
+            if (r?.audioSupported == true) ...[
+              const SizedBox(height: AppSpacing.s3),
+              _RandomAudioControls(random: r!, send: widget.send),
+            ],
             const SizedBox(height: AppSpacing.s3),
             SegmentedButton<String>(
               key: const Key('remote-random-mode'),
@@ -727,27 +1026,79 @@ class _RandomCardState extends State<_RandomCard> {
               ),
             ],
             if (isNames) ...[
-              TextField(
-                key: const Key('remote-random-names'),
-                controller: _namesCtrl,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'remote.random.namesHint'.tr(),
-                  hintText: 'Maria\nJoão\nAna',
-                  isDense: true,
-                ),
+              FilledButton.icon(
+                key: const Key('remote-random-add-name'),
+                onPressed: _addReceptionName,
+                icon: const Icon(TablerIcons.userPlus),
+                label: Text('remote.random.addName'.tr()),
               ),
               const SizedBox(height: AppSpacing.s2),
               OutlinedButton.icon(
                 key: const Key('remote-random-import'),
-                onPressed: () {
-                  final text = _namesCtrl.text.trim();
-                  if (text.isEmpty) return;
-                  widget.send(RemoteAction.randomImportNames, namesText: text);
-                  _namesCtrl.clear();
-                },
+                onPressed: _importNames,
                 icon: const Icon(TablerIcons.userPlus),
                 label: Text('remote.random.importNames'.tr()),
+              ),
+              const SizedBox(height: AppSpacing.s3),
+              Column(
+                key: const Key('remote-random-participants'),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    Expanded(child: Text('${'remote.random.namesList'.tr()} (${r?.available.length ?? 0})', style: Theme.of(context).textTheme.titleSmall)),
+                    TextButton.icon(
+                      key: const Key('remote-random-clear-list'),
+                      onPressed: (r?.available ?? const []).isEmpty ? null : _confirmClearList,
+                      icon: const Icon(TablerIcons.trash, size: 18),
+                      label: Text('remote.random.clearList'.tr()),
+                    ),
+                  ]),
+                  const SizedBox(height: AppSpacing.s2),
+                  if ((r?.available ?? const []).isEmpty)
+                    Padding(padding: const EdgeInsets.all(AppSpacing.s3), child: Text('remote.random.noNames'.tr()))
+                  else Container(
+                    key: const Key('remote-random-participants-viewport'),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    height: (r!.available.length * _nameRowHeight).clamp(_nameRowHeight, _nameRowHeight * _visibleNames),
+                    child: Scrollbar(
+                      key: const Key('remote-random-participants-scrollbar'),
+                      controller: _participantsScroll,
+                      thumbVisibility: r.available.length > _visibleNames,
+                      trackVisibility: r.available.length > _visibleNames,
+                      interactive: true,
+                      child: ListView.builder(
+                      controller: _participantsScroll,
+                      primary: false,
+                      padding: EdgeInsets.zero,
+                      itemExtent: _nameRowHeight,
+                      itemCount: r.available.length,
+                      itemBuilder: (context, index) {
+                        final name = r.available[index];
+                        final drawn = r.drawn.contains(name);
+                        final theme = Theme.of(context);
+                        final color = drawn ? theme.colorScheme.onSurface.withValues(alpha: 0.38) : null;
+                        return ListTile(
+                          key: Key('remote-random-participant-$index'),
+                          dense: true,
+                          enabled: !drawn,
+                          leading: Icon(TablerIcons.user, color: drawn ? color : theme.colorScheme.primary, size: 18),
+                          title: Text(name, style: TextStyle(color: color, decoration: drawn ? TextDecoration.lineThrough : TextDecoration.none)),
+                          trailing: IconButton(
+                            key: Key('remote-random-remove-name-$index'),
+                            tooltip: 'common.delete'.tr(),
+                            icon: const Icon(TablerIcons.x),
+                            onPressed: () => widget.send(RemoteAction.randomRemoveAvailable, index: index),
+                          ),
+                        );
+                      },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: AppSpacing.s3),
@@ -824,6 +1175,12 @@ class _RandomCardState extends State<_RandomCard> {
                         widget.send(RemoteAction.randomRemoveDrawn, index: i),
                   ),
                 ),
+              OutlinedButton.icon(
+                key: const Key('remote-random-clear-history'),
+                onPressed: () => widget.send(RemoteAction.randomClearHistory),
+                icon: const Icon(TablerIcons.eraser),
+                label: Text('remote.random.clearHistory'.tr()),
+              ),
             ],
           ],
         ),
@@ -832,14 +1189,33 @@ class _RandomCardState extends State<_RandomCard> {
   }
 }
 
+/// Hino escolhido na busca, aguardando o operador apertar play.
+class RemoteHymnSelection {
+  const RemoteHymnSelection({required this.musicId, required this.mode});
+
+  final int musicId;
+  final String mode;
+}
+
 /// Painel Hinos: busca REMOTA no catálogo do alvo (ids corretos do
 /// desktop — a API pública tem ids distintos e media.open falhava com
-/// trackMissing). O resultado escolhido vira media.open {musicId, mode}.
+/// trackMissing). Tocar na linha só seleciona, para evitar projeção por toque
+/// acidental: quem envia media.open é o play da barra do player.
 class RemoteHymnsPanel extends StatefulWidget {
-  const RemoteHymnsPanel({super.key, this.send, this.state});
+  const RemoteHymnsPanel({
+    super.key,
+    this.send,
+    this.state,
+    this.selectedMusicId,
+    this.onSelectionChanged,
+  });
 
   final RemoteSend? send;
   final RemotePlayerState? state;
+  final int? selectedMusicId;
+
+  /// Null = selecao desfeita.
+  final ValueChanged<RemoteHymnSelection?>? onSelectionChanged;
 
   @override
   State<RemoteHymnsPanel> createState() => _RemoteHymnsPanelState();
@@ -866,8 +1242,16 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
 
   String _lastQuery = '';
 
+  void _clearQuery() {
+    _queryCtrl.clear();
+    _lastQuery = '';
+    _onQuery('');
+  }
+
   void _onQuery(String q) {
     _debounce?.cancel();
+    // A linha escolhida sai da tela: o play nao pode ficar pulsando por ela.
+    if (widget.selectedMusicId != null) widget.onSelectionChanged?.call(null);
     final query = q.trim();
     if (query.isEmpty) {
       setState(() => _searching = false);
@@ -895,66 +1279,160 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
         media.query!.isNotEmpty) {
       hits = const [];
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: TextField(
-            key: const Key('remote-hymns-query'),
-            controller: _queryCtrl,
-            autofocus: false,
-            onChanged: _onQuery,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(TablerIcons.search),
-              labelText: 'remote.hymns.search'.tr(),
-              isDense: true,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-          child: Wrap(
-            spacing: AppSpacing.s2,
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
             children: [
-              for (final (m, label) in _modes)
-                ChoiceChip(
-                  key: Key('remote-hymns-mode-$m'),
-                  label: Text(label),
-                  selected: _mode == m,
-                  onSelected: (_) => setState(() => _mode = m),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.s4),
+                child: TextField(
+                  key: const Key('remote-hymns-query'),
+                  controller: _queryCtrl,
+                  autofocus: false,
+                  onChanged: _onQuery,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(TablerIcons.search),
+                    suffixIcon: _queryCtrl.text.isEmpty
+                        ? null
+                        : IconButton(
+                            key: const Key('remote-hymns-clear'),
+                            tooltip: 'remote.hymns.clear'.tr(),
+                            icon: const Icon(TablerIcons.x),
+                            onPressed: _clearQuery,
+                          ),
+                    labelText: 'remote.hymns.search'.tr(),
+                    isDense: true,
+                  ),
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+                child: Wrap(
+                  spacing: AppSpacing.s2,
+                  children: [
+                    for (final (m, label) in _modes)
+                      ChoiceChip(
+                        key: Key('remote-hymns-mode-$m'),
+                        label: Text(label),
+                        selected: _mode == m,
+                        onSelected: (_) {
+                          setState(() => _mode = m);
+                          final selected = widget.selectedMusicId;
+                          if (selected != null) {
+                            widget.onSelectionChanged?.call(
+                              RemoteHymnSelection(musicId: selected, mode: m),
+                            );
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              if (_searching) const LinearProgressIndicator(),
             ],
           ),
         ),
-        if (_searching) const LinearProgressIndicator(),
-        Expanded(
-          child: hits.isEmpty
-              ? Center(
-                  child: Text(
-                    'remote.hymns.empty'.tr(),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: hits.length,
-                  itemBuilder: (_, i) {
-                    final h = hits[i];
-                    return ListTile(
-                      key: Key('remote-hymns-result-$i'),
-                      dense: true,
-                      title: Text(
-                        h.track != null ? '${h.track} — ${h.name}' : h.name,
-                      ),
-                      onTap: () => (widget.send ?? _defaultSend)(
-                        RemoteAction.mediaOpen,
-                        musicId: h.musicId,
-                        mode: _mode,
-                      ),
-                    );
-                  },
+        if (hits.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Text(
+                'remote.hymns.empty'.tr(),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate((_, i) {
+              final h = hits[i];
+              final selected = h.musicId == widget.selectedMusicId;
+              return ListTile(
+                key: Key('remote-hymns-result-$i'),
+                dense: true,
+                selected: selected,
+                selectedTileColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.16,
                 ),
-        ),
+                title: Text(
+                  h.track != null ? '${h.track} — ${h.name}' : h.name,
+                ),
+                onTap: () => widget.onSelectionChanged?.call(
+                  selected
+                      ? null
+                      : RemoteHymnSelection(musicId: h.musicId, mode: _mode),
+                ),
+              );
+            }, childCount: hits.length),
+          ),
       ],
     );
+  }
+}
+
+/// Controles do áudio que toca no desktop durante o sorteio.
+class _RandomAudioControls extends StatefulWidget {
+  const _RandomAudioControls({required this.random, required this.send});
+  final RemoteRandomState random;
+  final RemoteSend send;
+  @override
+  State<_RandomAudioControls> createState() => _RandomAudioControlsState();
+}
+
+class _RandomAudioControlsState extends State<_RandomAudioControls> {
+  double? _volume;
+  @override
+  void didUpdateWidget(covariant _RandomAudioControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.random.audioVolume != widget.random.audioVolume) _volume = null;
+  }
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.random;
+    final volume = _volume ?? r.audioVolume.toDouble();
+    final custom = r.audioSource == 'custom' && r.customAudioFiles.contains(r.customAudioFile);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('remote.random.audioTitle'.tr(), style: Theme.of(context).textTheme.titleSmall),
+      const SizedBox(height: 8),
+      InputDecorator(
+        decoration: InputDecoration(labelText: 'remote.random.audioSource'.tr(), isDense: true),
+        child: DropdownButtonHideUnderline(child: DropdownButton<String>(
+          key: const Key('remote-random-audio-source'),
+          value: custom ? 'custom:${r.customAudioFile}' : 'default',
+          isExpanded: true, isDense: true,
+          items: [
+            DropdownMenuItem(value: 'default', child: Text('remote.random.audioDefault'.tr())),
+            for (final file in r.customAudioFiles) DropdownMenuItem(value: 'custom:$file', child: Text(file, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ],
+          onChanged: (value) {
+            if (value == 'default') { widget.send(RemoteAction.randomUseDefaultAudio); }
+            else if (value != null && value.startsWith('custom:')) { widget.send(RemoteAction.randomUseCustomAudio, name: value.substring(7)); }
+          },
+        )),
+      ),
+      Row(children: [
+        IconButton(
+          key: const Key('remote-random-audio-play'),
+          tooltip: (r.audioPlaying ? 'remote.pause' : 'remote.play').tr(),
+          icon: Icon(r.audioPlaying ? TablerIcons.playerPause : TablerIcons.playerPlay),
+          onPressed: () => widget.send(RemoteAction.randomToggleAudio),
+        ),
+        IconButton(
+          key: const Key('remote-random-audio-mute'),
+          tooltip: 'remote.random.audioMute'.tr(),
+          isSelected: r.audioMuted,
+          icon: Icon(r.audioMuted ? TablerIcons.volumeOff : TablerIcons.volume),
+          onPressed: () => widget.send(RemoteAction.randomToggleAudioMute),
+        ),
+        Expanded(child: Slider(
+          key: const Key('remote-random-audio-volume'),
+          min: 0, max: 100, value: volume, label: '${volume.round()}%',
+          onChanged: (value) => setState(() => _volume = value),
+          onChangeEnd: (value) => widget.send(RemoteAction.randomSetAudioVolume, volume: value.round()),
+        )),
+        Text('${volume.round()}%'),
+      ]),
+    ]);
   }
 }

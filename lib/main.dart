@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
+import 'core/services/bundle/bundle_sync_boot.dart';
 import 'core/services/media_state_mirror.dart';
 import 'core/services/offline_status.dart';
 import 'core/services/settings_controller.dart';
@@ -43,6 +45,16 @@ void main() async {
   // e o pull da resposta aplica LWW (agendados + prefs). Sem rede/sessão a
   // fila fica íntegra pra próxima tentativa.
   unawaited(OperatorStateBoot.flushOnBoot(prefs));
+
+  // Bundle-first (SPEC piano-bundle-sync v1.2.0): catálogo+Bíblia por ZIP
+  // condicional (manifest digest/24h). Flush unawaited — o boot não espera
+  // rede; snapshots aplicados servem offline e o legado item-a-item segue
+  // como fallback (RF-03/04/06). Storage: <documents>/bundle.
+  if (!kIsWeb) {
+    unawaited(
+      BundleSyncBoot.flushOnBoot(await getApplicationDocumentsDirectory()),
+    );
+  }
   // SPEC 7 (apk#92): quando a rede volta, a outbox sobe sem ação do usuário.
   unawaited(offlineStatus.start());
   OperatorStateBoot.bindSyncRetry(
@@ -68,7 +80,9 @@ void main() async {
           ],
           path: 'assets/translations',
           fallbackLocale: const Locale('pt', 'BR'),
-          // Segue o idioma do OS por padrao. Usuario pode trocar nas Configuracoes.
+          // Portugues por padrao, independente do idioma do OS. A escolha feita
+          // nas Configuracoes fica salva e tem prioridade sobre este valor.
+          startLocale: const Locale('pt', 'BR'),
           useOnlyLangCode: false,
           child: const LouvorjaApp(),
         ),

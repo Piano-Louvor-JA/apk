@@ -9,7 +9,7 @@
     "bible": "Bíblia",
     "more": "Mais",
     "tools": "Ferramentas",
-    "timer": "Cronometro"
+    "timer": "Tempo"
   },
   "home": {
     "districtLabel": "Distrito",
@@ -21,6 +21,7 @@
     "loading": "Carregando..."
   },
   "common": {
+    "minimize": "Minimizar",
     "retry": "Tentar novamente",
     "error": "Algo deu errado",
     "empty": "Nenhum resultado encontrado",
@@ -239,7 +240,10 @@
     "privacyPolicy": "Política de Privacidade"
   },
   "timer": {
-    "title": "Cronômetro",
+    "clock": "Relógio",
+    "format24h": "Formato de 24 horas",
+    "showSeconds": "Mostrar segundos",
+    "title": "Tempo",
     "countdown": "Contagem regressiva",
     "stopwatch": "Cronômetro",
     "start": "Iniciar",
@@ -262,8 +266,8 @@
     "liturgySubtitle": "Organize o culto do dia",
     "bible": "Biblia",
     "bibleSubtitle": "Livros, capitulos e versiculos",
-    "timer": "Cronometro",
-    "timerSubtitle": "Stopwatch e contagem regressiva",
+    "timer": "Tempo",
+    "timerSubtitle": "Cronômetro, contagem regressiva e relógio",
     "remoteControl": "Controle Remoto",
     "remoteControlSubtitle": "Comande a liturgia e o player do desktop"
   },
@@ -321,6 +325,106 @@
     "operatorPending": "Sincronização pendente — será enviada quando houver conexão."
   },
   "remote": {
+    "sabbath": {
+      "tapToEdit": "Toque para alterar",
+      "title": "Escola Sabatina",
+      "unavailable": "Atualize o desktop para controlar a Escola Sabatina.",
+      "duration": "Duração (min:ss)",
+      "endTime": "Hora do término",
+      "invalidDuration": "Informe uma duração válida, de pelo menos {}.",
+      "invalidTime": "Use o horário no formato HH:mm.",
+      "finalMinutes": "Últimos 5 minutos",
+      "replaceConfirm": "Iniciar os últimos cinco minutos substituirá a contagem atual. Continuar?",
+      "markerTime": "Quando faltar",
+      "invalidMarker": "Informe um tempo válido que não esteja em uso.",
+      "schedule": "Contagem",
+      "modes": {
+        "duration": "Duração",
+        "endOnly": "Hora do término",
+        "video": "Vídeo personalizado"
+      },
+      "videoHint": "O vídeo personalizado pode ser escolhido no desktop.",
+      "audio": "Avisos sonoros",
+      "opening": "Abertura",
+      "language": "Idioma dos avisos",
+      "languages": {
+        "auto": "Automático",
+        "pt-BR": "Português",
+        "en": "Inglês",
+        "es": "Espanhol",
+        "fr": "Francês"
+      },
+      "markers": "Marcos de aviso",
+      "addMarker": "Adicionar aviso",
+      "presets": {
+        "none": "Sem som",
+        "beep": "Bipe",
+        "chime": "Campainha",
+        "gong": "Gongo",
+        "abertura_es": "Abertura da Escola Sabatina",
+        "5min_es": "Faltam 5 minutos",
+        "1min_es": "Falta 1 minuto",
+        "legacy-custom": "Áudio personalizado anterior"
+      }
+    },
+    "tabPlaylist": "Playlist",
+    "playlist": {
+      "unavailable": "Atualize o desktop para controlar as playlists.",
+      "empty": "Nenhuma playlist salva no desktop.",
+      "emptyList": "Esta playlist está vazia.",
+      "playAll": "Tocar playlist",
+      "shuffle": "Embaralhar",
+      "playTrack": "Tocar faixa avulsa",
+      "queue": "Fila atual",
+      "previous": "Faixa anterior",
+      "next": "Próxima faixa",
+      "audio": "Cantado",
+      "instrumental": "Playback",
+      "slides": "Só slides"
+    },
+    "announcements": {
+      "unavailable": "Atualize o desktop para controlar os anúncios.",
+      "list": "Lista de anúncios",
+      "empty": "Nenhum anúncio nesta lista.",
+      "include": "Incluir no carrossel",
+      "open": "Abrir anúncio no desktop",
+      "carousel": "Carrossel",
+      "start": "Projetar em carrossel",
+      "seconds": "Segundos por slide",
+      "durationRange": "Informe de 2 a 600 segundos.",
+      "loop": "Repetir",
+      "carouselHint": "Participam somente textos e imagens marcados para o carrossel.",
+      "kinds": {
+        "text": "Texto",
+        "images": "Imagens",
+        "video": "Vídeo",
+        "presentation": "Apresentação / PDF",
+        "url": "URL"
+      }
+    },
+    "video": {
+      "independent": "Projeção independente",
+      "independentHint": "Marque os destinos e toque na seta de projetar.",
+      "mode_overlay": "Sobrepor",
+      "mode_share": "Compartilhar",
+      "remoteConnections": "Conexões Remotas",
+      "noRemotes": "Nenhuma conexão remota ativa",
+      "onAir": "NO AR",
+      "enableInScreens": "Ative em Telas para usar",
+      "closeMedia": "Fechar mídia",
+      "audioDestination": "Destino do áudio",
+      "audioPlayer": "Som: só player",
+      "audioConnections": "Som: só conexões",
+      "audioBoth": "Som: ambos",
+      "selectScreens": "Selecionar telas",
+      "noScreens": "Nenhuma tela disponível",
+      "showCaptions": "Mostrar legendas",
+      "hideCaptions": "Ocultar legendas",
+      "closeConfirmTitle": "Fechar a mídia?",
+      "closeConfirmMessage": "O que está tocando no desktop será encerrado.",
+      "closeConfirmCancel": "Cancelar",
+      "closeConfirmOk": "Fechar"
+    },
     "title": "Controle Remoto",
     "palcoOff": "Ligue o Palco primeiro — o controle usa a mesma conexão.",
     "noTargets": "Nenhum desktop/web conectado.",
@@ -335,6 +439,8 @@
     "desktop_hint": "ex: 192.168.1.50:7081",
     "connect": "Conectar",
     "disconnect": "Desconectar",
+    "mute": "Silenciar",
+    "unmute": "Ativar som",
     "mode_desktop": "Modo desktop",
     "mode_web": "Modo web link",
     "start_weblink": "Iniciar web link",
@@ -350,6 +456,8 @@
     "stop": "Parar",
     "next": "Próxima",
     "previous": "Anterior",
+    "previousSlide": "Slide anterior",
+    "nextSlide": "Próximo slide",
     "liturgy": "Liturgia do desktop",
     "token": "Token de emparelhamento",
     "scanQr": "Escanear QR",
@@ -368,6 +476,7 @@
     "unknownQr": "QR não reconhecido — tentando P2P…",
     "tabLiturgy": "Liturgia",
     "tabBible": "Bíblia",
+    "tabAnnouncements": "Anúncios",
     "tabTime": "Tempo",
     "bible": {
       "hint": "Digite livro (número), capítulo e versículo e projete no desktop.",
@@ -397,6 +506,20 @@
       "title": "Relógio"
     },
     "random": {
+      "clearListConfirm": "Deseja remover todos os nomes da lista do sorteio?",
+      "clearList": "Limpar lista",
+      "clearHistory": "Limpar histórico",
+      "namesList": "Nomes na lista",
+      "noNames": "Nenhum nome adicionado.",
+      "addName": "Adicionar nome",
+      "personName": "Nome do participante",
+      "receptionHint": "Inclua na recepção os participantes do sorteio do desktop.",
+      "nameRequired": "Digite o nome da pessoa.",
+      "includeName": "Incluir no sorteio",
+      "audioTitle": "Áudio do sorteio",
+      "audioSource": "Som",
+      "audioDefault": "Áudio padrão",
+      "audioMute": "Silenciar / ativar som",
       "title": "Sorteio",
       "generateNumbers": "Gerar números 1–100",
       "numbers": "Números",
@@ -415,9 +538,19 @@
     "tabHymns": "Hinos",
     "hymns": {
       "search": "Buscar hino",
+      "clear": "Limpar busca",
       "empty": "Busque pelo número ou nome"
     },
-    "stopProjection": "Parar projeção"
+    "stopProjection": "Parar projeção",
+    "liturgyCustomDay": "Avulsa",
+    "liturgyDayItems": "{count} itens",
+    "site": {
+      "back": "Voltar",
+      "forward": "Avançar",
+      "reload": "Recarregar",
+      "project": "Projetar no desktop",
+      "close": "Fechar navegador"
+    }
   },
   "albums": {
     "playAll": "Tocar tudo"

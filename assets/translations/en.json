@@ -9,7 +9,7 @@
     "bible": "Bible",
     "more": "More",
     "tools": "Tools",
-    "timer": "Timer"
+    "timer": "Time"
   },
   "home": {
     "districtLabel": "District",
@@ -21,6 +21,7 @@
     "loading": "Loading..."
   },
   "common": {
+    "minimize": "Minimize",
     "retry": "Try again",
     "error": "Something went wrong",
     "empty": "No results found",
@@ -240,7 +241,10 @@
     "privacyPolicy": "Privacy Policy"
   },
   "timer": {
-    "title": "Timer",
+    "clock": "Clock",
+    "format24h": "24-hour format",
+    "showSeconds": "Show seconds",
+    "title": "Time",
     "countdown": "Countdown",
     "stopwatch": "Stopwatch",
     "start": "Start",
@@ -263,8 +267,8 @@
     "liturgySubtitle": "Organize the service",
     "bible": "Bible",
     "bibleSubtitle": "Books, chapters and verses",
-    "timer": "Timer",
-    "timerSubtitle": "Stopwatch and countdown",
+    "timer": "Time",
+    "timerSubtitle": "Stopwatch, countdown and clock",
     "remoteControl": "Remote Control",
     "remoteControlSubtitle": "Control the desktop liturgy and player"
   },
@@ -322,6 +326,106 @@
     "operatorPending": "Sync pending — it will be sent once a connection is available."
   },
   "remote": {
+    "sabbath": {
+      "tapToEdit": "Tap to edit",
+      "title": "Sabbath School",
+      "unavailable": "Update the desktop app to control Sabbath School.",
+      "duration": "Duration (min:ss)",
+      "endTime": "End time",
+      "invalidDuration": "Enter a valid duration of at least {}.",
+      "invalidTime": "Use HH:mm time format.",
+      "finalMinutes": "Last 5 minutes",
+      "replaceConfirm": "Starting the last five minutes will replace the current countdown. Continue?",
+      "markerTime": "Time remaining",
+      "invalidMarker": "Enter a valid time that is not already used.",
+      "schedule": "Countdown",
+      "modes": {
+        "duration": "Duration",
+        "endOnly": "End time",
+        "video": "Custom video"
+      },
+      "videoHint": "Select the custom video on the desktop.",
+      "audio": "Audio alerts",
+      "opening": "Opening",
+      "language": "Alert language",
+      "languages": {
+        "auto": "Automatic",
+        "pt-BR": "Portuguese",
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French"
+      },
+      "markers": "Alert markers",
+      "addMarker": "Add alert",
+      "presets": {
+        "none": "No sound",
+        "beep": "Beep",
+        "chime": "Chime",
+        "gong": "Gong",
+        "abertura_es": "Sabbath School opening",
+        "5min_es": "5 minutes remaining",
+        "1min_es": "1 minute remaining",
+        "legacy-custom": "Previous custom audio"
+      }
+    },
+    "tabPlaylist": "Playlist",
+    "playlist": {
+      "unavailable": "Update the desktop app to control playlists.",
+      "empty": "No playlists saved on the desktop.",
+      "emptyList": "This playlist is empty.",
+      "playAll": "Play playlist",
+      "shuffle": "Shuffle",
+      "playTrack": "Play single track",
+      "queue": "Current queue",
+      "previous": "Previous track",
+      "next": "Next track",
+      "audio": "Vocals",
+      "instrumental": "Instrumental",
+      "slides": "Slides only"
+    },
+    "announcements": {
+      "unavailable": "Update the desktop app to control announcements.",
+      "list": "Announcement list",
+      "empty": "No announcements in this list.",
+      "include": "Include in carousel",
+      "open": "Open announcement on desktop",
+      "carousel": "Carousel",
+      "start": "Project carousel",
+      "seconds": "Seconds per slide",
+      "durationRange": "Enter 2 to 600 seconds.",
+      "loop": "Repeat",
+      "carouselHint": "Only text and images enabled for the carousel are included.",
+      "kinds": {
+        "text": "Text",
+        "images": "Images",
+        "video": "Video",
+        "presentation": "Presentation / PDF",
+        "url": "URL"
+      }
+    },
+    "video": {
+      "independent": "Independent projection",
+      "independentHint": "Check the destinations and tap the project arrow.",
+      "mode_overlay": "Overlay",
+      "mode_share": "Share",
+      "remoteConnections": "Remote connections",
+      "noRemotes": "No active remote connections",
+      "onAir": "LIVE",
+      "enableInScreens": "Enable in Screens to use",
+      "closeMedia": "Close media",
+      "audioDestination": "Audio destination",
+      "audioPlayer": "Sound: player only",
+      "audioConnections": "Sound: connections only",
+      "audioBoth": "Sound: both",
+      "selectScreens": "Select screens",
+      "noScreens": "No screens available",
+      "showCaptions": "Show captions",
+      "hideCaptions": "Hide captions",
+      "closeConfirmTitle": "Close the media?",
+      "closeConfirmMessage": "What is playing on the desktop will stop.",
+      "closeConfirmCancel": "Cancel",
+      "closeConfirmOk": "Close"
+    },
     "title": "Remote Control",
     "palcoOff": "Turn on the Palco first — control uses the same connection.",
     "noTargets": "No desktop/web connected.",
@@ -336,6 +440,8 @@
     "desktop_hint": "e.g. 192.168.1.50:7081",
     "connect": "Connect",
     "disconnect": "Disconnect",
+    "mute": "Mute",
+    "unmute": "Unmute",
     "mode_desktop": "Desktop mode",
     "mode_web": "Web link mode",
     "start_weblink": "Start web link",
@@ -351,6 +457,8 @@
     "stop": "Stop",
     "next": "Next",
     "previous": "Previous",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide",
     "liturgy": "Desktop liturgy",
     "token": "Pairing token",
     "scanQr": "Scan QR",
@@ -369,6 +477,7 @@
     "unknownQr": "Unrecognized QR — trying P2P…",
     "tabLiturgy": "Liturgy",
     "tabBible": "Bible",
+    "tabAnnouncements": "Announcements",
     "tabTime": "Time",
     "bible": {
       "hint": "Enter book (number), chapter and verse and project on the desktop.",
@@ -398,6 +507,20 @@
       "title": "Clock"
     },
     "random": {
+      "clearListConfirm": "Remove all names from the draw list?",
+      "clearList": "Clear list",
+      "clearHistory": "Clear history",
+      "namesList": "Names in the list",
+      "noNames": "No names added yet.",
+      "addName": "Add name",
+      "personName": "Participant name",
+      "receptionHint": "Register participants at reception for the desktop draw.",
+      "nameRequired": "Enter the person’s name.",
+      "includeName": "Add to draw",
+      "audioTitle": "Draw audio",
+      "audioSource": "Sound",
+      "audioDefault": "Default audio",
+      "audioMute": "Mute / unmute",
       "title": "Draw",
       "generateNumbers": "Generate numbers 1–100",
       "numbers": "Numbers",
@@ -416,9 +539,19 @@
     "tabHymns": "Hymns",
     "hymns": {
       "search": "Search hymn",
+      "clear": "Clear search",
       "empty": "Search by number or name"
     },
-    "stopProjection": "Stop projection"
+    "stopProjection": "Stop projection",
+    "liturgyCustomDay": "Standalone",
+    "liturgyDayItems": "{count} items",
+    "site": {
+      "back": "Back",
+      "forward": "Forward",
+      "reload": "Reload",
+      "project": "Project on desktop",
+      "close": "Close browser"
+    }
   },
   "albums": {
     "playAll": "Play all"
