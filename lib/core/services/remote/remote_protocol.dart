@@ -4,6 +4,10 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'remote_announcements_state.dart';
+import 'remote_playlist_state.dart';
+import 'remote_sabbath_state.dart';
+export 'remote_sabbath_state.dart';
+export 'remote_playlist_state.dart';
 export 'remote_announcements_state.dart';
 
 /// Protocolo "LouvorJA Remote v1" — JSON sobre WebSocket.
@@ -21,6 +25,38 @@ export 'remote_announcements_state.dart';
 const remoteDesktopDefaultPort = 48080;
 
 enum RemoteAction {
+  sabbathStart('sabbath.start'),
+  sabbathPause('sabbath.pause'),
+  sabbathStop('sabbath.stop'),
+  sabbathToggleProjection('sabbath.toggleProjection'),
+  sabbathToggleOpening('sabbath.toggleOpening'),
+  sabbathToggleFinalMinutes('sabbath.toggleFinalMinutes'),
+  sabbathStopAudio('sabbath.stopAudio'),
+  sabbathAdjustTime('sabbath.adjustTime'),
+  sabbathSeekVideo('sabbath.seekVideo'),
+  sabbathSetVolume('sabbath.setVolume'),
+  sabbathSetVideoVolume('sabbath.setVideoVolume'),
+  sabbathSetMuted('sabbath.setMuted'),
+  sabbathSetVideoMuted('sabbath.setVideoMuted'),
+  sabbathSetAudioLang('sabbath.setAudioLang'),
+  sabbathSetSchedule('sabbath.setSchedule'),
+  sabbathAddMarker('sabbath.addMarker'),
+  sabbathSetMarker('sabbath.setMarker'),
+  sabbathRemoveMarker('sabbath.removeMarker'),
+
+  randomSetAudioVolume('random.setAudioVolume'),
+  randomToggleAudio('random.toggleAudio'),
+  randomToggleAudioMute('random.toggleAudioMute'),
+  randomUseDefaultAudio('random.useDefaultAudio'),
+  randomUseCustomAudio('random.useCustomAudio'),
+  playlistPlay('playlist.play'),
+  playlistTrack('playlist.track'),
+  playlistShuffle('playlist.shuffle'),
+  playlistNext('playlist.next'),
+  playlistPrevious('playlist.previous'),
+  playlistJump('playlist.jump'),
+  playlistOrder('playlist.order'),
+  playlistClear('playlist.clear'),
   announcementsSelectList('announcements.selectList'),
   announcementsOpen('announcements.open'),
   announcementsInclude('announcements.include'),
@@ -396,6 +432,8 @@ class RemotePlayerState extends RemoteMessage {
     this.randomModule,
     this.mediaModule,
     this.announcementsModule,
+    this.playlistModule,
+    this.sabbathModule,
     this.videoControls,
     this.idleVideoTargets = const [],
     this.idleVideoTvs = const [],
@@ -460,6 +498,8 @@ class RemotePlayerState extends RemoteMessage {
   final RemoteRandomState? randomModule;
   final RemoteMediaState? mediaModule;
   final RemoteAnnouncementsState? announcementsModule;
+  final RemotePlaylistState? playlistModule;
+  final RemoteSabbathState? sabbathModule;
   final RemoteVideoControls? videoControls;
 
   /// Monitores informados pelo desktop quando não há vídeo aberto.
@@ -477,6 +517,8 @@ class RemotePlayerState extends RemoteMessage {
       'v': 1,
       'type': 'state',
       if (announcementsModule != null) 'announcements': announcementsModule!.toJson(),
+      if (playlistModule != null) 'playlist': playlistModule!.toJson(),
+      if (sabbathModule != null) 'sabbath': sabbathModule!.toJson(),
       'player': {
         if (hymnId != null) 'hymnId': hymnId,
         if (title != null) 'title': title,
@@ -615,6 +657,13 @@ class RemoteRandomState {
     this.numberMax,
     this.available = const [],
     this.drawn = const [],
+    this.audioSupported = false,
+    this.audioSource = 'default',
+    this.audioVolume = 100,
+    this.audioMuted = false,
+    this.audioPlaying = false,
+    this.customAudioFile,
+    this.customAudioFiles = const [],
   });
 
   final String mode;
@@ -627,6 +676,11 @@ class RemoteRandomState {
   final List<String> available;
   final List<String> drawn;
   final bool isProjecting;
+  final bool audioSupported, audioMuted, audioPlaying;
+  final String audioSource;
+  final int audioVolume;
+  final String? customAudioFile;
+  final List<String> customAudioFiles;
 }
 
 /// Estado do countdown do alvo (v2).
@@ -1010,6 +1064,8 @@ class RemoteProtocol {
       randomModule: _parseRandomModule(m['random']),
       mediaModule: _parseMediaModule(m['media']),
       announcementsModule: RemoteAnnouncementsState.parse(m['announcements']),
+      playlistModule: RemotePlaylistState.parse(m['playlist']),
+      sabbathModule: RemoteSabbathState.parse(m['sabbath']),
       videoControls: _parseVideoControls(m['video']),
       idleIndependent: m['videoTargets'] is Map
           ? _parseIndependent((m['videoTargets'] as Map)['independent'])
@@ -1110,6 +1166,13 @@ class RemoteProtocol {
         ? v.map((e) => '$e').where((e) => e.isNotEmpty).toList()
         : const [];
     return RemoteRandomState(
+      audioSupported: raw['audioSource'] is String,
+      audioSource: raw['audioSource'] == 'custom' ? 'custom' : 'default',
+      audioVolume: raw['audioVolume'] is num ? (raw['audioVolume'] as num).toInt().clamp(0, 100) : 100,
+      audioMuted: raw['audioMuted'] == true,
+      audioPlaying: raw['audioPlaying'] == true,
+      customAudioFile: raw['customAudioFile'] is String ? raw['customAudioFile'] as String : null,
+      customAudioFiles: _strList(raw['customAudioFiles']),
       mode: mode is String ? mode : 'names',
       numberMin: raw['numberMin'] is num
           ? (raw['numberMin'] as num).toInt()

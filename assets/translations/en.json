@@ -326,6 +326,63 @@
     "operatorPending": "Sync pending — it will be sent once a connection is available."
   },
   "remote": {
+    "sabbath": {
+      "tapToEdit": "Tap to edit",
+      "title": "Sabbath School",
+      "unavailable": "Update the desktop app to control Sabbath School.",
+      "duration": "Duration (min:ss)",
+      "endTime": "End time",
+      "invalidDuration": "Enter a valid duration of at least {}.",
+      "invalidTime": "Use HH:mm time format.",
+      "finalMinutes": "Last 5 minutes",
+      "replaceConfirm": "Starting the last five minutes will replace the current countdown. Continue?",
+      "markerTime": "Time remaining",
+      "invalidMarker": "Enter a valid time that is not already used.",
+      "schedule": "Countdown",
+      "modes": {
+        "duration": "Duration",
+        "endOnly": "End time",
+        "video": "Custom video"
+      },
+      "videoHint": "Select the custom video on the desktop.",
+      "audio": "Audio alerts",
+      "opening": "Opening",
+      "language": "Alert language",
+      "languages": {
+        "auto": "Automatic",
+        "pt-BR": "Portuguese",
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French"
+      },
+      "markers": "Alert markers",
+      "addMarker": "Add alert",
+      "presets": {
+        "none": "No sound",
+        "beep": "Beep",
+        "chime": "Chime",
+        "gong": "Gong",
+        "abertura_es": "Sabbath School opening",
+        "5min_es": "5 minutes remaining",
+        "1min_es": "1 minute remaining",
+        "legacy-custom": "Previous custom audio"
+      }
+    },
+    "tabPlaylist": "Playlist",
+    "playlist": {
+      "unavailable": "Update the desktop app to control playlists.",
+      "empty": "No playlists saved on the desktop.",
+      "emptyList": "This playlist is empty.",
+      "playAll": "Play playlist",
+      "shuffle": "Shuffle",
+      "playTrack": "Play single track",
+      "queue": "Current queue",
+      "previous": "Previous track",
+      "next": "Next track",
+      "audio": "Vocals",
+      "instrumental": "Instrumental",
+      "slides": "Slides only"
+    },
     "announcements": {
       "unavailable": "Update the desktop app to control announcements.",
       "list": "Announcement list",
@@ -450,6 +507,20 @@
       "title": "Clock"
     },
     "random": {
+      "clearListConfirm": "Remove all names from the draw list?",
+      "clearList": "Clear list",
+      "clearHistory": "Clear history",
+      "namesList": "Names in the list",
+      "noNames": "No names added yet.",
+      "addName": "Add name",
+      "personName": "Participant name",
+      "receptionHint": "Register participants at reception for the desktop draw.",
+      "nameRequired": "Enter the person’s name.",
+      "includeName": "Add to draw",
+      "audioTitle": "Draw audio",
+      "audioSource": "Sound",
+      "audioDefault": "Default audio",
+      "audioMute": "Mute / unmute",
       "title": "Draw",
       "generateNumbers": "Generate numbers 1–100",
       "numbers": "Numbers",

@@ -3,7 +3,7 @@ library;
 
 import 'dart:async';
 
-import 'remote_announcements_panel.dart';
+import 'remote_playlist_panel.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +41,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
   TabController? _tabCtrl;
   bool _keyboardOpen = false;
   RemoteHymnSelection? _hymnSelection;
+  RemotePlaylistSelection? _playlistSelection;
 
   @override
   void initState() {
@@ -85,6 +86,23 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
         mode: selection.mode,
       ),
     );
+  }
+
+  void _openSelectedPlaylistTrack(RemotePlaylistSelection selection) {
+    final lists = _state?.playlistModule?.lists ?? const <RemotePlaylist>[];
+    RemotePlaylist? playlist;
+    for (final list in lists) { if (list.id == selection.playlistId) playlist = list; }
+    var index = selection.index;
+    if (playlist == null) { setState(() => _playlistSelection = null); return; }
+    if (index >= playlist.items.length || playlist.items[index].musicId != selection.musicId) {
+      index = playlist.items.indexWhere((item) => item.musicId == selection.musicId);
+    }
+    setState(() => _playlistSelection = null);
+    if (index < 0) return;
+    RemoteSession.instance.send(RemoteCommand(
+      id: 'pt${DateTime.now().microsecondsSinceEpoch}', action: RemoteAction.playlistTrack,
+      targetId: selection.playlistId, index: index, mode: selection.mode,
+    ));
   }
 
   /// Abre o dia no desktop; com liturgia, já mostra a lista espelhada.
@@ -208,8 +226,8 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                       text: 'remote.tabLiturgy'.tr(),
                     ),
                     Tab(
-                      icon: const Icon(TablerIcons.speakerphone),
-                      text: 'remote.tabAnnouncements'.tr(),
+                      icon: const Icon(TablerIcons.playlist),
+                      text: 'remote.tabPlaylist'.tr(),
                     ),
                     Tab(
                       icon: const Icon(TablerIcons.layoutGrid),
@@ -232,7 +250,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                         child: RemoteBiblePanel(state: st),
                       ),
                       _liturgyStatus(context, theme, st),
-                      RemoteAnnouncementsPanel(state: st.announcementsModule),
+                      RemotePlaylistPanel(state: st.playlistModule, selection: _playlistSelection, onSelectionChanged: (selection) => setState(() => _playlistSelection = selection)),
                       RemoteMorePanel(state: st),
                     ],
                   ),
@@ -243,9 +261,9 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                   RemotePlayerBar(
                     state: st,
                     showTransport: true,
-                    pendingOpen: _hymnSelection == null
-                        ? null
-                        : () => _openSelectedHymn(_hymnSelection!),
+                    pendingOpen: _tabCtrl?.index == 3
+                        ? (_playlistSelection == null ? null : () => _openSelectedPlaylistTrack(_playlistSelection!))
+                        : (_hymnSelection == null ? null : () => _openSelectedHymn(_hymnSelection!)),
                   ),
               ],
             ),

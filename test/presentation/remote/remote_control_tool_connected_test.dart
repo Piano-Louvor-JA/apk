@@ -63,7 +63,7 @@ void main() {
     expect(
       tester.widgetList<Tab>(find.byType(Tab)).map((tab) => tab.text),
       ['remote.tabHymns', 'remote.tabBible', 'remote.tabLiturgy',
-       'remote.tabAnnouncements', 'remote.tabMore'],
+       'remote.tabPlaylist', 'remote.tabMore'],
     );
 
     // troca de aba (indexIsChanging listener); a barra fica em Hinos

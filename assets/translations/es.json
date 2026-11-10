@@ -326,6 +326,63 @@
     "operatorPending": "Sincronización pendente — se enviará cuando haya conexión."
   },
   "remote": {
+    "sabbath": {
+      "tapToEdit": "Toque para cambiar",
+      "title": "Escuela Sabática",
+      "unavailable": "Actualice la app de escritorio para controlar la Escuela Sabática.",
+      "duration": "Duración (min:ss)",
+      "endTime": "Hora de finalización",
+      "invalidDuration": "Ingrese una duración válida de al menos {}.",
+      "invalidTime": "Use el formato HH:mm.",
+      "finalMinutes": "Últimos 5 minutos",
+      "replaceConfirm": "Iniciar los últimos cinco minutos reemplazará la cuenta actual. ¿Continuar?",
+      "markerTime": "Tiempo restante",
+      "invalidMarker": "Ingrese un tiempo válido que no esté en uso.",
+      "schedule": "Cuenta regresiva",
+      "modes": {
+        "duration": "Duración",
+        "endOnly": "Hora de finalización",
+        "video": "Vídeo personalizado"
+      },
+      "videoHint": "Seleccione el vídeo personalizado en el escritorio.",
+      "audio": "Avisos sonoros",
+      "opening": "Apertura",
+      "language": "Idioma de los avisos",
+      "languages": {
+        "auto": "Automático",
+        "pt-BR": "Portugués",
+        "en": "Inglés",
+        "es": "Español",
+        "fr": "Francés"
+      },
+      "markers": "Marcas de aviso",
+      "addMarker": "Añadir aviso",
+      "presets": {
+        "none": "Sin sonido",
+        "beep": "Pitido",
+        "chime": "Campanilla",
+        "gong": "Gong",
+        "abertura_es": "Apertura de Escuela Sabática",
+        "5min_es": "Faltan 5 minutos",
+        "1min_es": "Falta 1 minuto",
+        "legacy-custom": "Audio personalizado anterior"
+      }
+    },
+    "tabPlaylist": "Playlist",
+    "playlist": {
+      "unavailable": "Actualice la app de escritorio para controlar playlists.",
+      "empty": "No hay playlists guardadas en el escritorio.",
+      "emptyList": "Esta playlist está vacía.",
+      "playAll": "Reproducir playlist",
+      "shuffle": "Aleatorio",
+      "playTrack": "Reproducir pista individual",
+      "queue": "Cola actual",
+      "previous": "Pista anterior",
+      "next": "Pista siguiente",
+      "audio": "Cantado",
+      "instrumental": "Instrumental",
+      "slides": "Solo diapositivas"
+    },
     "announcements": {
       "unavailable": "Actualice la app de escritorio para controlar anuncios.",
       "list": "Lista de anuncios",
@@ -450,6 +507,20 @@
       "title": "Reloj"
     },
     "random": {
+      "clearListConfirm": "¿Desea eliminar todos los nombres de la lista del sorteo?",
+      "clearList": "Limpiar lista",
+      "clearHistory": "Limpiar historial",
+      "namesList": "Nombres de la lista",
+      "noNames": "Aún no se añadieron nombres.",
+      "addName": "Añadir nombre",
+      "personName": "Nombre del participante",
+      "receptionHint": "Registre en recepción a los participantes del sorteo del escritorio.",
+      "nameRequired": "Ingrese el nombre de la persona.",
+      "includeName": "Incluir en el sorteo",
+      "audioTitle": "Audio del sorteo",
+      "audioSource": "Sonido",
+      "audioDefault": "Audio predeterminado",
+      "audioMute": "Silenciar / activar sonido",
       "title": "Sorteo",
       "generateNumbers": "Generar números 1–100",
       "numbers": "Números",

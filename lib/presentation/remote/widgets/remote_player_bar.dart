@@ -72,10 +72,6 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
 
   RemotePlayerState get _st => widget.state;
 
-  /// Anterior/próximo item desativados por enquanto: voltam na playlist e no
-  /// player das coletâneas e do hinário.
-  static final bool _itemNavigationEnabled = false;
-
   // Slide escolhido no toque, mostrado antes do desktop confirmar.
   int? _pendingSlide;
   Timer? _slideEchoTimeout;
@@ -309,8 +305,12 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
     final showPause = _st.playing && widget.pendingOpen == null;
     final slideCount = _st.slideCount;
     final durationMs = _st.duration.inMilliseconds;
-    // O desktop executa o item vizinho na hora: com mídia aberta, tocaria junto.
-    final canNavigate = _itemNavigationEnabled && !_mediaOpen;
+    // Com playlist ativa, anterior/próxima navegam na fila do desktop.
+    final playlist = _st.playlistModule;
+    final canNavigate = playlist != null &&
+        playlist.queueIndex >= 0 &&
+        playlist.queueIndex < playlist.queue.length &&
+        _mediaOpen && widget.pendingOpen == null;
 
     return Container(
       key: const Key('remote-player-bar'),

@@ -21,6 +21,7 @@ RemotePlayerState _state({
   bool playing = false,
   bool canPrevious = true,
   bool canNext = true,
+  RemotePlaylistState? playlist,
   Duration position = Duration.zero,
   Duration duration = Duration.zero,
   int slideIndex = 0,
@@ -35,6 +36,7 @@ RemotePlayerState _state({
   volume: 60,
   canPrevious: canPrevious,
   canNext: canNext,
+  playlistModule: playlist,
 );
 
 void main() {
@@ -268,6 +270,23 @@ void main() {
   });
 
   group('anterior e proximo', () {
+    testWidgets('playlist ativa habilita anterior e próxima durante reprodução', (tester) async {
+      await pump(tester, _state(playing: true, playlist: const RemotePlaylistState(lists: [], queue: [RemotePlaylistItem(musicId: 1, title: 'A'), RemotePlaylistItem(musicId: 2, title: 'B'), RemotePlaylistItem(musicId: 3, title: 'C')], queueIndex: 1)));
+      for (final tip in ['remote.previous', 'remote.next']) {
+        expect(tester.widget<IconButton>(find.ancestor(of: find.byTooltip(tip), matching: find.byType(IconButton)).first).onPressed, isNotNull);
+        await tester.tap(find.byTooltip(tip));
+      }
+      expect(sent.map((command) => command.action), [RemoteAction.previous, RemoteAction.next]);
+    });
+    testWidgets('playlist respeita limites e bloqueia navegação durante seleção pendente', (tester) async {
+      const playlist = RemotePlaylistState(lists: [], queue: [RemotePlaylistItem(musicId: 1, title: 'A'), RemotePlaylistItem(musicId: 2, title: 'B')], queueIndex: 0);
+      await pump(tester, _state(playing: true, canPrevious: false, canNext: true, playlist: playlist));
+      expect(tester.widget<IconButton>(find.ancestor(of: find.byTooltip('remote.previous'), matching: find.byType(IconButton)).first).onPressed, isNull);
+      expect(tester.widget<IconButton>(find.ancestor(of: find.byTooltip('remote.next'), matching: find.byType(IconButton)).first).onPressed, isNotNull);
+      await pump(tester, _state(playing: true, playlist: playlist), pendingOpen: () {});
+      expect(tester.widget<IconButton>(find.ancestor(of: find.byTooltip('remote.next'), matching: find.byType(IconButton)).first).onPressed, isNull);
+    });
+
     testWidgets('ficam bloqueados com midia aberta', (tester) async {
       await pump(tester, _state(playing: true));
 

@@ -13,6 +13,8 @@ import 'package:louvorja_piano_mobile/core/services/global_search_service.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
 import 'widgets/remote_bible_preview.dart';
+import 'remote_announcements_panel.dart';
+import 'remote_sabbath_panel.dart';
 
 typedef RemoteSend =
     Future<void> Function(
@@ -681,7 +683,7 @@ class RemoteMorePanel extends StatefulWidget {
   State<RemoteMorePanel> createState() => _RemoteMorePanelState();
 }
 
-enum _MoreFeature { time, random }
+enum _MoreFeature { time, random, announcements, sabbath }
 
 class _RemoteMorePanelState extends State<RemoteMorePanel> {
   _MoreFeature? _feature;
@@ -701,13 +703,16 @@ class _RemoteMorePanelState extends State<RemoteMorePanel> {
               onPressed: () => setState(() => _feature = null),
             ),
             Expanded(child: Text(
-              (feature == _MoreFeature.time ? 'remote.tabTime' : 'remote.random.title').tr(),
+              (switch (feature) { _MoreFeature.time => 'remote.tabTime', _MoreFeature.random => 'remote.random.title', _MoreFeature.announcements => 'remote.tabAnnouncements', _MoreFeature.sabbath => 'remote.sabbath.title' }).tr(),
               style: Theme.of(context).textTheme.titleMedium,
             )),
           ]),
-          Expanded(child: feature == _MoreFeature.time
-            ? RemoteTimePanel(state: widget.state, send: widget.send)
-            : RemoteClockRandomPanel(random: widget.state?.randomModule, send: widget.send)),
+          Expanded(child: switch (feature) {
+            _MoreFeature.time => RemoteTimePanel(state: widget.state, send: widget.send),
+            _MoreFeature.random => RemoteClockRandomPanel(random: widget.state?.randomModule, send: widget.send),
+            _MoreFeature.announcements => RemoteAnnouncementsPanel(state: widget.state?.announcementsModule),
+            _MoreFeature.sabbath => RemoteSabbathPanel(state: widget.state?.sabbathModule),
+          }),
         ],
       );
     }
@@ -719,6 +724,8 @@ class _RemoteMorePanelState extends State<RemoteMorePanel> {
       children: [
         _featureCard(context, _MoreFeature.time, TablerIcons.clock, 'remote.tabTime'),
         _featureCard(context, _MoreFeature.random, TablerIcons.dice, 'remote.random.title'),
+        _featureCard(context, _MoreFeature.announcements, TablerIcons.speakerphone, 'remote.tabAnnouncements'),
+        _featureCard(context, _MoreFeature.sabbath, TablerIcons.book2, 'remote.sabbath.title'),
       ],
     );
   }
@@ -726,7 +733,7 @@ class _RemoteMorePanelState extends State<RemoteMorePanel> {
   Widget _featureCard(BuildContext context, _MoreFeature feature, IconData icon, String label) {
     final theme = Theme.of(context);
     return Material(
-      key: Key(feature == _MoreFeature.time ? 'remote-more-time' : 'remote-more-random'),
+      key: Key(switch (feature) { _MoreFeature.time => 'remote-more-time', _MoreFeature.random => 'remote-more-random', _MoreFeature.announcements => 'remote-more-announcements', _MoreFeature.sabbath => 'remote-more-sabbath' }),
       color: theme.colorScheme.surfaceContainer,
       borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
       clipBehavior: Clip.antiAlias,
@@ -832,13 +839,100 @@ class _RandomCard extends StatefulWidget {
 }
 
 class _RandomCardState extends State<_RandomCard> {
-  final _namesCtrl = TextEditingController();
+  static const _nameRowHeight = 48.0;
+  static const _visibleNames = 5;
+  final _participantsScroll = ScrollController();
+  String _importDraft = '';
   final _minCtrl = TextEditingController();
   final _maxCtrl = TextEditingController();
 
+  Future<void> _confirmClearList() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('remote.random.clearList'.tr()),
+        content: Text('remote.random.clearListConfirm'.tr()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('common.cancel'.tr())),
+          FilledButton(
+            key: const Key('remote-random-clear-list-confirm'),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error, foregroundColor: Theme.of(context).colorScheme.onError),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('remote.random.clearList'.tr()),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await widget.send(RemoteAction.randomClearAvailable);
+  }
+
+  Future<void> _importNames() async {
+    final form = GlobalKey<FormState>();
+    final names = await showDialog<String>(context: context, builder: (context) {
+      void submit() {
+        if (form.currentState!.validate()) Navigator.pop(context, _importDraft.trim());
+      }
+      return AlertDialog(
+        title: Text('remote.random.importNames'.tr()),
+        content: Form(key: form, child: TextFormField(
+          key: const Key('remote-random-names'),
+          initialValue: _importDraft,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 8,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(labelText: 'remote.random.namesHint'.tr(), hintText: 'Maria\nJoão\nAna', alignLabelWithHint: true),
+          onChanged: (value) => _importDraft = value,
+          validator: (value) => (value ?? '').trim().isEmpty ? 'remote.random.nameRequired'.tr() : null,
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('common.cancel'.tr())),
+          FilledButton(key: const Key('remote-random-import-save'), onPressed: submit, child: Text('remote.random.importNames'.tr())),
+        ],
+      );
+    });
+    if (names == null || names.isEmpty) return;
+    _importDraft = '';
+    await widget.send(RemoteAction.randomImportNames, namesText: names);
+  }
+
+  Future<void> _addReceptionName() async {
+    final form = GlobalKey<FormState>();
+    var draft = '';
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        void submit() {
+          if (form.currentState!.validate()) Navigator.pop(context, draft.trim());
+        }
+        return AlertDialog(
+          title: Text('remote.random.addName'.tr()),
+          content: Form(
+            key: form,
+            child: TextFormField(
+              key: const Key('remote-random-name-input'),
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(labelText: 'remote.random.personName'.tr(), helperText: 'remote.random.receptionHint'.tr(), helperMaxLines: 3),
+              onChanged: (value) => draft = value,
+              validator: (value) => (value ?? '').trim().isEmpty ? 'remote.random.nameRequired'.tr() : null,
+              onFieldSubmitted: (_) => submit(),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('common.cancel'.tr())),
+            FilledButton.icon(key: const Key('remote-random-name-save'), onPressed: submit, icon: const Icon(TablerIcons.userPlus), label: Text('remote.random.includeName'.tr())),
+          ],
+        );
+      },
+    );
+    if (name != null && name.isNotEmpty) await widget.send(RemoteAction.randomAddName, name: name);
+  }
+
   @override
   void dispose() {
-    _namesCtrl.dispose();
+    _participantsScroll.dispose();
     _minCtrl.dispose();
     _maxCtrl.dispose();
     super.dispose();
@@ -863,6 +957,10 @@ class _RandomCardState extends State<_RandomCard> {
                 Text('${r?.drawnCount ?? 0} / ${r?.availableCount ?? 0}'),
               ],
             ),
+            if (r?.audioSupported == true) ...[
+              const SizedBox(height: AppSpacing.s3),
+              _RandomAudioControls(random: r!, send: widget.send),
+            ],
             const SizedBox(height: AppSpacing.s3),
             SegmentedButton<String>(
               key: const Key('remote-random-mode'),
@@ -928,27 +1026,79 @@ class _RandomCardState extends State<_RandomCard> {
               ),
             ],
             if (isNames) ...[
-              TextField(
-                key: const Key('remote-random-names'),
-                controller: _namesCtrl,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'remote.random.namesHint'.tr(),
-                  hintText: 'Maria\nJoão\nAna',
-                  isDense: true,
-                ),
+              FilledButton.icon(
+                key: const Key('remote-random-add-name'),
+                onPressed: _addReceptionName,
+                icon: const Icon(TablerIcons.userPlus),
+                label: Text('remote.random.addName'.tr()),
               ),
               const SizedBox(height: AppSpacing.s2),
               OutlinedButton.icon(
                 key: const Key('remote-random-import'),
-                onPressed: () {
-                  final text = _namesCtrl.text.trim();
-                  if (text.isEmpty) return;
-                  widget.send(RemoteAction.randomImportNames, namesText: text);
-                  _namesCtrl.clear();
-                },
+                onPressed: _importNames,
                 icon: const Icon(TablerIcons.userPlus),
                 label: Text('remote.random.importNames'.tr()),
+              ),
+              const SizedBox(height: AppSpacing.s3),
+              Column(
+                key: const Key('remote-random-participants'),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(children: [
+                    Expanded(child: Text('${'remote.random.namesList'.tr()} (${r?.available.length ?? 0})', style: Theme.of(context).textTheme.titleSmall)),
+                    TextButton.icon(
+                      key: const Key('remote-random-clear-list'),
+                      onPressed: (r?.available ?? const []).isEmpty ? null : _confirmClearList,
+                      icon: const Icon(TablerIcons.trash, size: 18),
+                      label: Text('remote.random.clearList'.tr()),
+                    ),
+                  ]),
+                  const SizedBox(height: AppSpacing.s2),
+                  if ((r?.available ?? const []).isEmpty)
+                    Padding(padding: const EdgeInsets.all(AppSpacing.s3), child: Text('remote.random.noNames'.tr()))
+                  else Container(
+                    key: const Key('remote-random-participants-viewport'),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    height: (r!.available.length * _nameRowHeight).clamp(_nameRowHeight, _nameRowHeight * _visibleNames),
+                    child: Scrollbar(
+                      key: const Key('remote-random-participants-scrollbar'),
+                      controller: _participantsScroll,
+                      thumbVisibility: r.available.length > _visibleNames,
+                      trackVisibility: r.available.length > _visibleNames,
+                      interactive: true,
+                      child: ListView.builder(
+                      controller: _participantsScroll,
+                      primary: false,
+                      padding: EdgeInsets.zero,
+                      itemExtent: _nameRowHeight,
+                      itemCount: r.available.length,
+                      itemBuilder: (context, index) {
+                        final name = r.available[index];
+                        final drawn = r.drawn.contains(name);
+                        final theme = Theme.of(context);
+                        final color = drawn ? theme.colorScheme.onSurface.withValues(alpha: 0.38) : null;
+                        return ListTile(
+                          key: Key('remote-random-participant-$index'),
+                          dense: true,
+                          enabled: !drawn,
+                          leading: Icon(TablerIcons.user, color: drawn ? color : theme.colorScheme.primary, size: 18),
+                          title: Text(name, style: TextStyle(color: color, decoration: drawn ? TextDecoration.lineThrough : TextDecoration.none)),
+                          trailing: IconButton(
+                            key: Key('remote-random-remove-name-$index'),
+                            tooltip: 'common.delete'.tr(),
+                            icon: const Icon(TablerIcons.x),
+                            onPressed: () => widget.send(RemoteAction.randomRemoveAvailable, index: index),
+                          ),
+                        );
+                      },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: AppSpacing.s3),
@@ -1025,6 +1175,12 @@ class _RandomCardState extends State<_RandomCard> {
                         widget.send(RemoteAction.randomRemoveDrawn, index: i),
                   ),
                 ),
+              OutlinedButton.icon(
+                key: const Key('remote-random-clear-history'),
+                onPressed: () => widget.send(RemoteAction.randomClearHistory),
+                icon: const Icon(TablerIcons.eraser),
+                label: Text('remote.random.clearHistory'.tr()),
+              ),
             ],
           ],
         ),
@@ -1212,5 +1368,71 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
           ),
       ],
     );
+  }
+}
+
+/// Controles do áudio que toca no desktop durante o sorteio.
+class _RandomAudioControls extends StatefulWidget {
+  const _RandomAudioControls({required this.random, required this.send});
+  final RemoteRandomState random;
+  final RemoteSend send;
+  @override
+  State<_RandomAudioControls> createState() => _RandomAudioControlsState();
+}
+
+class _RandomAudioControlsState extends State<_RandomAudioControls> {
+  double? _volume;
+  @override
+  void didUpdateWidget(covariant _RandomAudioControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.random.audioVolume != widget.random.audioVolume) _volume = null;
+  }
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.random;
+    final volume = _volume ?? r.audioVolume.toDouble();
+    final custom = r.audioSource == 'custom' && r.customAudioFiles.contains(r.customAudioFile);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('remote.random.audioTitle'.tr(), style: Theme.of(context).textTheme.titleSmall),
+      const SizedBox(height: 8),
+      InputDecorator(
+        decoration: InputDecoration(labelText: 'remote.random.audioSource'.tr(), isDense: true),
+        child: DropdownButtonHideUnderline(child: DropdownButton<String>(
+          key: const Key('remote-random-audio-source'),
+          value: custom ? 'custom:${r.customAudioFile}' : 'default',
+          isExpanded: true, isDense: true,
+          items: [
+            DropdownMenuItem(value: 'default', child: Text('remote.random.audioDefault'.tr())),
+            for (final file in r.customAudioFiles) DropdownMenuItem(value: 'custom:$file', child: Text(file, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ],
+          onChanged: (value) {
+            if (value == 'default') { widget.send(RemoteAction.randomUseDefaultAudio); }
+            else if (value != null && value.startsWith('custom:')) { widget.send(RemoteAction.randomUseCustomAudio, name: value.substring(7)); }
+          },
+        )),
+      ),
+      Row(children: [
+        IconButton(
+          key: const Key('remote-random-audio-play'),
+          tooltip: (r.audioPlaying ? 'remote.pause' : 'remote.play').tr(),
+          icon: Icon(r.audioPlaying ? TablerIcons.playerPause : TablerIcons.playerPlay),
+          onPressed: () => widget.send(RemoteAction.randomToggleAudio),
+        ),
+        IconButton(
+          key: const Key('remote-random-audio-mute'),
+          tooltip: 'remote.random.audioMute'.tr(),
+          isSelected: r.audioMuted,
+          icon: Icon(r.audioMuted ? TablerIcons.volumeOff : TablerIcons.volume),
+          onPressed: () => widget.send(RemoteAction.randomToggleAudioMute),
+        ),
+        Expanded(child: Slider(
+          key: const Key('remote-random-audio-volume'),
+          min: 0, max: 100, value: volume, label: '${volume.round()}%',
+          onChanged: (value) => setState(() => _volume = value),
+          onChangeEnd: (value) => widget.send(RemoteAction.randomSetAudioVolume, volume: value.round()),
+        )),
+        Text('${volume.round()}%'),
+      ]),
+    ]);
   }
 }
