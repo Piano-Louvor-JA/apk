@@ -20,7 +20,9 @@ import 'package:louvorja_piano_mobile/core/services/terms_acceptance.dart';
 /// Ferramenta "Controle Remoto": visível quando há sessão conectada.
 /// Layout de controle remoto — liturgia espelhada + controles de mídia.
 class RemoteControlToolPage extends StatefulWidget {
-  const RemoteControlToolPage({super.key});
+  const RemoteControlToolPage({super.key, this.onBack});
+
+  final VoidCallback? onBack;
 
   @override
   State<RemoteControlToolPage> createState() => _RemoteControlToolPageState();
@@ -30,7 +32,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   /// Abas que controlam musica: Liturgia e Hinos.
   // Liturgia só escolhe o dia; quem toca é a lista espelhada, com barra própria.
-  static const _playerTabs = {1};
+  static const _playerTabs = {0};
 
   StreamSubscription? _sub;
   RemotePlayerState? _state;
@@ -43,7 +45,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // TabBar exige controller (sem ele lança e a view fica cinza).
-    _tabCtrl = TabController(length: 5, vsync: this);
+    _tabCtrl = TabController(length: 5, initialIndex: 2, vsync: this);
     _tabCtrl!.addListener(() {
       if (!_tabCtrl!.indexIsChanging && mounted) setState(() {});
     });
@@ -123,6 +125,13 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
 
     return Scaffold(
       appBar: AppBar(
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                key: const Key('tool-back'),
+                icon: const Icon(TablerIcons.arrowLeft),
+                onPressed: widget.onBack,
+              ),
         title: Text('remote.title'.tr()),
         actions: [
           IconButton(
@@ -182,16 +191,16 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                   isScrollable: true,
                   tabs: [
                     Tab(
-                      icon: const Icon(TablerIcons.clipboardText),
-                      text: 'remote.tabLiturgy'.tr(),
-                    ),
-                    Tab(
                       icon: const Icon(TablerIcons.music),
                       text: 'remote.tabHymns'.tr(),
                     ),
                     Tab(
                       icon: const Icon(TablerIcons.book),
                       text: 'remote.tabBible'.tr(),
+                    ),
+                    Tab(
+                      icon: const Icon(TablerIcons.clipboardText),
+                      text: 'remote.tabLiturgy'.tr(),
                     ),
                     Tab(
                       icon: const Icon(TablerIcons.clock),
@@ -207,8 +216,6 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                   child: IndexedStack(
                     index: _tabCtrl?.index ?? 0,
                     children: [
-                      // aba 0: status liturgia + player (conteúdo original)
-                      _liturgyStatus(context, theme, st),
                       RemoteHymnsPanel(
                         state: st,
                         selectedMusicId: _hymnSelection?.musicId,
@@ -216,6 +223,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                             setState(() => _hymnSelection = s),
                       ),
                       RemoteBiblePanel(state: st),
+                      _liturgyStatus(context, theme, st),
                       RemoteTimePanel(state: st),
                       RemoteClockRandomPanel(
                         clock: st.clockModule,

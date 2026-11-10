@@ -45,6 +45,7 @@ enum RemoteAction {
   liturgyState('liturgy.state'),
   // Controle remoto total (v2 — spec Obsidian "Controle Remoto Total v2").
   bibleOpen('bible.open'),
+  bibleSelect('bible.select'),
   bibleSelectVerse('bible.selectVerse'),
   bibleClearSelection('bible.clearSelection'),
   bibleClose('bible.close'),
@@ -522,6 +523,7 @@ class RemoteBibleState {
     this.versionId,
     this.books = const [],
     this.versions = const [],
+    this.verses = const {},
   });
 
   final int? bookId;
@@ -531,6 +533,7 @@ class RemoteBibleState {
   final int? versionId;
   final List<RemoteBibleBook> books;
   final List<RemoteBibleVersion> versions;
+  final Map<int, String> verses;
 }
 
 /// Estado do timer/cronômetro do alvo (v2).
@@ -1112,6 +1115,13 @@ class RemoteProtocol {
     final rawBooks = raw['books'];
     final rawVersions = raw['versions'];
     return RemoteBibleState(
+      verses: raw['verses'] is Map
+          ? {
+              for (final entry in (raw['verses'] as Map).entries)
+                if (int.tryParse('${entry.key}') != null && entry.value is String)
+                  int.parse('${entry.key}'): entry.value as String,
+            }
+          : const {},
       bookId: bookId is num ? bookId.toInt() : null,
       chapter: raw['chapter'] is num ? (raw['chapter'] as num).toInt() : null,
       selectedVerses: verses is List

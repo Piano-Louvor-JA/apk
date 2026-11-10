@@ -33,6 +33,7 @@ Future<void> _disconnect(WidgetTester tester) async {
 }
 
 Future<void> _openTab(WidgetTester tester, String label) async {
+  await tester.ensureVisible(find.text(label));
   await tester.tap(find.text(label));
   // Inicia a animacao, avanca ate o fim e desenha a aba ja trocada.
   await tester.pump();

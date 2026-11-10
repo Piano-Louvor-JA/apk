@@ -32,6 +32,8 @@ Future<List<String>> _pumpConnected(WidgetTester tester) async {
   await tester.pumpWidget(const MaterialApp(home: RemoteControlToolPage()));
   await tester.pump();
   // A barra do player fica na aba Hinos; a Liturgia só escolhe o dia.
+  await tester.ensureVisible(find.text('remote.tabHymns'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('remote.tabHymns'));
   await tester.pump();
   await tester.pump(const Duration(seconds: 1));

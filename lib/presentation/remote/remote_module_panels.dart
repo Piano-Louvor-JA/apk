@@ -9,6 +9,7 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import 'package:louvorja_piano_mobile/core/services/global_search_service.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
 
 typedef RemoteSend =
@@ -89,15 +90,27 @@ class RemoteBiblePanel extends StatelessWidget {
 
   RemoteSend get _send => send ?? _defaultSend;
 
-  void _open(RemoteBibleState bible, {int? bookId, int? chapter, int? verse}) {
+  void _open(RemoteBibleState bible, {int? bookId, int? chapter, int? verse, bool project = false}) {
     _send(
-      RemoteAction.bibleOpen,
+      project ? RemoteAction.bibleOpen : RemoteAction.bibleSelect,
       versionId: bible.versionId ?? 1,
       bookId: bookId ?? bible.bookId ?? 1,
       chapter: chapter ?? bible.chapter ?? 1,
       verse: verse,
     );
   }
+
+  String _bookLabel(RemoteBibleBook book) =>
+      book.number > 0 ? '${book.number}. ${book.name}' : book.name;
+
+  Future<int?> _chooseBook(BuildContext context, RemoteBibleState bible) =>
+      _showBiblePicker(
+        context,
+        title: 'remote.bible.book'.tr(),
+        keyPrefix: 'book',
+        entries: [for (final book in bible.books) (id: book.id, label: _bookLabel(book))],
+        selectedId: bible.bookId,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -126,95 +139,255 @@ class RemoteBiblePanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
-        if (versions.length > 1)
-          DropdownButtonFormField<int>(
-            key: const Key('remote-bible-version'),
-            initialValue: bible.versionId,
-            decoration: InputDecoration(
-              labelText: 'remote.bible.version'.tr(),
-              isDense: true,
-            ),
-            items: [
-              for (final v in versions)
-                DropdownMenuItem(value: v.id, child: Text(v.abbreviation)),
-            ],
-            onChanged: (id) {
-              if (id != null) {
-                _send(
-                  RemoteAction.bibleOpen,
-                  versionId: id,
-                  bookId: bible.bookId ?? 1,
-                  chapter: chapter,
-                );
-              }
-            },
-          ),
-        if (versions.length > 1) const SizedBox(height: AppSpacing.s3),
-        DropdownButtonFormField<int>(
-          key: const Key('remote-bible-book-select'),
-          initialValue: bible.bookId,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: 'remote.bible.book'.tr(),
-            isDense: true,
-          ),
-          items: [
-            for (final b in books)
-              DropdownMenuItem(
-                value: b.id,
-                child: Text(b.number > 0 ? '${b.number}. ${b.name}' : b.name),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (versions.isNotEmpty)
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<int>(
+                  key: const Key('remote-bible-version'),
+                  isExpanded: true,
+                  initialValue: bible.versionId,
+                  decoration: InputDecoration(
+                    labelText: 'remote.bible.version'.tr(),
+                    isDense: true,
+                  ),
+                  items: [
+                    for (final v in versions)
+                      DropdownMenuItem(
+                        value: v.id,
+                        child: Text(v.abbreviation),
+                      ),
+                  ],
+                  onChanged: (id) {
+                    if (id != null) {
+                      _send(
+                        RemoteAction.bibleSelect,
+                        versionId: id,
+                        bookId: bible.bookId ?? 1,
+                        chapter: chapter,
+                      );
+                    }
+                  },
+                ),
               ),
+            if (versions.isNotEmpty) const SizedBox(width: AppSpacing.s3),
+            Expanded(
+              flex: 3,
+              child: InkWell(
+                key: const Key('remote-bible-book-select'),
+                onTap: () async {
+                  final id = await _chooseBook(context, bible);
+                  if (id != null) _open(bible, bookId: id, chapter: 1, verse: 1);
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'remote.bible.book'.tr(),
+                    isDense: true,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(
+                        selectedBook == null ? '' : _bookLabel(selectedBook),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )),
+                      const Icon(TablerIcons.chevronDown, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
-          onChanged: (id) {
-            if (id != null) _open(bible, bookId: id, chapter: 1, verse: 1);
-          },
         ),
         const SizedBox(height: AppSpacing.s3),
-        _ChevronField(
-          label: 'remote.bible.chapter'.tr(),
-          value: chapter,
-          min: 1,
-          max: maxChapters,
-          keyPrefix: 'chapter',
-          onChanged: (c) => _open(bible, chapter: c, verse: 1),
-        ),
-        const SizedBox(height: AppSpacing.s3),
-        _ChevronField(
-          label: 'remote.bible.verse'.tr(),
-          value: (bible.selectedVerses.isNotEmpty
-              ? bible.selectedVerses.last
-              : 1),
-          min: 1,
-          max: 200,
-          keyPrefix: 'verse',
-          onChanged: (v) => _send(RemoteAction.bibleSelectVerse, verse: v),
+        Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: _ChevronField(
+                label: 'remote.bible.chapter'.tr(),
+                value: chapter,
+                min: 1,
+                max: maxChapters,
+                keyPrefix: 'chapter',
+                onChanged: (c) => _open(bible, chapter: c, verse: 1),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.s3),
+            Expanded(
+              flex: 1,
+              child: _ChevronField(
+                label: 'remote.bible.verse'.tr(),
+                value: (bible.selectedVerses.isNotEmpty
+                    ? bible.selectedVerses.last
+                    : 1),
+                min: 1,
+                max: 200,
+                keyPrefix: 'verse',
+                onChanged: (v) =>
+                    _send(RemoteAction.bibleSelectVerse, verse: v),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.s4),
         FilledButton.icon(
           key: const Key('remote-bible-project'),
           // Sem seleção no estado: usa o primeiro livro do catálogo (não
           // desabilita — operador espera que "abrir" sempre abra algo).
-          onPressed: () => _open(
-            bible,
-            bookId: bible.bookId ?? (books.isNotEmpty ? books.first.id : 1),
-            chapter: bible.chapter ?? 1,
-            verse: bible.selectedVerses.isNotEmpty
-                ? bible.selectedVerses.last
-                : 1,
+          onPressed: bible.isProjecting
+              ? () => _send(RemoteAction.bibleClose)
+              : () => _open(
+                  bible,
+                  project: true,
+                  bookId: bible.bookId ?? (books.isNotEmpty ? books.first.id : 1),
+                  chapter: bible.chapter ?? 1,
+                  verse: bible.selectedVerses.isNotEmpty
+                      ? bible.selectedVerses.last
+                      : 1,
+                ),
+          icon: Icon(bible.isProjecting ? TablerIcons.squareX : TablerIcons.book),
+          label: Text(
+            (bible.isProjecting ? 'remote.bible.close' : 'remote.bible.open').tr(),
           ),
-          icon: const Icon(TablerIcons.book),
-          label: Text('remote.bible.open'.tr()),
         ),
-        const SizedBox(height: AppSpacing.s2),
-        OutlinedButton.icon(
-          onPressed: () => _send(RemoteAction.bibleClose),
-          icon: const Icon(TablerIcons.squareX),
-          label: Text('remote.bible.close'.tr()),
+        const SizedBox(height: AppSpacing.s4),
+        _RemoteBiblePreview(
+          bible: bible,
+          bookName: selectedBook?.name ?? '',
+          onChanged: (verse) => _send(RemoteAction.bibleSelectVerse, verse: verse),
         ),
       ],
     );
   }
 }
+
+/// Prévia do capítulo do desktop, disponível mesmo antes de projetar.
+class _RemoteBiblePreview extends StatelessWidget {
+  const _RemoteBiblePreview({required this.bible, required this.bookName, required this.onChanged});
+
+  final RemoteBibleState bible;
+  final String bookName;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final numbers = bible.verses.keys.where((n) => n > 0).toList()..sort();
+    final selected = bible.selectedVerses;
+    final current = selected.isEmpty ? 1 : selected.last;
+    final position = numbers.indexOf(current);
+    final text = selected.map((n) => bible.verses[n] ?? '').where((text) => text.isNotEmpty).join('\n\n');
+    return Container(
+      key: const Key('remote-bible-preview'),
+      height: MediaQuery.sizeOf(context).height * 0.4,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.s3),
+            child: Text('$bookName ${bible.chapter ?? 1}:${selected.isEmpty ? current : selected.join(', ')}',
+              textAlign: TextAlign.center, style: theme.textTheme.titleSmall),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                IconButton(
+                  key: const Key('remote-bible-preview-prev'),
+                  tooltip: 'remote.previous'.tr(),
+                  icon: const Icon(TablerIcons.chevronLeft),
+                  onPressed: position > 0 ? () => onChanged(numbers[position - 1]) : null,
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.s3),
+                    child: Text(text.isEmpty ? 'common.empty'.tr() : text,
+                      textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+                  ),
+                ),
+                IconButton(
+                  key: const Key('remote-bible-preview-next'),
+                  tooltip: 'remote.next'.tr(),
+                  icon: const Icon(TablerIcons.chevronRight),
+                  onPressed: position >= 0 && position + 1 < numbers.length
+                      ? () => onChanged(numbers[position + 1]) : null,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<int?> _showBiblePicker(
+  BuildContext context, {
+  required String title,
+  required String keyPrefix,
+  required List<({int id, String label})> entries,
+  required int? selectedId,
+}) {
+    var query = '';
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) {
+          final matches = entries.where((entry) =>
+            GlobalSearchService.normalize(entry.label).contains(query),
+          ).toList();
+          return AlertDialog(
+            title: Text(title),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: MediaQuery.sizeOf(context).height * 0.4,
+              child: Column(
+                children: [
+                  TextField(
+                    key: Key('remote-bible-$keyPrefix-search'),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'common.search'.tr(),
+                      prefixIcon: const Icon(TablerIcons.search),
+                    ),
+                    onChanged: (value) => update(() {
+                      query = GlobalSearchService.normalize(value);
+                    }),
+                  ),
+                  const SizedBox(height: AppSpacing.s2),
+                  Expanded(
+                    child: matches.isEmpty
+                        ? Center(child: Text('common.empty'.tr()))
+                        : ListView.builder(
+                            itemCount: matches.length,
+                            itemBuilder: (context, index) {
+                              final entry = matches[index];
+                              return ListTile(
+                                key: Key('remote-bible-$keyPrefix-${entry.id}'),
+                                title: Text(entry.label),
+                                selected: entry.id == selectedId,
+                                onTap: () => Navigator.pop(dialogContext, entry.id),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('common.cancel'.tr()),
+            )],
+          );
+        },
+      ),
+    );
+  }
 
 /// Campo numérico híbrido: dropdown (select) + navegação por chevron (±).
 class _ChevronField extends StatelessWidget {
@@ -239,18 +412,27 @@ class _ChevronField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: DropdownButtonFormField<int>(
+          child: InkWell(
             key: Key('remote-bible-$keyPrefix-select'),
-            initialValue: value.clamp(min, max),
-            isExpanded: true,
-            decoration: InputDecoration(labelText: label, isDense: true),
-            items: [
-              for (var n = min; n <= max; n++)
-                DropdownMenuItem(value: n, child: Text('$n')),
-            ],
-            onChanged: (n) {
-              if (n != null) onChanged(n);
+            onTap: () async {
+              final selected = await _showBiblePicker(
+                context,
+                title: label,
+                keyPrefix: keyPrefix,
+                entries: [for (var n = min; n <= max; n++) (id: n, label: '$n')],
+                selectedId: value.clamp(min, max),
+              );
+              if (selected != null) onChanged(selected);
             },
+            child: InputDecorator(
+              decoration: InputDecoration(labelText: label, isDense: true),
+              child: Row(
+                children: [
+                  Expanded(child: Text('${value.clamp(min, max)}')),
+                  const Icon(TablerIcons.chevronDown, size: 18),
+                ],
+              ),
+            ),
           ),
         ),
         IconButton(

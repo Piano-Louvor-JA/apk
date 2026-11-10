@@ -76,6 +76,130 @@ void main() {
     ),
   );
 
+  testWidgets(
+    'Bíblia organiza versão/livro e capítulo/versículo em duas linhas no celular',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        wrap(RemoteBiblePanel(send: fakeSend, state: bibleState)),
+      );
+      Rect field(String key) => tester.getRect(find.byKey(Key(key)));
+      expect(
+        field('remote-bible-version').top,
+        field('remote-bible-book-select').top,
+      );
+      expect(
+        field('remote-bible-version').right,
+        lessThan(field('remote-bible-book-select').left),
+      );
+      expect(
+        field('remote-bible-chapter-select').top,
+        field('remote-bible-verse-select').top,
+      );
+      expect(
+        field('remote-bible-chapter-select').right,
+        lessThan(field('remote-bible-verse-select').left),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Bíblia alterna abrir e fechar no mesmo botão conforme o desktop', (tester) async {
+    Future<void> show(bool projecting) async {
+      final state = RemotePlayerState(
+        playing: false, position: Duration.zero, duration: Duration.zero,
+        slideIndex: 0, slideCount: 0, volume: 0,
+        canPrevious: false, canNext: false,
+        bibleModule: RemoteBibleState(
+          bookId: 1, chapter: 1, selectedVerses: [1],
+          isProjecting: projecting, versionId: 1,
+          books: bibleState.bibleModule!.books,
+          versions: bibleState.bibleModule!.versions,
+        ),
+      );
+      await tester.pumpWidget(wrap(RemoteBiblePanel(send: fakeSend, state: state)));
+    }
+    await show(false);
+    expect(find.text('remote.bible.close'), findsNothing);
+    await tester.tap(find.byKey(const Key('remote-bible-project')));
+    expect(sent.last.action, RemoteAction.bibleOpen);
+    await show(true);
+    expect(find.text('remote.bible.open'), findsNothing);
+    expect(find.text('remote.bible.close'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('remote-bible-project')));
+    expect(sent.last.action, RemoteAction.bibleClose);
+    await show(false);
+    expect(find.text('remote.bible.open'), findsOneWidget);
+    expect(find.text('remote.bible.close'), findsNothing);
+  });
+
+  testWidgets('busca de livros ignora acentos e seleciona sem projetar durante a digitação', (tester) async {
+    await tester.pumpWidget(wrap(RemoteBiblePanel(send: fakeSend, state: bibleState)));
+    await tester.tap(find.byKey(const Key('remote-bible-book-select')));
+    await tester.pumpAndSettle();
+    final search = find.byKey(const Key('remote-bible-book-search'));
+    await tester.enterText(search, 'exodo');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('remote-bible-book-1')), findsNothing);
+    expect(find.byKey(const Key('remote-bible-book-2')), findsOneWidget);
+    expect(sent, isEmpty);
+    await tester.tap(find.byKey(const Key('remote-bible-book-2')));
+    await tester.pumpAndSettle();
+    expect(sent.single.action.wire, 'bible.select');
+    expect(sent.single.bookId, 2);
+    expect(sent.single.chapter, 1);
+    expect(sent.single.verse, 1);
+    expect(search, findsNothing);
+  });
+
+  for (final field in ['chapter', 'verse']) {
+    testWidgets('busca de $field filtra números e envia apenas ao selecionar', (tester) async {
+      await tester.pumpWidget(wrap(RemoteBiblePanel(send: fakeSend, state: bibleState)));
+      await tester.tap(find.byKey(Key('remote-bible-$field-select')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(Key('remote-bible-$field-search')), '12');
+      await tester.pumpAndSettle();
+      expect(find.byKey(Key('remote-bible-$field-1')), findsNothing);
+      expect(find.byKey(Key('remote-bible-$field-12')), findsOneWidget);
+      expect(sent, isEmpty);
+      await tester.tap(find.byKey(Key('remote-bible-$field-12')));
+      await tester.pumpAndSettle();
+      expect(sent, hasLength(1));
+      if (field == 'chapter') {
+        expect(sent.single.action.wire, 'bible.select');
+        expect(sent.single.chapter, 12);
+        expect(sent.single.verse, 1);
+      } else {
+        expect(sent.single.action, RemoteAction.bibleSelectVerse);
+        expect(sent.single.verse, 12);
+      }
+      expect(find.byKey(Key('remote-bible-$field-search')), findsNothing);
+    });
+  }
+
+  testWidgets('prévia bíblica mostra texto do desktop e navega sem projetar', (tester) async {
+    final state = RemoteProtocol.parse(
+      '{"v":1,"type":"state","player":{"playing":false,"positionMs":0,"durationMs":0,'
+      '"slideIndex":0,"slideCount":0,"volume":0,"canPrevious":false,"canNext":false},'
+      '"bible":{"bookId":1,"chapter":1,'
+      '"selectedVerses":[1],"isProjecting":false,"verses":{"1":"No princípio","2":"A terra"},'
+      '"books":[{"id":1,"name":"Gênesis","chapters":50,"number":1}]}}',
+    ) as RemotePlayerState;
+    await tester.pumpWidget(wrap(RemoteBiblePanel(send: fakeSend, state: state)));
+    await tester.ensureVisible(find.byKey(const Key('remote-bible-preview')));
+    await tester.pumpAndSettle();
+    expect(find.text('No princípio'), findsOneWidget);
+    expect(find.text('Gênesis 1:1'), findsOneWidget);
+    expect(tester.widget<IconButton>(find.byKey(const Key('remote-bible-preview-prev'))).onPressed, isNull);
+    await tester.tap(find.byKey(const Key('remote-bible-preview-next')));
+    expect(sent.single.action, RemoteAction.bibleSelectVerse);
+    expect(sent.single.verse, 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('RemoteBiblePanel seleciona livro por nome e navega capítulo', (
     tester,
   ) async {
@@ -85,7 +209,7 @@ void main() {
     expect(find.byKey(const Key('remote-bible-book-select')), findsOneWidget);
     await tester.tap(find.byKey(const Key('remote-bible-chapter-plus')));
     await tester.pump();
-    expect(sent.single.action, RemoteAction.bibleOpen);
+    expect(sent.single.action.wire, 'bible.select');
     expect(sent.single.chapter, 2);
 
     sent.clear();

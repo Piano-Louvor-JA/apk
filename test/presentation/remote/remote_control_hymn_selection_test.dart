@@ -41,6 +41,7 @@ Future<_Peer> _pumpConnected(WidgetTester tester, {String? title}) async {
   });
   await tester.pumpWidget(const MaterialApp(home: RemoteControlToolPage()));
   await tester.pump();
+  await tester.ensureVisible(find.text('remote.tabHymns'));
   await tester.tap(find.text('remote.tabHymns'));
   await tester.pump();
   await tester.pump(const Duration(seconds: 1));

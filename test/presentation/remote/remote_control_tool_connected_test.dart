@@ -50,9 +50,15 @@ void main() {
     // TabBar com 5 abas
     expect(find.byType(TabBar), findsOneWidget);
     expect(find.byType(Tab), findsNWidgets(5));
+    expect(
+      tester.widgetList<Tab>(find.byType(Tab)).map((tab) => tab.text),
+      ['remote.tabHymns', 'remote.tabBible', 'remote.tabLiturgy',
+       'remote.tabTime', 'remote.tabMore'],
+    );
 
     // troca de aba (indexIsChanging listener); a barra fica em Hinos
-    await tester.tap(find.text('remote.tabHymns'));
+    await tester.ensureVisible(find.text('remote.tabHymns'));
+  await tester.tap(find.text('remote.tabHymns'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
