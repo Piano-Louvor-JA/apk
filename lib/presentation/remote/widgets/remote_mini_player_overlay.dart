@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'remote_player_bar.dart';
+import 'remote_floating_panel.dart';
+import 'remote_bible_floating_panel.dart';
 
 class RemoteMiniPlayerOverlay extends StatefulWidget {
   const RemoteMiniPlayerOverlay({
@@ -32,7 +33,6 @@ class _RemoteMiniPlayerOverlayState extends State<RemoteMiniPlayerOverlay> {
   RemotePlayerState? _state;
   bool _expanded = false;
   ModalRoute<void>? _sheet;
-
   @override
   void initState() {
     super.initState();
@@ -120,20 +120,25 @@ class _RemoteMiniPlayerOverlayState extends State<RemoteMiniPlayerOverlay> {
             fit: StackFit.expand,
             children: [
               widget.child,
-              if (visible)
-                Positioned(
-                  right: 12,
-                  bottom: media.padding.bottom + 76,
-                  width: math.min(320, media.size.width - 24),
-                  child: RemotePlayerBar(
-                    state: state,
-                    compact: true,
-                    onExpand: _expand,
-                    navigatorKey: widget.navigatorKey,
-                    send: _session.send,
-                    videoFrame: _session.videoFrame,
-                  ),
-                ),
+              RemoteFloatingPanel(
+                key: const ValueKey('remote-media-floating'),
+                visible: visible,
+                child: state == null
+                    ? const SizedBox.shrink()
+                    : RemotePlayerBar(
+                        state: state,
+                        compact: true,
+                        onExpand: _expand,
+                        navigatorKey: widget.navigatorKey,
+                        send: _session.send,
+                        videoFrame: _session.videoFrame,
+                      ),
+              ),
+              RemoteBibleFloatingPanel(
+                session: _session,
+                navigatorKey: widget.navigatorKey,
+                bottomGap: visible ? 228 : 76,
+              ),
             ],
           ),
         );

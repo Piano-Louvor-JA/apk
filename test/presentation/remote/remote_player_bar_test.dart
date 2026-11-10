@@ -92,6 +92,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('player de Hinos/Liturgia minimiza sem comandos e volta ao selecionar outro item', (tester) async {
+    await pump(tester, _state(playing: true), showTransport: true);
+    await tester.tap(find.byKey(const Key('remote-player-minimize')));
+    await tester.pump();
+    expect(find.byKey(const Key('remote-player-bar')), findsNothing);
+    expect(sent, isEmpty);
+    await pump(tester, _state(playing: true), showTransport: true, pendingOpen: () {});
+    expect(find.byKey(const Key('remote-player-bar')), findsOneWidget);
+    expect(find.byKey(const Key('remote-player-minimize')), findsOneWidget);
+  });
+
   testWidgets('icone de som fica na linha dos controles, antes do anterior', (
     tester,
   ) async {

@@ -9,7 +9,7 @@
     "bible": "Bible",
     "more": "More",
     "tools": "Tools",
-    "timer": "Timer"
+    "timer": "Time"
   },
   "home": {
     "districtLabel": "District",
@@ -241,7 +241,10 @@
     "privacyPolicy": "Privacy Policy"
   },
   "timer": {
-    "title": "Timer",
+    "clock": "Clock",
+    "format24h": "24-hour format",
+    "showSeconds": "Show seconds",
+    "title": "Time",
     "countdown": "Countdown",
     "stopwatch": "Stopwatch",
     "start": "Start",
@@ -264,8 +267,8 @@
     "liturgySubtitle": "Organize the service",
     "bible": "Bible",
     "bibleSubtitle": "Books, chapters and verses",
-    "timer": "Timer",
-    "timerSubtitle": "Stopwatch and countdown",
+    "timer": "Time",
+    "timerSubtitle": "Stopwatch, countdown and clock",
     "remoteControl": "Remote Control",
     "remoteControlSubtitle": "Control the desktop liturgy and player"
   },
@@ -323,6 +326,26 @@
     "operatorPending": "Sync pending — it will be sent once a connection is available."
   },
   "remote": {
+    "announcements": {
+      "unavailable": "Update the desktop app to control announcements.",
+      "list": "Announcement list",
+      "empty": "No announcements in this list.",
+      "include": "Include in carousel",
+      "open": "Open announcement on desktop",
+      "carousel": "Carousel",
+      "start": "Project carousel",
+      "seconds": "Seconds per slide",
+      "durationRange": "Enter 2 to 600 seconds.",
+      "loop": "Repeat",
+      "carouselHint": "Only text and images enabled for the carousel are included.",
+      "kinds": {
+        "text": "Text",
+        "images": "Images",
+        "video": "Video",
+        "presentation": "Presentation / PDF",
+        "url": "URL"
+      }
+    },
     "video": {
       "independent": "Independent projection",
       "independentHint": "Check the destinations and tap the project arrow.",
@@ -397,6 +420,7 @@
     "unknownQr": "Unrecognized QR — trying P2P…",
     "tabLiturgy": "Liturgy",
     "tabBible": "Bible",
+    "tabAnnouncements": "Announcements",
     "tabTime": "Time",
     "bible": {
       "hint": "Enter book (number), chapter and verse and project on the desktop.",

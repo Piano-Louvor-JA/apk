@@ -16,3 +16,6 @@ class RemotePlayerPresence extends ValueNotifier<bool> {
 }
 
 final remotePlayerPresence = RemotePlayerPresence();
+
+final remoteBiblePresence = RemotePlayerPresence();
+final remoteBibleMinimized = ValueNotifier<bool>(false);

@@ -3,6 +3,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/remote_module_panels.dart';
 
 void main() {
@@ -211,6 +212,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('prévia da Bíblia possui minimizar sem desligar a projeção', (tester) async {
+    await tester.pumpWidget(wrap(RemoteBiblePanel(send: fakeSend, state: bibleState)));
+    expect(find.byKey(const Key('remote-bible-minimize')), findsOneWidget);
+    addTearDown(() => remoteBibleMinimized.value = false);
+    await tester.tap(find.byKey(const Key('remote-bible-minimize')));
+    await tester.pump();
+    expect(find.byKey(const Key('remote-bible-preview')), findsNothing);
+    expect(sent, isEmpty);
+  });
+
   testWidgets('RemoteBiblePanel seleciona livro por nome e navega capítulo', (
     tester,
   ) async {
@@ -383,13 +394,11 @@ void main() {
     expect(find.byKey(const Key('remote-timer-card')), findsOneWidget);
     expect(find.byKey(const Key('remote-countdown-card')), findsOneWidget);
 
-    // countdown está abaixo da dobra — arrasta a lista pra cima
-    await tester.drag(
-      find.byKey(const Key('remote-timer-card')),
-      const Offset(0, -400),
-    );
+    expect(find.byKey(const Key('remote-clock-expand')), findsOneWidget);
+    expect(find.byKey(const Key('remote-countdown-toggle')), findsNothing);
+    expect(find.byKey(const Key('remote-timer-toggle')), findsNothing);
+    await tester.tap(find.text('remote.countdown.title'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('remote-countdown-card')), findsOneWidget);
 
     // countdown rodando → botão principal = pause
     await tester.tap(find.byKey(const Key('remote-countdown-toggle')));
@@ -398,8 +407,20 @@ void main() {
 
     // timer parado → botão principal = start
     sent.clear();
+    await tester.tap(find.text('remote.countdown.title'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('remote.timer.title'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('remote-timer-toggle')));
     await tester.pump();
     expect(sent.single.action, RemoteAction.timerStart);
+    await tester.tap(find.text('remote.timer.title'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('remote.clock.title'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('remote-clock-projection')));
+    expect(sent.last.action, RemoteAction.clockToggleProjection);
+    await tester.pumpWidget(wrap(const RemoteClockRandomPanel()));
+    expect(find.text('remote.clock.title'), findsNothing);
   });
 }

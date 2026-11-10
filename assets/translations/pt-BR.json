@@ -9,7 +9,7 @@
     "bible": "Bíblia",
     "more": "Mais",
     "tools": "Ferramentas",
-    "timer": "Cronometro"
+    "timer": "Tempo"
   },
   "home": {
     "districtLabel": "Distrito",
@@ -240,7 +240,10 @@
     "privacyPolicy": "Política de Privacidade"
   },
   "timer": {
-    "title": "Cronômetro",
+    "clock": "Relógio",
+    "format24h": "Formato de 24 horas",
+    "showSeconds": "Mostrar segundos",
+    "title": "Tempo",
     "countdown": "Contagem regressiva",
     "stopwatch": "Cronômetro",
     "start": "Iniciar",
@@ -263,8 +266,8 @@
     "liturgySubtitle": "Organize o culto do dia",
     "bible": "Biblia",
     "bibleSubtitle": "Livros, capitulos e versiculos",
-    "timer": "Cronometro",
-    "timerSubtitle": "Stopwatch e contagem regressiva",
+    "timer": "Tempo",
+    "timerSubtitle": "Cronômetro, contagem regressiva e relógio",
     "remoteControl": "Controle Remoto",
     "remoteControlSubtitle": "Comande a liturgia e o player do desktop"
   },
@@ -322,6 +325,26 @@
     "operatorPending": "Sincronização pendente — será enviada quando houver conexão."
   },
   "remote": {
+    "announcements": {
+      "unavailable": "Atualize o desktop para controlar os anúncios.",
+      "list": "Lista de anúncios",
+      "empty": "Nenhum anúncio nesta lista.",
+      "include": "Incluir no carrossel",
+      "open": "Abrir anúncio no desktop",
+      "carousel": "Carrossel",
+      "start": "Projetar em carrossel",
+      "seconds": "Segundos por slide",
+      "durationRange": "Informe de 2 a 600 segundos.",
+      "loop": "Repetir",
+      "carouselHint": "Participam somente textos e imagens marcados para o carrossel.",
+      "kinds": {
+        "text": "Texto",
+        "images": "Imagens",
+        "video": "Vídeo",
+        "presentation": "Apresentação / PDF",
+        "url": "URL"
+      }
+    },
     "video": {
       "independent": "Projeção independente",
       "independentHint": "Marque os destinos e toque na seta de projetar.",
@@ -396,6 +419,7 @@
     "unknownQr": "QR não reconhecido — tentando P2P…",
     "tabLiturgy": "Liturgia",
     "tabBible": "Bíblia",
+    "tabAnnouncements": "Anúncios",
     "tabTime": "Tempo",
     "bible": {
       "hint": "Digite livro (número), capítulo e versículo e projete no desktop.",

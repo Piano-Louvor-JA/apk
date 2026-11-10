@@ -84,15 +84,16 @@ void main() {
   testWidgets('clock: alterna projeção e mostra formato 24h', (tester) async {
     await tester.pumpWidget(
       wrap(
-        RemoteClockRandomPanel(
+        RemoteTimePanel(
           send: fakeSend,
-          clock: clock(projecting: false),
-          random: random(),
+          state: RemotePlayerState(playing: false, position: Duration.zero, duration: Duration.zero, slideIndex: 0, slideCount: 0, volume: 80, canPrevious: false, canNext: false, clockModule: clock(projecting: false)),
         ),
       ),
     );
     expect(find.text('24h'), findsOneWidget);
 
+    await tester.tap(find.text('remote.clock.title'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('remote-clock-projection')));
     await tester.pump();
     expect(
@@ -234,7 +235,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(wrap(RemoteClockRandomPanel(send: fakeSend)));
-    expect(find.text('—'), findsOneWidget);
+    expect(find.text('remote.clock.title'), findsNothing);
     expect(find.text('0 / 0'), findsOneWidget);
   });
 }

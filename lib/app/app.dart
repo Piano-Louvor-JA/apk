@@ -1,5 +1,8 @@
 library;
 
+import 'dart:async';
+import '../core/services/remote/remote_session.dart';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -22,12 +25,14 @@ class LouvorjaApp extends StatefulWidget {
   State<LouvorjaApp> createState() => _LouvorjaAppState();
 }
 
-class _LouvorjaAppState extends State<LouvorjaApp> {
+class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
   bool _showSplash = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(RemoteSession.instance.restoreLastDesktopConnection());
     // Libera a splash nativa após o primeiro frame. A splash Flutter interna
     // assume a apresentação com logo LouvorJA + codename PIANO + loader.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -35,6 +40,17 @@ class _LouvorjaAppState extends State<LouvorjaApp> {
         FlutterNativeSplash.remove();
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(RemoteSession.instance.restoreLastDesktopConnection());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void _hideSplash() {

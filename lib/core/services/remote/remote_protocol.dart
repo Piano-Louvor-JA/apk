@@ -3,10 +3,13 @@ library;
 import 'dart:convert';
 import 'dart:math';
 
+import 'remote_announcements_state.dart';
+export 'remote_announcements_state.dart';
+
 /// Protocolo "LouvorJA Remote v1" — JSON sobre WebSocket.
 ///
 /// Envelope único, bidirecional. O APK é cliente quando controla o Desktop
-/// (Electron = servidor WS :7070) e servidor quando controla o Web
+/// (Electron = servidor WS :48080) e servidor quando controla o Web
 /// (browser não aceita conexão de entrada → conecta no APK).
 ///
 /// Regras (SPEC ~/.hermes/specs/2026-08-16-controle-remoto-apk.md):
@@ -15,7 +18,19 @@ import 'dart:math';
 /// - Estado é COMPLETO (não delta) — reconexão resync total.
 /// - Parser nunca lança: entrada inválida → null (peer ruim não derruba app).
 
+const remoteDesktopDefaultPort = 48080;
+
 enum RemoteAction {
+  announcementsSelectList('announcements.selectList'),
+  announcementsOpen('announcements.open'),
+  announcementsInclude('announcements.include'),
+  announcementsSetCarousel('announcements.setCarousel'),
+  announcementsStart('announcements.start'),
+  announcementsPause('announcements.pause'),
+  announcementsResume('announcements.resume'),
+  announcementsNext('announcements.next'),
+  announcementsPrevious('announcements.previous'),
+  announcementsStop('announcements.stop'),
   play('player.play'),
   pause('player.pause'),
   toggle('player.toggle'),
@@ -380,6 +395,7 @@ class RemotePlayerState extends RemoteMessage {
     this.clockModule,
     this.randomModule,
     this.mediaModule,
+    this.announcementsModule,
     this.videoControls,
     this.idleVideoTargets = const [],
     this.idleVideoTvs = const [],
@@ -443,6 +459,7 @@ class RemotePlayerState extends RemoteMessage {
   final RemoteClockState? clockModule;
   final RemoteRandomState? randomModule;
   final RemoteMediaState? mediaModule;
+  final RemoteAnnouncementsState? announcementsModule;
   final RemoteVideoControls? videoControls;
 
   /// Monitores informados pelo desktop quando não há vídeo aberto.
@@ -459,6 +476,7 @@ class RemotePlayerState extends RemoteMessage {
     return jsonEncode({
       'v': 1,
       'type': 'state',
+      if (announcementsModule != null) 'announcements': announcementsModule!.toJson(),
       'player': {
         if (hymnId != null) 'hymnId': hymnId,
         if (title != null) 'title': title,
@@ -678,7 +696,9 @@ class RemotePong extends RemoteMessage {
 
 /// APK → desktop: identificação do aparelho logo após conectar.
 class RemoteHello extends RemoteMessage {
-  const RemoteHello({required this.device, this.appVersion});
+  const RemoteHello({required this.device, this.appVersion, this.token});
+
+  final String? token;
 
   /// Nome legível do dispositivo (ex.: modelo do aparelho).
   final String device;
@@ -690,6 +710,7 @@ class RemoteHello extends RemoteMessage {
   String encode() => jsonEncode({
     'v': 1,
     'type': 'hello',
+    if (token != null) 'token': token,
     'device': device,
     if (appVersion != null) 'appVersion': appVersion,
   });
@@ -730,10 +751,10 @@ class RemoteProtocol {
       case 'error':
         final id = decoded['id'];
         final code = decoded['code'];
-        if (id is! String || code is! String) return null;
+        if (code is! String) return null;
         final msg = decoded['message'];
         return RemoteError(
-          id: id,
+          id: id is String ? id : '',
           code: code,
           message: msg is String ? msg : null,
         );
@@ -744,6 +765,7 @@ class RemoteProtocol {
         return RemoteHello(
           device: device,
           appVersion: ver is String ? ver : null,
+          token: decoded['token'] is String ? decoded['token'] as String : null,
         );
       case 'frame':
         final data = decoded['data'];
@@ -987,6 +1009,7 @@ class RemoteProtocol {
       clockModule: _parseClockModule(m['clock']),
       randomModule: _parseRandomModule(m['random']),
       mediaModule: _parseMediaModule(m['media']),
+      announcementsModule: RemoteAnnouncementsState.parse(m['announcements']),
       videoControls: _parseVideoControls(m['video']),
       idleIndependent: m['videoTargets'] is Map
           ? _parseIndependent((m['videoTargets'] as Map)['independent'])

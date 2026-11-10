@@ -85,7 +85,6 @@ void main() {
 
     for (final tab in [
       'remote.tabBible',
-      'remote.tabTime',
       'remote.tabMore',
     ]) {
       await _openTab(tester, tab);

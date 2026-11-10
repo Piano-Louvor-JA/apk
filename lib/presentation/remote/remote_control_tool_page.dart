@@ -3,6 +3,8 @@ library;
 
 import 'dart:async';
 
+import 'remote_announcements_panel.dart';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
@@ -32,7 +34,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   /// Abas que controlam musica: Liturgia e Hinos.
   // Liturgia só escolhe o dia; quem toca é a lista espelhada, com barra própria.
-  static const _playerTabs = {0};
+  static const _playerTabs = {0, 3};
 
   StreamSubscription? _sub;
   RemotePlayerState? _state;
@@ -163,7 +165,7 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
               final parts = host.split(':');
               await RemoteSession.instance.connectDesktop(
                 host: parts.first,
-                port: parts.length > 1 ? int.tryParse(parts[1]) ?? 7071 : 7071,
+                port: parts.length > 1 ? int.tryParse(parts[1]) ?? remoteDesktopDefaultPort : remoteDesktopDefaultPort,
                 token: token,
               );
               if (mounted) setState(() {});
@@ -188,7 +190,10 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                 // Abas v2: liturgia (padrão) + módulos do controle total.
                 TabBar(
                   controller: _tabCtrl,
-                  isScrollable: true,
+                  isScrollable: false,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                  labelStyle: theme.textTheme.bodySmall,
+                  unselectedLabelStyle: theme.textTheme.bodySmall,
                   tabs: [
                     Tab(
                       icon: const Icon(TablerIcons.music),
@@ -203,11 +208,11 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                       text: 'remote.tabLiturgy'.tr(),
                     ),
                     Tab(
-                      icon: const Icon(TablerIcons.clock),
-                      text: 'remote.tabTime'.tr(),
+                      icon: const Icon(TablerIcons.speakerphone),
+                      text: 'remote.tabAnnouncements'.tr(),
                     ),
                     Tab(
-                      icon: const Icon(TablerIcons.dice),
+                      icon: const Icon(TablerIcons.layoutGrid),
                       text: 'remote.tabMore'.tr(),
                     ),
                   ],
@@ -222,13 +227,13 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                         onSelectionChanged: (s) =>
                             setState(() => _hymnSelection = s),
                       ),
-                      RemoteBiblePanel(state: st),
-                      _liturgyStatus(context, theme, st),
-                      RemoteTimePanel(state: st),
-                      RemoteClockRandomPanel(
-                        clock: st.clockModule,
-                        random: st.randomModule,
+                      TickerMode(
+                        enabled: _tabCtrl?.index == 1,
+                        child: RemoteBiblePanel(state: st),
                       ),
+                      _liturgyStatus(context, theme, st),
+                      RemoteAnnouncementsPanel(state: st.announcementsModule),
+                      RemoteMorePanel(state: st),
                     ],
                   ),
                 ),

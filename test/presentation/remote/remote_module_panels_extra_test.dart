@@ -87,10 +87,7 @@ void main() {
       wrap(RemoteTimePanel(send: fakeSend, state: countdownState())),
     );
 
-    await tester.drag(
-      find.byKey(const Key('remote-timer-card')),
-      const Offset(0, -400),
-    );
+    await tester.tap(find.text('remote.countdown.title'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('remote-countdown-edit')));
     await tester.pump();
@@ -107,10 +104,7 @@ void main() {
     await tester.pumpWidget(
       wrap(RemoteTimePanel(send: fakeSend, state: countdownState())),
     );
-    await tester.drag(
-      find.byKey(const Key('remote-timer-card')),
-      const Offset(0, -400),
-    );
+    await tester.tap(find.text('remote.countdown.title'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('remote-countdown-edit')));
     await tester.pump();
@@ -138,10 +132,7 @@ void main() {
         ),
       ),
     );
-    await tester.drag(
-      find.byKey(const Key('remote-timer-card')),
-      const Offset(0, -400),
-    );
+    await tester.tap(find.text('remote.countdown.title'));
     await tester.pumpAndSettle();
 
     // botão principal do countdown rodando = pause; projection = toggle

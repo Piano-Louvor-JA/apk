@@ -74,7 +74,11 @@ void main() {
     expect(find.byKey(const Key('remote-player-bar')), findsNothing);
     expect(find.byKey(const Key('remote-mini-player')), findsOneWidget);
     expect(find.text('Outra página'), findsOneWidget);
-    expect(session.sent, hasLength(1), reason: 'Minimizar preserva música e projeção');
+    expect(
+      session.sent,
+      hasLength(1),
+      reason: 'Minimizar preserva música e projeção',
+    );
   });
 
   testWidgets(
@@ -183,22 +187,114 @@ void main() {
       expect(find.byKey(const Key('remote-mini-player')), findsNothing);
     },
   );
-  testWidgets('seta do mini player alterna projeção e não encerra a mídia', (tester) async {
-    session.debugEmitStateForTest(const RemotePlayerState(
-      hymnId: 1, title: 'Hino', playing: true,
-      position: Duration.zero, duration: Duration(minutes: 3),
-      slideIndex: 0, slideCount: 1, volume: 60,
-      canPrevious: false, canNext: false,
-      videoControls: RemoteVideoControls(
-        audioOutput: 'player', canProject: true, projecting: false,
-        canControlCaptions: false, captionsHidden: false,
-        monitors: [], tvs: [],
+  testWidgets('seta do mini player alterna projeção e não encerra a mídia', (
+    tester,
+  ) async {
+    session.debugEmitStateForTest(
+      const RemotePlayerState(
+        hymnId: 1,
+        title: 'Hino',
+        playing: true,
+        position: Duration.zero,
+        duration: Duration(minutes: 3),
+        slideIndex: 0,
+        slideCount: 1,
+        volume: 60,
+        canPrevious: false,
+        canNext: false,
+        videoControls: RemoteVideoControls(
+          audioOutput: 'player',
+          canProject: true,
+          projecting: false,
+          canControlCaptions: false,
+          captionsHidden: false,
+          monitors: [],
+          tvs: [],
+        ),
       ),
-    ));
+    );
     await mount(tester);
     expect(find.byKey(const Key('remote-video-project')), findsOneWidget);
     await tester.tap(find.byKey(const Key('remote-video-project')));
     expect(session.sent.single.action, RemoteAction.videoToggleProjection);
   });
 
+  testWidgets('minimizar a barra original mostra o mini global sem pausar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigatorKey,
+        builder: (_, child) => RemoteMiniPlayerOverlay(
+          navigatorKey: navigatorKey,
+          session: session,
+          child: child!,
+        ),
+        home: Scaffold(
+          body: RemotePlayerBar(state: session.lastState!, showTransport: true),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('remote-mini-player')), findsNothing);
+    await tester.tap(find.byKey(const Key('remote-player-minimize')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('remote-player-bar')), findsNothing);
+    expect(find.byKey(const Key('remote-mini-player')), findsOneWidget);
+    expect(session.sent, isEmpty);
+  });
+
+  testWidgets('mini pode ser arrastado e mantém posição ao trocar de página', (
+    tester,
+  ) async {
+    await mount(tester);
+    final mini = find.byKey(const Key('remote-mini-player'));
+    final before = tester.getTopLeft(mini);
+    await tester.drag(mini, const Offset(-80, -140));
+    await tester.pump();
+    await tester.pump();
+    final moved = tester.getTopLeft(mini);
+    expect(moved.dx, lessThan(before.dx));
+    expect(moved.dy, lessThan(before.dy));
+    expect(session.sent, isEmpty, reason: 'Arrastar não altera reprodução');
+    navigatorKey.currentState!.push(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(body: Text('Outra página')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(mini), moved);
+  });
+
+  testWidgets('arraste respeita limites e se ajusta ao redimensionar a tela', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 600);
+    await mount(tester);
+    final mini = find.byKey(const Key('remote-mini-player'));
+    await tester.drag(mini, const Offset(-5000, -5000));
+    await tester.pump();
+    await tester.pump();
+    expect(tester.getTopLeft(mini).dx, greaterThanOrEqualTo(12));
+    expect(tester.getTopLeft(mini).dy, greaterThanOrEqualTo(12));
+    await tester.drag(mini, const Offset(5000, 5000));
+    await tester.pump();
+    await tester.pump();
+    var rect = tester.getRect(mini);
+    expect(rect.right, lessThanOrEqualTo(788));
+    expect(rect.bottom, lessThanOrEqualTo(524));
+    tester.view.physicalSize = const Size(400, 800);
+    await tester.pump();
+    await tester.pump();
+    rect = tester.getRect(mini);
+    expect(rect.left, greaterThanOrEqualTo(12));
+    expect(rect.right, lessThanOrEqualTo(388));
+    expect(rect.bottom, lessThanOrEqualTo(724));
+    expect(tester.takeException(), isNull);
+  });
 }

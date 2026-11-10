@@ -1,6 +1,7 @@
 library;
 
 import 'dart:async';
+import 'remote_connection_store.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -23,7 +24,24 @@ enum RemoteMode { idle, desktop, web }
 class RemoteSession {
   /// Público para testes injetarem instâncias isoladas; no app o canônico
   /// é [RemoteSession.instance] (padrão StageSession).
-  RemoteSession();
+  RemoteSession({RemoteConnectionStore? connectionStore}) : _connectionStore = connectionStore ?? RemoteConnectionStore();
+  final RemoteConnectionStore _connectionStore;
+  int _operation = 0;
+  bool _restoring = false;
+  StreamSubscription<RemoteAck>? _desktopAckSub;
+
+  Future<SavedRemoteConnection?> readLastDesktopConnection() => _connectionStore.read();
+
+  Future<bool> restoreLastDesktopConnection() async {
+    if (_restoring || _mode != RemoteMode.idle || _lastStatus == RemoteSessionStatus.connecting) return false;
+    _restoring = true;
+    final operation = _operation;
+    try {
+      final saved = await _connectionStore.read();
+      if (operation != _operation || saved == null || !saved.autoReconnect) return false;
+      return await connectDesktop(host: saved.host, port: saved.port, token: saved.token);
+    } finally { _restoring = false; }
+  }
   static final RemoteSession instance = RemoteSession();
 
   DesktopConnection? _desktop;
@@ -67,9 +85,19 @@ class RemoteSession {
     required int port,
     required String token,
   }) async {
+    final operation = ++_operation;
     await _teardown();
+    if (operation != _operation) return false;
     lastState = null;
     final conn = DesktopConnection();
+    final candidate = SavedRemoteConnection(host: host, port: port, token: token);
+    var remembered = false;
+    _desktopAckSub = conn.acks.listen((ack) {
+      if (ack.ok && !remembered && operation == _operation) {
+        remembered = true;
+        unawaited(_connectionStore.save(candidate));
+      }
+    });
 
     // Assina ANTES de abrir o socket. O desktop manda state imediatamente
     // no upgrade WS; assinar depois perde esse frame em Stream.broadcast.
@@ -89,11 +117,17 @@ class RemoteSession {
     });
     _desktopErrorSub = conn.errors.listen((error) {
       // Fechamento normal do Electron: derruba UI remota imediatamente.
-      if (error.code == 'desktop_closed') unawaited(_dropDesktop());
+      if (error.code == 'bad_token') {
+        unawaited(_connectionStore.disableAutoReconnect(matching: candidate));
+      }
+      if (error.code == 'desktop_closed' || error.code == 'bad_token' || error.code == 'remote_busy') unawaited(_dropDesktop());
     });
 
     final ok = await conn.connect(host: host, port: port, token: token);
+    if (operation != _operation) { await conn.dispose(); return false; }
     if (!ok) {
+      await _desktopAckSub?.cancel();
+      _desktopAckSub = null;
       await _desktopStateSub?.cancel();
       await _desktopFrameSub?.cancel();
       await _desktopStatusSub?.cancel();
@@ -111,6 +145,7 @@ class RemoteSession {
     // Identifica o aparelho para o desktop mostrar quem conectou.
     final device = await RemoteDeviceName.get() ?? 'Piano LouvorJA';
     final version = await RemoteDeviceName.appVersion();
+    if (operation != _operation) return false;
     conn.sendHello(device: device, appVersion: version);
     return true;
   }
@@ -118,6 +153,8 @@ class RemoteSession {
   /// Sobe o servidor WS para o web conectar. Retorna a URL `ws://…?t=…`
   /// (pra QR/link) ou null se não há rede.
   Future<String?> startWebLink({required String token}) async {
+    ++_operation;
+    unawaited(_connectionStore.disableAutoReconnect());
     await _teardown();
     final server = WebLinkServer();
     final url = await server.start(token: token);
@@ -199,11 +236,14 @@ class RemoteSession {
   void debugEmitStateForTest(RemotePlayerState state) => _receive(state);
 
   Future<void> disconnect() async {
+    ++_operation;
+    unawaited(_connectionStore.disableAutoReconnect());
     await _dropDesktop();
   }
 
   /// Limpa imediatamente UI/estado remoto quando o desktop encerra.
   Future<void> _dropDesktop() async {
+    ++_operation;
     await _teardown();
     lastState = null;
     _mode = RemoteMode.idle;
@@ -216,6 +256,8 @@ class RemoteSession {
   }
 
   Future<void> _teardown() async {
+    await _desktopAckSub?.cancel();
+    _desktopAckSub = null;
     videoFrame.value = null;
     await _desktopFrameSub?.cancel();
     _desktopFrameSub = null;
@@ -232,6 +274,7 @@ class RemoteSession {
   }
 
   Future<void> dispose() async {
+    ++_operation;
     // Singleton: controllers NÃO fecham (vivem com o app). Só derruba o
     // transporte — conexões podem ser refeitas depois.
     await _teardown();

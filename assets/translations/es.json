@@ -9,7 +9,7 @@
     "bible": "Biblia",
     "more": "Mas",
     "tools": "Herramientas",
-    "timer": "Cronometro"
+    "timer": "Tiempo"
   },
   "home": {
     "districtLabel": "Distrito",
@@ -241,7 +241,10 @@
     "privacyPolicy": "Política de Privacidad"
   },
   "timer": {
-    "title": "Temporizador",
+    "clock": "Reloj",
+    "format24h": "Formato de 24 horas",
+    "showSeconds": "Mostrar segundos",
+    "title": "Tiempo",
     "countdown": "Cuenta regresiva",
     "stopwatch": "Cronómetro",
     "start": "Iniciar",
@@ -264,8 +267,8 @@
     "liturgySubtitle": "Organiza el culto del dia",
     "bible": "Biblia",
     "bibleSubtitle": "Libros, capitulos y versiculos",
-    "timer": "Cronometro",
-    "timerSubtitle": "Cronometro y cuenta regresiva",
+    "timer": "Tiempo",
+    "timerSubtitle": "Cronómetro, cuenta regresiva y reloj",
     "remoteControl": "Control Remoto",
     "remoteControlSubtitle": "Controla la liturgia y el reproductor del desktop"
   },
@@ -323,6 +326,26 @@
     "operatorPending": "Sincronización pendente — se enviará cuando haya conexión."
   },
   "remote": {
+    "announcements": {
+      "unavailable": "Actualice la app de escritorio para controlar anuncios.",
+      "list": "Lista de anuncios",
+      "empty": "No hay anuncios en esta lista.",
+      "include": "Incluir en el carrusel",
+      "open": "Abrir anuncio en el escritorio",
+      "carousel": "Carrusel",
+      "start": "Proyectar carrusel",
+      "seconds": "Segundos por diapositiva",
+      "durationRange": "Ingrese de 2 a 600 segundos.",
+      "loop": "Repetir",
+      "carouselHint": "Solo participan los textos e imágenes incluidos en el carrusel.",
+      "kinds": {
+        "text": "Texto",
+        "images": "Imágenes",
+        "video": "Vídeo",
+        "presentation": "Presentación / PDF",
+        "url": "URL"
+      }
+    },
     "video": {
       "independent": "Proyección independiente",
       "independentHint": "Marque los destinos y toque la flecha de proyectar.",
@@ -397,6 +420,7 @@
     "unknownQr": "QR no reconocido — intentando P2P…",
     "tabLiturgy": "Liturgia",
     "tabBible": "Biblia",
+    "tabAnnouncements": "Anuncios",
     "tabTime": "Tiempo",
     "bible": {
       "hint": "Ingresa libro (número), capítulo y versículo y proyecta en el escritorio.",

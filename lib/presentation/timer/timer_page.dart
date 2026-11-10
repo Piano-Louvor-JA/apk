@@ -20,8 +20,14 @@ import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_vid
 class TimerPage extends StatefulWidget {
   final CountdownPresetRepository? presetRepository;
   final CountdownAlertService? alertService;
+  final VoidCallback? onBack;
 
-  const TimerPage({super.key, this.presetRepository, this.alertService});
+  const TimerPage({
+    super.key,
+    this.presetRepository,
+    this.alertService,
+    this.onBack,
+  });
 
   @override
   State<TimerPage> createState() => _TimerPageState();
@@ -253,6 +259,12 @@ class _TimerPageState extends State<TimerPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('timer.title'.tr()),
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(TablerIcons.arrowLeft),
+                onPressed: widget.onBack,
+              ),
         actions: const [
           StageClearButton(),
           StageStopVideoButton(),
@@ -290,21 +302,21 @@ class _TimerPageState extends State<TimerPage> {
             _SectionCard(
               icon: TablerIcons.clock,
               title: 'timer.stopwatch'.tr(),
+              summary: Text(
+                _formatDuration(
+                  _stopwatch.isRunning ? _stopwatch.elapsed : _elapsed,
+                ),
+                key: const Key('stopwatch-display'),
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
               child: Column(
                 children: [
-                  Text(
-                    _formatDuration(
-                      _stopwatch.isRunning ? _stopwatch.elapsed : _elapsed,
-                    ),
-                    key: const Key('stopwatch-display'),
-                    style: theme.textTheme.displayMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    runSpacing: 8,
                     children: [
                       FilledButton.icon(
                         key: const Key('stopwatch-toggle'),
@@ -332,34 +344,39 @@ class _TimerPageState extends State<TimerPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
             // --- Countdown ---
             _SectionCard(
               icon: TablerIcons.hourglass,
               title: 'timer.countdown'.tr(),
+              summary: Text(
+                _countdownRemaining > Duration.zero
+                    ? _formatCountdown(_countdownRemaining)
+                    : _formatCountdown(
+                        Duration(
+                          minutes: _countdownMinutes,
+                          seconds: _countdownSeconds,
+                        ),
+                      ),
+                key: const Key('countdown-display'),
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color:
+                      _countdownRemaining == Duration.zero &&
+                          _countdownMinutes == 0 &&
+                          _countdownSeconds == 0
+                      ? theme.colorScheme.onSurfaceVariant
+                      : theme.colorScheme.primary,
+                ),
+              ),
               child: Column(
                 children: [
-                  Text(
-                    _countdownRemaining > Duration.zero
-                        ? _formatCountdown(_countdownRemaining)
-                        : '--:--',
-                    key: const Key('countdown-display'),
-                    style: theme.textTheme.displayMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      color:
-                          _countdownRemaining == Duration.zero &&
-                              _countdownMinutes == 0 &&
-                              _countdownSeconds == 0
-                          ? theme.colorScheme.onSurfaceVariant
-                          : theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   if (!_countdownRunning) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      runSpacing: 8,
                       children: [
                         _NumberStepper(
                           label: 'timer.minutes'.tr(),
@@ -378,8 +395,9 @@ class _TimerPageState extends State<TimerPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      runSpacing: 8,
                       children: [
                         FilledButton.icon(
                           key: const Key('countdown-start'),
@@ -425,8 +443,9 @@ class _TimerPageState extends State<TimerPage> {
                       ),
                     ],
                   ] else ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      runSpacing: 8,
                       children: [
                         FilledButton.icon(
                           key: const Key('countdown-stop'),
@@ -459,6 +478,8 @@ class _TimerPageState extends State<TimerPage> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            const _LocalClockCard(),
           ],
         ),
       ),
@@ -470,11 +491,13 @@ class _SectionCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final Widget child;
+  final Widget summary;
 
   const _SectionCard({
     required this.icon,
     required this.title,
     required this.child,
+    required this.summary,
   });
 
   @override
@@ -488,30 +511,110 @@ class _SectionCard extends StatelessWidget {
           bottomRight: Radius.circular(16),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 24, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Center(child: child),
-          ],
+      child: ExpansionTile(
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: const EdgeInsets.all(16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Text(title, style: theme.textTheme.titleMedium),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: summary,
         ),
+        children: [SizedBox(width: double.infinity, child: child)],
       ),
     );
   }
+}
+
+/// Relógio local continua atualizando mesmo com os controles recolhidos.
+class _LocalClockCard extends StatefulWidget {
+  const _LocalClockCard();
+  @override
+  State<_LocalClockCard> createState() => _LocalClockCardState();
+}
+
+class _LocalClockCardState extends State<_LocalClockCard> {
+  Timer? _ticker;
+  bool _format24h = true;
+  bool _showSeconds = true;
+  bool _projecting = false;
+
+  String get _time {
+    final now = DateTime.now();
+    final hour = _format24h
+        ? now.hour
+        : (now.hour % 12 == 0 ? 12 : now.hour % 12);
+    final parts = [hour, now.minute, if (_showSeconds) now.second];
+    return '${parts.map((part) => part.toString().padLeft(2, '0')).join(':')}${_format24h ? '' : (now.hour < 12 ? ' AM' : ' PM')}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+      if (_projecting && StageSession.instance.isOn) {
+        unawaited(StageSession.instance.project(title: _time, module: 'timer'));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    if (_projecting) StageSession.instance.clearContent();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _SectionCard(
+    icon: TablerIcons.clock,
+    title: 'timer.clock'.tr(),
+    summary: Text(
+      _time,
+      key: const Key('clock-display'),
+      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    ),
+    child: Column(
+      children: [
+        SwitchListTile(
+          key: const Key('clock-format'),
+          title: Text('timer.format24h'.tr()),
+          value: _format24h,
+          onChanged: (value) => setState(() => _format24h = value),
+        ),
+        SwitchListTile(
+          title: Text('timer.showSeconds'.tr()),
+          value: _showSeconds,
+          onChanged: (value) => setState(() => _showSeconds = value),
+        ),
+        OutlinedButton.icon(
+          onPressed: StageSession.instance.isOn
+              ? () async {
+                  if (_projecting) {
+                    await StageSession.instance.clearContent();
+                    if (mounted) setState(() => _projecting = false);
+                  } else {
+                    final ok = await StageSession.instance.project(
+                      title: _time,
+                      module: 'timer',
+                    );
+                    if (mounted) setState(() => _projecting = ok);
+                  }
+                }
+              : null,
+          icon: Icon(_projecting ? TablerIcons.square : TablerIcons.deviceTv),
+          label: Text(
+            (_projecting ? 'remote.stopProjection' : 'remote.project').tr(),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _NumberStepper extends StatelessWidget {

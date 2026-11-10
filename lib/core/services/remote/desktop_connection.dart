@@ -43,6 +43,8 @@ class DesktopConnection {
   String? _host;
   int? _port;
   String? _token;
+  String? _device;
+  String? _appVersion;
   var _attempt = 0;
   var _closingByUser = false;
   Timer? _heartbeatTimer;
@@ -94,7 +96,9 @@ class DesktopConnection {
 
   /// Envia a identificação do aparelho ao desktop (logo após conectar).
   void sendHello({required String device, String? appVersion}) {
-    _ws?.add(RemoteHello(device: device, appVersion: appVersion).encode());
+    _device = device;
+    _appVersion = appVersion;
+    if (isConnected) _ws?.add(RemoteHello(device: device, appVersion: appVersion, token: _token).encode());
   }
 
   void _listen() {
@@ -160,6 +164,7 @@ class DesktopConnection {
     _lastPeerActivity = DateTime.now();
     _listen();
     _startHeartbeat();
+    if (_device != null) sendHello(device: _device!, appVersion: _appVersion);
   }
 
   void _startHeartbeat() {

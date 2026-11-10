@@ -11,6 +11,8 @@ import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/global_search_service.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
+import 'widgets/remote_bible_preview.dart';
 
 typedef RemoteSend =
     Future<void> Function(
@@ -254,74 +256,16 @@ class RemoteBiblePanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.s4),
-        _RemoteBiblePreview(
-          bible: bible,
-          bookName: selectedBook?.name ?? '',
-          onChanged: (verse) => _send(RemoteAction.bibleSelectVerse, verse: verse),
+        ValueListenableBuilder<bool>(
+          valueListenable: remoteBibleMinimized,
+          builder: (_, minimized, _) => minimized ? const SizedBox.shrink() : RemoteBiblePreview(
+            bible: bible,
+            bookName: selectedBook?.name ?? '',
+            onMinimize: () => remoteBibleMinimized.value = true,
+            onChanged: (verse) => _send(RemoteAction.bibleSelectVerse, verse: verse),
+          ),
         ),
       ],
-    );
-  }
-}
-
-/// Prévia do capítulo do desktop, disponível mesmo antes de projetar.
-class _RemoteBiblePreview extends StatelessWidget {
-  const _RemoteBiblePreview({required this.bible, required this.bookName, required this.onChanged});
-
-  final RemoteBibleState bible;
-  final String bookName;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final numbers = bible.verses.keys.where((n) => n > 0).toList()..sort();
-    final selected = bible.selectedVerses;
-    final current = selected.isEmpty ? 1 : selected.last;
-    final position = numbers.indexOf(current);
-    final text = selected.map((n) => bible.verses[n] ?? '').where((text) => text.isNotEmpty).join('\n\n');
-    return Container(
-      key: const Key('remote-bible-preview'),
-      height: MediaQuery.sizeOf(context).height * 0.4,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s3),
-            child: Text('$bookName ${bible.chapter ?? 1}:${selected.isEmpty ? current : selected.join(', ')}',
-              textAlign: TextAlign.center, style: theme.textTheme.titleSmall),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                IconButton(
-                  key: const Key('remote-bible-preview-prev'),
-                  tooltip: 'remote.previous'.tr(),
-                  icon: const Icon(TablerIcons.chevronLeft),
-                  onPressed: position > 0 ? () => onChanged(numbers[position - 1]) : null,
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.s3),
-                    child: Text(text.isEmpty ? 'common.empty'.tr() : text,
-                      textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
-                  ),
-                ),
-                IconButton(
-                  key: const Key('remote-bible-preview-next'),
-                  tooltip: 'remote.next'.tr(),
-                  icon: const Icon(TablerIcons.chevronRight),
-                  onPressed: position >= 0 && position + 1 < numbers.length
-                      ? () => onChanged(numbers[position + 1]) : null,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -452,7 +396,9 @@ class _ChevronField extends StatelessWidget {
 
 /// Painel Tempo: timer + countdown lado a lado, espelhando o estado v2.
 class RemoteTimePanel extends StatelessWidget {
-  const RemoteTimePanel({super.key, this.send, this.state});
+  const RemoteTimePanel({super.key, this.send, this.state, this.embedded = false});
+
+  final bool embedded;
 
   final RemoteSend? send;
   final RemotePlayerState? state;
@@ -464,6 +410,8 @@ class RemoteTimePanel extends StatelessWidget {
     final timer = state?.timerModule;
     final countdown = state?.countdownModule;
     return ListView(
+      shrinkWrap: embedded,
+      physics: embedded ? const NeverScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
         _TimeCard(
@@ -485,6 +433,8 @@ class RemoteTimePanel extends StatelessWidget {
           countdown: countdown,
           send: _send,
         ),
+        const SizedBox(height: AppSpacing.s4),
+        _ClockCard(clock: state?.clockModule, send: _send),
       ],
     );
   }
@@ -650,27 +600,20 @@ class _TimeCard extends StatelessWidget {
         ? (totalMs! - elapsedMs).clamp(0, totalMs!)
         : null;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(title, style: theme.textTheme.titleMedium),
-                ),
-                if (finished)
-                  Icon(TablerIcons.alertCircle, color: theme.colorScheme.error),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.s2),
-            Text(
-              remaining != null ? _fmt(remaining) : _fmt(elapsedMs),
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
+      child: ExpansionTile(
+        key: Key('remote-$tag-expand'),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        childrenPadding: const EdgeInsets.all(AppSpacing.s4),
+        title: Text(title, style: theme.textTheme.titleMedium),
+        subtitle: Text(
+          remaining != null ? _fmt(remaining) : _fmt(elapsedMs),
+          style: theme.textTheme.displaySmall?.copyWith(
+            color: finished ? theme.colorScheme.error : null,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        children: [
             if (marks.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.s2),
               Text(
@@ -722,6 +665,90 @@ class _TimeCard extends StatelessWidget {
                 ),
               ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Recursos complementares do controle remoto, agrupados por finalidade.
+class RemoteMorePanel extends StatefulWidget {
+  const RemoteMorePanel({super.key, this.state, this.send});
+  final RemotePlayerState? state;
+  final RemoteSend? send;
+
+  @override
+  State<RemoteMorePanel> createState() => _RemoteMorePanelState();
+}
+
+enum _MoreFeature { time, random }
+
+class _RemoteMorePanelState extends State<RemoteMorePanel> {
+  _MoreFeature? _feature;
+
+  @override
+  Widget build(BuildContext context) {
+    final feature = _feature;
+    if (feature != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            IconButton(
+              key: const Key('remote-more-back'),
+              tooltip: 'remote.tabMore'.tr(),
+              icon: const Icon(TablerIcons.arrowLeft),
+              onPressed: () => setState(() => _feature = null),
+            ),
+            Expanded(child: Text(
+              (feature == _MoreFeature.time ? 'remote.tabTime' : 'remote.random.title').tr(),
+              style: Theme.of(context).textTheme.titleMedium,
+            )),
+          ]),
+          Expanded(child: feature == _MoreFeature.time
+            ? RemoteTimePanel(state: widget.state, send: widget.send)
+            : RemoteClockRandomPanel(random: widget.state?.randomModule, send: widget.send)),
+        ],
+      );
+    }
+    return GridView.count(
+      crossAxisCount: 2,
+      padding: const EdgeInsets.all(AppSpacing.s4),
+      mainAxisSpacing: AppSpacing.s4,
+      crossAxisSpacing: AppSpacing.s4,
+      children: [
+        _featureCard(context, _MoreFeature.time, TablerIcons.clock, 'remote.tabTime'),
+        _featureCard(context, _MoreFeature.random, TablerIcons.dice, 'remote.random.title'),
+      ],
+    );
+  }
+
+  Widget _featureCard(BuildContext context, _MoreFeature feature, IconData icon, String label) {
+    final theme = Theme.of(context);
+    return Material(
+      key: Key(feature == _MoreFeature.time ? 'remote-more-time' : 'remote-more-random'),
+      color: theme.colorScheme.surfaceContainer,
+      borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => setState(() => _feature = feature),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
+              ),
+              child: Icon(icon, color: theme.colorScheme.primary, size: 26),
+            ),
+            const SizedBox(height: AppSpacing.s2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s2),
+              child: Text(label.tr(), textAlign: TextAlign.center, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
       ),
@@ -748,8 +775,6 @@ class RemoteClockRandomPanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
-        _ClockCard(clock: clock, send: _send),
-        const SizedBox(height: AppSpacing.s4),
         _RandomCard(random: random, send: _send),
       ],
     );
@@ -766,19 +791,14 @@ class _ClockCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = clock;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(TablerIcons.clock),
-                const SizedBox(width: AppSpacing.s2),
-                Expanded(child: Text('remote.clock.title'.tr())),
-                Text(c == null ? '—' : (c.format24h ? '24h' : '12h')),
-              ],
-            ),
+      child: ExpansionTile(
+        key: const Key('remote-clock-expand'),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        title: Text('remote.clock.title'.tr()),
+        subtitle: Text(c == null ? '—' : (c.format24h ? '24h' : '12h')),
+        childrenPadding: const EdgeInsets.all(AppSpacing.s3),
+        children: [
             const SizedBox(height: AppSpacing.s3),
             OutlinedButton.icon(
               key: const Key('remote-clock-projection'),
@@ -794,8 +814,7 @@ class _ClockCard extends StatelessWidget {
                     : 'remote.project'.tr(),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

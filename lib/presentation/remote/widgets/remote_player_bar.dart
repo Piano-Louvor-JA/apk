@@ -55,6 +55,7 @@ class RemotePlayerBar extends StatefulWidget {
 }
 
 class _RemotePlayerBarState extends State<RemotePlayerBar> {
+  bool _minimized = false;
   double? _dragVolume;
   OverlayEntry? _volumeEntry;
 
@@ -101,6 +102,11 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   @override
   void didUpdateWidget(RemotePlayerBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_minimized && (
+        (widget.pendingOpen != null && oldWidget.pendingOpen != widget.pendingOpen) ||
+        oldWidget.state.hymnId != _st.hymnId || oldWidget.state.title != _st.title)) {
+      _minimized = false;
+    }
     if (_volumeEntry != null) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _volumeEntry?.markNeedsBuild(),
@@ -294,11 +300,12 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final visible = !widget.compact && TickerMode.valuesOf(context).enabled && (ModalRoute.isCurrentOf(context) ?? true);
+    final visible = !widget.compact && !_minimized && TickerMode.valuesOf(context).enabled && (ModalRoute.isCurrentOf(context) ?? true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       remotePlayerPresence.update(this, mounted && visible);
     });
     if (widget.compact) return _compact(theme);
+    if (_minimized) return const SizedBox.shrink();
     final showPause = _st.playing && widget.pendingOpen == null;
     final slideCount = _st.slideCount;
     final durationMs = _st.duration.inMilliseconds;
@@ -319,15 +326,16 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (widget.onMinimize != null)
+            if (widget.showTransport || widget.onMinimize != null)
               Row(children: [
                 Expanded(child: Text(_st.title ?? '', maxLines: 1,
                   overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                  style: theme.textTheme.labelLarge)),
+                  style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary))),
                 IconButton(
                   key: const Key('remote-player-minimize'),
+                  color: theme.colorScheme.primary,
                   tooltip: 'common.minimize'.tr(),
-                  onPressed: widget.onMinimize,
+                  onPressed: widget.onMinimize ?? () => setState(() => _minimized = true),
                   icon: const Icon(TablerIcons.minus),
                 ),
               ])
@@ -336,7 +344,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
                 _st.title!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge,
+                style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
               ),
             if (_previewBytes case final bytes?)
               _preview(bytes)
@@ -431,7 +439,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
                     _st.title ?? 'remote.title'.tr(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium,
+                    style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary),
                   ),
                 ),
                 IconButton(
