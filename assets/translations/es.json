@@ -322,6 +322,29 @@
     "operatorPending": "Sincronización pendente — se enviará cuando haya conexión."
   },
   "remote": {
+    "video": {
+      "independent": "Proyección independiente",
+      "independentHint": "Marque los destinos y toque la flecha de proyectar.",
+      "mode_overlay": "Superponer",
+      "mode_share": "Compartir",
+      "remoteConnections": "Conexiones remotas",
+      "noRemotes": "Ninguna conexión remota activa",
+      "onAir": "EN VIVO",
+      "enableInScreens": "Active en Pantallas para usar",
+      "closeMedia": "Cerrar medio",
+      "audioDestination": "Destino del audio",
+      "audioPlayer": "Sonido: solo reproductor",
+      "audioConnections": "Sonido: solo conexiones",
+      "audioBoth": "Sonido: ambos",
+      "selectScreens": "Seleccionar pantallas",
+      "noScreens": "Ninguna pantalla disponible",
+      "showCaptions": "Mostrar subtítulos",
+      "hideCaptions": "Ocultar subtítulos",
+      "closeConfirmTitle": "¿Cerrar el medio?",
+      "closeConfirmMessage": "Lo que se reproduce en el escritorio se detendrá.",
+      "closeConfirmCancel": "Cancelar",
+      "closeConfirmOk": "Cerrar"
+    },
     "title": "Control Remoto",
     "palcoOff": "Enciende el Palco primero — el control usa la misma conexión.",
     "noTargets": "Ningún desktop/web conectado.",
@@ -336,6 +359,8 @@
     "desktop_hint": "ej: 192.168.1.50:7081",
     "connect": "Conectar",
     "disconnect": "Desconectar",
+    "mute": "Silenciar",
+    "unmute": "Activar sonido",
     "mode_desktop": "Modo desktop",
     "mode_web": "Modo web link",
     "start_weblink": "Iniciar web link",
@@ -351,6 +376,8 @@
     "stop": "Detener",
     "next": "Siguiente",
     "previous": "Anterior",
+    "previousSlide": "Diapositiva anterior",
+    "nextSlide": "Diapositiva siguiente",
     "liturgy": "Liturgia del desktop",
     "token": "Token de emparejamiento",
     "scanQr": "Escanear QR",
@@ -416,9 +443,19 @@
     "tabHymns": "Himnos",
     "hymns": {
       "search": "Buscar himno",
+      "clear": "Borrar búsqueda",
       "empty": "Busca por número o nombre"
     },
-    "stopProjection": "Detener proyección"
+    "stopProjection": "Detener proyección",
+    "liturgyCustomDay": "Suelta",
+    "liturgyDayItems": "{count} ítems",
+    "site": {
+      "back": "Atrás",
+      "forward": "Adelante",
+      "reload": "Recargar",
+      "project": "Proyectar en el escritorio",
+      "close": "Cerrar navegador"
+    }
   },
   "albums": {
     "playAll": "Reproducir todo"

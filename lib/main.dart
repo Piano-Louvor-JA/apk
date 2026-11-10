@@ -68,7 +68,9 @@ void main() async {
           ],
           path: 'assets/translations',
           fallbackLocale: const Locale('pt', 'BR'),
-          // Segue o idioma do OS por padrao. Usuario pode trocar nas Configuracoes.
+          // Portugues por padrao, independente do idioma do OS. A escolha feita
+          // nas Configuracoes fica salva e tem prioridade sobre este valor.
+          startLocale: const Locale('pt', 'BR'),
           useOnlyLangCode: false,
           child: const LouvorjaApp(),
         ),

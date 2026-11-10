@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/liturgy_page.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/remote_module_panels.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_liturgy_days.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_bar.dart';
 import 'package:louvorja_piano_mobile/presentation/settings/widgets/remote/remote_section.dart';
 
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
@@ -25,15 +27,21 @@ class RemoteControlToolPage extends StatefulWidget {
 }
 
 class _RemoteControlToolPageState extends State<RemoteControlToolPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  /// Abas que controlam musica: Liturgia e Hinos.
+  // Liturgia só escolhe o dia; quem toca é a lista espelhada, com barra própria.
+  static const _playerTabs = {1};
+
   StreamSubscription? _sub;
   RemotePlayerState? _state;
-  double? _dragVolume;
   TabController? _tabCtrl;
+  bool _keyboardOpen = false;
+  RemoteHymnSelection? _hymnSelection;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // TabBar exige controller (sem ele lança e a view fica cinza).
     _tabCtrl = TabController(length: 5, vsync: this);
     _tabCtrl!.addListener(() {
@@ -46,22 +54,57 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
     });
   }
 
+  // A pagina fica dentro de outro Scaffold, que consome o inset do teclado do
+  // MediaQuery: por isso le direto da View.
+  @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    final open = View.of(context).viewInsets.bottom > 0;
+    if (open != _keyboardOpen) setState(() => _keyboardOpen = open);
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabCtrl?.dispose();
     _sub?.cancel();
     super.dispose();
   }
 
-  Future<void> _send(RemoteAction action, {int? index, int? volume}) async {
-    await RemoteSession.instance.send(
+  void _openSelectedHymn(RemoteHymnSelection selection) {
+    setState(() => _hymnSelection = null);
+    RemoteSession.instance.send(
       RemoteCommand(
         id: 't${DateTime.now().microsecondsSinceEpoch}',
-        action: action,
-        index: index,
-        volume: volume,
+        action: RemoteAction.mediaOpen,
+        musicId: selection.musicId,
+        mode: selection.mode,
       ),
     );
+  }
+
+  /// Abre o dia no desktop; com liturgia, já mostra a lista espelhada.
+  void _selectLiturgyDay(BuildContext context, RemoteLiturgyDay day) {
+    RemoteSession.instance.send(
+      RemoteCommand(
+        id: 'd${DateTime.now().microsecondsSinceEpoch}',
+        action: RemoteAction.liturgySelectDay,
+        mode: day.key,
+      ),
+    );
+    if (day.count > 0) _openLiturgy(context);
+  }
+
+  /// Abre a liturgia avulsa escolhida no desktop.
+  void _selectLiturgyCustom(BuildContext context, RemoteLiturgyCustom custom) {
+    RemoteSession.instance.send(
+      RemoteCommand(
+        id: 'c${DateTime.now().microsecondsSinceEpoch}',
+        action: RemoteAction.liturgySelectCustom,
+        index: custom.index,
+      ),
+    );
+    if (custom.count > 0) _openLiturgy(context);
   }
 
   void _openLiturgy(BuildContext context) {
@@ -165,8 +208,13 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                     index: _tabCtrl?.index ?? 0,
                     children: [
                       // aba 0: status liturgia + player (conteúdo original)
-                      _liturgyAndPlayer(context, theme, st),
-                      RemoteHymnsPanel(state: st),
+                      _liturgyStatus(context, theme, st),
+                      RemoteHymnsPanel(
+                        state: st,
+                        selectedMusicId: _hymnSelection?.musicId,
+                        onSelectionChanged: (s) =>
+                            setState(() => _hymnSelection = s),
+                      ),
                       RemoteBiblePanel(state: st),
                       RemoteTimePanel(state: st),
                       RemoteClockRandomPanel(
@@ -176,138 +224,61 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
                     ],
                   ),
                 ),
+                // Fixa no rodape; some com o teclado para nao espremer a
+                // lista de resultados da busca de hinos.
+                if (_playerTabs.contains(_tabCtrl?.index) && !_keyboardOpen)
+                  RemotePlayerBar(
+                    state: st,
+                    pendingOpen: _hymnSelection == null
+                        ? null
+                        : () => _openSelectedHymn(_hymnSelection!),
+                  ),
               ],
             ),
     );
   }
 
-  Widget _liturgyAndPlayer(
+  // A liturgia espelhada vive no MÓDULO de Liturgia (mesma UI,
+  // mesma personalização). Aqui só status + atalho.
+  Widget _liturgyStatus(
     BuildContext context,
     ThemeData theme,
     RemotePlayerState st,
   ) {
-    return Column(
-      children: [
-        // A liturgia espelhada vive no MÓDULO de Liturgia (mesma UI,
-        // mesma personalização). Aqui só status + atalho.
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: Card(
-            child: ListTile(
-              key: const Key('remote-open-liturgy'),
-              leading: Icon(
-                TablerIcons.clipboardText,
-                color: theme.colorScheme.primary,
-              ),
-              title: Text(
-                st.liturgyItems.isEmpty
-                    ? 'remote.noLiturgy'.tr()
-                    : 'remote.liturgyInLiturgyModule'.tr(
-                        namedArgs: {'count': '${st.liturgyItems.length}'},
-                      ),
-              ),
-              subtitle: st.liturgyItems.isEmpty
-                  ? null
-                  : Text('remote.openLiturgyModule'.tr()),
-              trailing: const Icon(TablerIcons.chevronRight),
-              onTap: st.liturgyItems.isEmpty
-                  ? null
-                  : () => _openLiturgy(context),
-            ),
-          ),
+    if (st.liturgyDays.isNotEmpty) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.s4),
+        child: RemoteLiturgyDays(
+          days: st.liturgyDays,
+          customs: st.liturgyCustoms,
+          onSelect: (day) => _selectLiturgyDay(context, day),
+          onSelectCustom: (custom) => _selectLiturgyCustom(context, custom),
         ),
-        // Controles de mídia — visual de controle remoto
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.s4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              border: Border(
-                top: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                children: [
-                  if (st.title != null)
-                    Text(
-                      st.title!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                  const SizedBox(height: AppSpacing.s2),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        tooltip: 'remote.previous'.tr(),
-                        onPressed: st.canPrevious
-                            ? () => _send(RemoteAction.previous)
-                            : null,
-                        icon: const Icon(TablerIcons.playerSkipBack),
-                      ),
-                      IconButton.filled(
-                        iconSize: 36,
-                        tooltip: st.playing
-                            ? 'remote.pause'.tr()
-                            : 'remote.play'.tr(),
-                        onPressed: () => _send(
-                          st.playing ? RemoteAction.pause : RemoteAction.play,
-                        ),
-                        icon: Icon(
-                          st.playing
-                              ? TablerIcons.playerPause
-                              : TablerIcons.playerPlay,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'remote.next'.tr(),
-                        onPressed: st.canNext
-                            ? () => _send(RemoteAction.next)
-                            : null,
-                        icon: const Icon(TablerIcons.playerSkipForward),
-                      ),
-                      IconButton(
-                        tooltip: 'remote.stop'.tr(),
-                        onPressed: () => _send(RemoteAction.stop),
-                        icon: const Icon(TablerIcons.playerStop),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.s2),
-                  Row(
-                    children: [
-                      const Icon(TablerIcons.volume, size: 18),
-                      Expanded(
-                        child: Slider(
-                          value:
-                              _dragVolume ??
-                              (st.volume).clamp(0, 100).toDouble(),
-                          max: 100,
-                          // Só envia ao soltar: evita flood WS no drag.
-                          onChanged: (v) => setState(() => _dragVolume = v),
-                          onChangeEnd: (v) async {
-                            await _send(
-                              RemoteAction.setVolume,
-                              volume: v.round(),
-                            );
-                            if (mounted) {
-                              setState(() => _dragVolume = null);
-                            }
-                          },
-                        ),
-                      ),
-                      const Icon(TablerIcons.volume2, size: 18),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s4),
+      child: Card(
+        child: ListTile(
+          key: const Key('remote-open-liturgy'),
+          leading: Icon(
+            TablerIcons.clipboardText,
+            color: theme.colorScheme.primary,
           ),
+          title: Text(
+            st.liturgyItems.isEmpty
+                ? 'remote.noLiturgy'.tr()
+                : 'remote.liturgyInLiturgyModule'.tr(
+                    namedArgs: {'count': '${st.liturgyItems.length}'},
+                  ),
+          ),
+          subtitle: st.liturgyItems.isEmpty
+              ? null
+              : Text('remote.openLiturgyModule'.tr()),
+          trailing: const Icon(TablerIcons.chevronRight),
+          onTap: st.liturgyItems.isEmpty ? null : () => _openLiturgy(context),
         ),
-      ],
+      ),
     );
   }
 }

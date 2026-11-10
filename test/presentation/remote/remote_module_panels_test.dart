@@ -96,8 +96,9 @@ void main() {
   });
 
   testWidgets(
-    'RemoteHymnsPanel busca via media.search e abre com hit do desktop',
+    'RemoteHymnsPanel busca via media.search e so seleciona o hit do desktop',
     (tester) async {
+      RemoteHymnSelection? picked;
       const state = RemotePlayerState(
         playing: false,
         position: Duration.zero,
@@ -114,7 +115,13 @@ void main() {
         ),
       );
       await tester.pumpWidget(
-        wrap(RemoteHymnsPanel(send: fakeSend, state: state)),
+        wrap(
+          RemoteHymnsPanel(
+            send: fakeSend,
+            state: state,
+            onSelectionChanged: (s) => picked = s,
+          ),
+        ),
       );
 
       await tester.enterText(
@@ -125,17 +132,89 @@ void main() {
       expect(sent.single.action, RemoteAction.mediaSearch);
       expect(sent.single.query, 'Cruz');
 
-      // troca modo p/ playback e abre o hit (id do DESKTOP)
+      // troca modo p/ playback e seleciona o hit (id do DESKTOP): sem projetar
       await tester.tap(find.byKey(const Key('remote-hymns-mode-instrumental')));
       await tester.pump();
       await tester.tap(find.byKey(const Key('remote-hymns-result-0')));
       await tester.pump();
 
-      expect(sent.last.action, RemoteAction.mediaOpen);
-      expect(sent.last.musicId, 42);
-      expect(sent.last.mode, 'instrumental');
+      expect(sent, hasLength(1));
+      expect(picked?.musicId, 42);
+      expect(picked?.mode, 'instrumental');
     },
   );
+
+  testWidgets('trocar o modo com hino selecionado atualiza a selecao', (
+    tester,
+  ) async {
+    RemoteHymnSelection? picked;
+    await tester.pumpWidget(
+      wrap(
+        RemoteHymnsPanel(
+          send: fakeSend,
+          selectedMusicId: 42,
+          onSelectionChanged: (s) => picked = s,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('remote-hymns-mode-no_audio')));
+    await tester.pump();
+
+    expect(picked?.musicId, 42);
+    expect(picked?.mode, 'no_audio');
+  });
+
+  testWidgets('X aparece com termo digitado e limpa a busca', (tester) async {
+    const clearKey = Key('remote-hymns-clear');
+    await tester.pumpWidget(wrap(RemoteHymnsPanel(send: fakeSend)));
+    expect(find.byKey(clearKey), findsNothing);
+
+    final field = find.byKey(const Key('remote-hymns-query'));
+    await tester.enterText(field, 'Digno');
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byKey(clearKey), findsOneWidget);
+
+    await tester.tap(find.byKey(clearKey));
+    await tester.pump();
+
+    expect(tester.widget<TextField>(field).controller?.text, isEmpty);
+    expect(find.byKey(clearKey), findsNothing);
+  });
+
+  testWidgets('apos limpar, buscar o mesmo termo consulta o desktop de novo', (
+    tester,
+  ) async {
+    final field = find.byKey(const Key('remote-hymns-query'));
+    await tester.pumpWidget(wrap(RemoteHymnsPanel(send: fakeSend)));
+    await tester.enterText(field, 'Digno');
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.tap(find.byKey(const Key('remote-hymns-clear')));
+    await tester.pump();
+    await tester.enterText(field, 'Digno');
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(sent, hasLength(2));
+  });
+
+  testWidgets('nova busca limpa a selecao anterior', (tester) async {
+    var cleared = false;
+    await tester.pumpWidget(
+      wrap(
+        RemoteHymnsPanel(
+          send: fakeSend,
+          selectedMusicId: 42,
+          onSelectionChanged: (s) => cleared = s == null,
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byKey(const Key('remote-hymns-query')), 'Paz');
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(cleared, isTrue);
+  });
 
   testWidgets('RemoteTimePanel renderiza timer + countdown e envia ações', (
     tester,

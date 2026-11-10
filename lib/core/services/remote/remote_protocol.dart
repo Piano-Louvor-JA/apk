@@ -30,6 +30,17 @@ enum RemoteAction {
   liturgyNext('liturgy.next'),
   liturgyPrevious('liturgy.previous'),
   liturgySelect('liturgy.select'),
+  liturgyOpen('liturgy.open'),
+  // Troca o dia aberto no desktop; o dia vai em `mode`.
+  liturgySelectDay('liturgy.selectDay'),
+  // Abre uma liturgia avulsa; o índice vai em `value`.
+  liturgySelectCustom('liturgy.selectCustom'),
+
+  /// Navegador do celular: o site projetado no desktop abre o mesmo endereço.
+  siteNavigate('site.navigate'),
+
+  /// Rolagem do navegador do celular, em proporção da página (0..1).
+  siteScroll('site.scroll'),
   liturgyToggleDone('liturgy.toggleDone'),
   liturgyState('liturgy.state'),
   // Controle remoto total (v2 — spec Obsidian "Controle Remoto Total v2").
@@ -68,7 +79,17 @@ enum RemoteAction {
   randomRemoveDrawn('random.removeDrawn'),
   // Fase 3 — hinos/mídia.
   mediaOpen('media.open'),
-  mediaSearch('media.search');
+  mediaSearch('media.search'),
+  // Navegação de PDF/PPT/imagens/letra na superfície ativa do desktop.
+  slideNext('slide:next'),
+  slidePrevious('slide:prev'),
+  // Recursos da barra de vídeo do desktop.
+  videoSetAudioOutput('video.setAudioOutput'),
+  videoToggleProjection('video.toggleProjection'),
+  videoToggleCaptions('video.toggleCaptions'),
+  videoSetTarget('video.setTarget'),
+  videoSetIndependentMode('video.setIndependentMode'),
+  videoSetIndependentTarget('video.setIndependentTarget');
 
   const RemoteAction(this.wire);
   final String wire;
@@ -116,6 +137,10 @@ class RemoteCommand extends RemoteMessage {
     this.numberMin,
     this.numberMax,
     this.namesText,
+    this.targetId,
+    this.enabled,
+    this.url,
+    this.ratio,
   }) : assert(volume == null || (volume >= 0 && volume <= 100), 'volume 0-100'),
        assert(position == null || !position.isNegative, 'seek >= 0'),
        assert(durationMs == null || durationMs > 0, 'durationMs > 0');
@@ -127,6 +152,16 @@ class RemoteCommand extends RemoteMessage {
   final Duration? position;
   final String? mode;
   final int? hymnId;
+
+  /// Destino da barra de vídeo: monitor:<id> ou tv:<slot> (video.setTarget).
+  final String? targetId;
+  final bool? enabled;
+
+  /// Endereço aberto no navegador do celular (site.navigate).
+  final String? url;
+
+  /// Proporção da rolagem (site.scroll), de 0 a 1.
+  final double? ratio;
 
   /// Índice do item da liturgia (liturgy.select/toggleDone).
   final int? index;
@@ -182,6 +217,10 @@ class RemoteCommand extends RemoteMessage {
       if (numberMin != null) 'numberMin': numberMin,
       if (numberMax != null) 'numberMax': numberMax,
       if (namesText != null) 'namesText': namesText,
+      if (targetId != null) 'targetId': targetId,
+      if (enabled != null) 'enabled': enabled,
+      if (url != null) 'url': url,
+      if (ratio != null) 'ratio': ratio,
       if (mode != null) 'mode': mode,
     };
     return jsonEncode(map);
@@ -198,6 +237,7 @@ class RemoteLiturgyItem {
     this.subtitle,
     this.isCategory = false,
     this.accentColor,
+    this.url,
   });
 
   final int index;
@@ -207,6 +247,104 @@ class RemoteLiturgyItem {
   final bool isCategory;
   final String? accentColor;
   final bool done;
+
+  /// Link do item de site: o celular abre no navegador embutido.
+  final String? url;
+}
+
+/// Dia da liturgia no desktop (domingo a sábado ou `custom`, a avulsa).
+class RemoteLiturgyDay {
+  const RemoteLiturgyDay({
+    required this.key,
+    required this.count,
+    required this.selected,
+  });
+
+  final String key;
+
+  /// Quantidade de itens; zero = dia sem liturgia.
+  final int count;
+
+  /// Dia aberto agora no desktop.
+  final bool selected;
+}
+
+/// Liturgia avulsa do desktop (pode haver várias).
+class RemoteLiturgyCustom {
+  const RemoteLiturgyCustom({
+    required this.index,
+    required this.name,
+    required this.count,
+    required this.selected,
+  });
+
+  final int index;
+  final String name;
+  final int count;
+  final bool selected;
+}
+
+/// Tela ou TV que pode receber o vídeo.
+class RemoteVideoTarget {
+  const RemoteVideoTarget({
+    required this.id,
+    required this.label,
+    required this.selected,
+    this.detail,
+    this.onAir = false,
+    this.enabled = true,
+  });
+
+  final String id;
+  final String label;
+  final bool selected;
+  final String? detail;
+
+  /// Projeção independente: já está no ar neste destino.
+  final bool onAir;
+
+  /// Projeção independente: false = monitor desligado em "Telas".
+  final bool enabled;
+}
+
+/// Projeção independente da barra de vídeo do desktop.
+class RemoteIndependentControls {
+  const RemoteIndependentControls({
+    required this.mode,
+    required this.live,
+    required this.armed,
+    required this.monitors,
+    required this.remotes,
+  });
+
+  final String mode;
+  final bool live;
+  final bool armed;
+  final List<RemoteVideoTarget> monitors;
+  final List<RemoteVideoTarget> remotes;
+}
+
+/// Estado da barra de vídeo aberta no desktop. Null em desktops antigos.
+class RemoteVideoControls {
+  const RemoteVideoControls({
+    required this.audioOutput,
+    required this.canProject,
+    required this.projecting,
+    required this.canControlCaptions,
+    required this.captionsHidden,
+    required this.monitors,
+    required this.tvs,
+    this.independent,
+  });
+
+  final String audioOutput;
+  final bool canProject;
+  final bool projecting;
+  final bool canControlCaptions;
+  final bool captionsHidden;
+  final List<RemoteVideoTarget> monitors;
+  final List<RemoteVideoTarget> tvs;
+  final RemoteIndependentControls? independent;
 }
 
 /// Alvo → APK: estado COMPLETO do player (push na conexão e após comandos).
@@ -225,12 +363,26 @@ class RemotePlayerState extends RemoteMessage {
     required this.canNext,
     this.liturgyItems = const [],
     this.liturgySelectedIndex,
+    this.liturgyCanOpen = false,
+    this.liturgyDays = const [],
+    this.liturgyCustoms = const [],
+    this.slidePreview,
+    this.slideGalleryKey,
+    this.slidePreviews,
+    this.slideLyrics,
+    this.slideBackgroundKey,
+    this.slideBackgroundIndex,
+    this.slideBackgroundSources,
     this.bibleModule,
     this.timerModule,
     this.countdownModule,
     this.clockModule,
     this.randomModule,
     this.mediaModule,
+    this.videoControls,
+    this.idleVideoTargets = const [],
+    this.idleVideoTvs = const [],
+    this.idleIndependent,
   });
 
   final int? hymnId;
@@ -241,6 +393,27 @@ class RemotePlayerState extends RemoteMessage {
   final Duration duration;
   final int slideIndex;
   final int slideCount;
+
+  /// Miniatura JPEG (base64) da imagem/página que está na tela do desktop.
+  final String? slidePreview;
+
+  /// Identifica a galeria aberta; as miniaturas dela chegam uma vez só.
+  final String? slideGalleryKey;
+
+  /// Miniaturas de todas as imagens da galeria (só quando ela muda).
+  final List<String>? slidePreviews;
+
+  /// Letra de cada slide do hino aberto (texto simples).
+  final List<String>? slideLyrics;
+
+  /// Identifica o conjunto de fundos do hino; as miniaturas chegam uma vez só.
+  final String? slideBackgroundKey;
+
+  /// Para cada slide, qual fundo usar (`-1` = sem fundo).
+  final List<int>? slideBackgroundIndex;
+
+  /// Miniatura (data URL) ou endereço de cada fundo diferente do hino.
+  final List<String>? slideBackgroundSources;
   final int volume;
   final bool canPrevious;
   final bool canNext;
@@ -249,6 +422,19 @@ class RemotePlayerState extends RemoteMessage {
   final List<RemoteLiturgyItem> liturgyItems;
   final int? liturgySelectedIndex;
 
+  /// Desktop aceita liturgy.open (executar sem projetar).
+  final bool liturgyCanOpen;
+
+  /// Dias da liturgia; vazio em desktops que ainda não informam.
+  final List<RemoteLiturgyDay> liturgyDays;
+
+  /// Liturgias avulsas do desktop.
+  final List<RemoteLiturgyCustom> liturgyCustoms;
+
+  /// Há mídia aberta no alvo. O título sozinho não basta: em vídeo ele vem do
+  /// item selecionado da liturgia, que o desktop limpa ao concluir o item.
+  bool get hasOpenMedia => title != null || playing || duration > Duration.zero;
+
   /// Módulos v2 (controle remoto total) — null em peers v1.
   final RemoteBibleState? bibleModule;
   final RemoteTimerState? timerModule;
@@ -256,6 +442,16 @@ class RemotePlayerState extends RemoteMessage {
   final RemoteClockState? clockModule;
   final RemoteRandomState? randomModule;
   final RemoteMediaState? mediaModule;
+  final RemoteVideoControls? videoControls;
+
+  /// Monitores informados pelo desktop quando não há vídeo aberto.
+  final List<RemoteVideoTarget> idleVideoTargets;
+
+  /// Conexões remotas ligadas no desktop quando não há vídeo aberto.
+  final List<RemoteVideoTarget> idleVideoTvs;
+
+  /// Projeção independente quando não há vídeo aberto.
+  final RemoteIndependentControls? idleIndependent;
 
   @override
   String encode() {
@@ -496,6 +692,17 @@ class RemoteHello extends RemoteMessage {
   });
 }
 
+/// Desktop → APK: quadro do vídeo/YouTube aberto (JPEG em base64), num canal
+/// próprio para o estado continuar leve.
+class RemoteVideoFrame extends RemoteMessage {
+  const RemoteVideoFrame({required this.data});
+
+  final String data;
+
+  @override
+  String encode() => jsonEncode({'v': 1, 'type': 'frame', 'data': data});
+}
+
 /// Parser tolerante: NUNCA lança. Tudo que viola o protocolo v1 → null.
 class RemoteProtocol {
   static RemoteMessage? parse(String raw) {
@@ -535,6 +742,10 @@ class RemoteProtocol {
           device: device,
           appVersion: ver is String ? ver : null,
         );
+      case 'frame':
+        final data = decoded['data'];
+        if (data is! String || data.isEmpty) return null;
+        return RemoteVideoFrame(data: data);
       case 'ping':
         return const RemotePing();
       case 'pong':
@@ -659,10 +870,35 @@ class RemoteProtocol {
     if (positionMs is! num || durationMs is! num) return null;
     if (positionMs < 0 || durationMs < 0) return null;
 
+    final rawSlide = m['slide'];
+    final slide = rawSlide is Map ? rawSlide : null;
+
     // Liturgia espelhada (v1.1, opcional — peers antigos não enviam).
     final lit = m['liturgy'];
     final liturgyItems = <RemoteLiturgyItem>[];
     int? liturgySelected;
+    final liturgyCanOpen = lit is Map && lit['canOpen'] == true;
+    final liturgyDays = <RemoteLiturgyDay>[
+      if (lit is Map && lit['days'] is List)
+        for (final e in lit['days'] as List)
+          if (e is Map && e['key'] is String)
+            RemoteLiturgyDay(
+              key: e['key'] as String,
+              count: e['count'] is num ? (e['count'] as num).toInt() : 0,
+              selected: e['selected'] == true,
+            ),
+    ];
+    final liturgyCustoms = <RemoteLiturgyCustom>[
+      if (lit is Map && lit['customs'] is List)
+        for (final e in lit['customs'] as List)
+          if (e is Map && e['index'] is num)
+            RemoteLiturgyCustom(
+              index: (e['index'] as num).toInt(),
+              name: e['name'] is String ? e['name'] as String : '',
+              count: e['count'] is num ? (e['count'] as num).toInt() : 0,
+              selected: e['selected'] == true,
+            ),
+    ];
     if (lit is Map) {
       final sel = lit['selectedIndex'];
       liturgySelected = sel is num ? sel.toInt() : null;
@@ -683,6 +919,7 @@ class RemoteProtocol {
                 accentColor: e['accentColor'] is String
                     ? e['accentColor'] as String?
                     : null,
+                url: e['url'] is String ? e['url'] as String? : null,
               ),
             );
           }
@@ -697,19 +934,109 @@ class RemoteProtocol {
       playing: playing,
       position: Duration(milliseconds: positionMs.toInt()),
       duration: Duration(milliseconds: durationMs.toInt()),
-      slideIndex: intOrNull(p['slideIndex']) ?? 0,
-      slideCount: intOrNull(p['slideCount']) ?? 0,
+      // Desktop envia em `slide` no topo; peers antigos, dentro de `player`.
+      slideIndex: intOrNull(slide?['index']) ?? intOrNull(p['slideIndex']) ?? 0,
+      slideCount: intOrNull(slide?['total']) ?? intOrNull(p['slideCount']) ?? 0,
+      slidePreview: slide?['preview'] is String
+          ? slide!['preview'] as String
+          : null,
+      slideGalleryKey: slide?['galleryKey'] is String
+          ? slide!['galleryKey'] as String
+          : null,
+      slideBackgroundKey: slide?['backgroundKey'] is String
+          ? slide!['backgroundKey'] as String
+          : null,
+      slideBackgroundIndex: slide?['backgroundIndex'] is List
+          ? [
+              for (final e in slide!['backgroundIndex'] as List)
+                e is num ? e.toInt() : -1,
+            ]
+          : null,
+      slideBackgroundSources: slide?['backgroundSources'] is List
+          ? [
+              for (final e in slide!['backgroundSources'] as List)
+                e is String ? e : '',
+            ]
+          : null,
+      slideLyrics: slide?['lyrics'] is List
+          ? [
+              for (final e in slide!['lyrics'] as List)
+                e is String ? e : '',
+            ]
+          : null,
+      slidePreviews: slide?['previews'] is List
+          ? [
+              for (final e in slide!['previews'] as List)
+                e is String ? e : '',
+            ]
+          : null,
       volume: intOrNull(p['volume']) ?? 0,
       canPrevious: p['canPrevious'] == true,
       canNext: p['canNext'] == true,
       liturgyItems: liturgyItems,
       liturgySelectedIndex: liturgySelected,
+      liturgyCanOpen: liturgyCanOpen,
+      liturgyDays: liturgyDays,
+      liturgyCustoms: liturgyCustoms,
       bibleModule: _parseBibleModule(m['bible']),
       timerModule: _parseTimerModule(m['timer']),
       countdownModule: _parseCountdownModule(m['countdown']),
       clockModule: _parseClockModule(m['clock']),
       randomModule: _parseRandomModule(m['random']),
       mediaModule: _parseMediaModule(m['media']),
+      videoControls: _parseVideoControls(m['video']),
+      idleIndependent: m['videoTargets'] is Map
+          ? _parseIndependent((m['videoTargets'] as Map)['independent'])
+          : null,
+      idleVideoTvs: _parseVideoTargets(
+        m['videoTargets'] is Map ? (m['videoTargets'] as Map)['tvs'] : null,
+      ),
+      idleVideoTargets: _parseVideoTargets(
+        m['videoTargets'] is Map
+            ? (m['videoTargets'] as Map)['monitors']
+            : null,
+      ),
+    );
+  }
+
+  static List<RemoteVideoTarget> _parseVideoTargets(Object? raw) => [
+    if (raw is List)
+      for (final e in raw)
+        if (e is Map && e['id'] is String && e['label'] is String)
+          RemoteVideoTarget(
+            id: e['id'] as String,
+            label: e['label'] as String,
+            selected: e['selected'] == true,
+            detail: e['detail'] is String ? e['detail'] as String : null,
+            onAir: e['onAir'] == true,
+            enabled: e['enabled'] != false,
+          ),
+  ];
+
+  static RemoteVideoControls? _parseVideoControls(Object? raw) {
+    if (raw is! Map) return null;
+    final audioOutput = raw['audioOutput'];
+    return RemoteVideoControls(
+      audioOutput: audioOutput is String ? audioOutput : 'player',
+      canProject: raw['canProject'] == true,
+      projecting: raw['projecting'] == true,
+      canControlCaptions: raw['canControlCaptions'] == true,
+      captionsHidden: raw['captionsHidden'] == true,
+      monitors: _parseVideoTargets(raw['monitors']),
+      tvs: _parseVideoTargets(raw['tvs']),
+      independent: _parseIndependent(raw['independent']),
+    );
+  }
+
+  static RemoteIndependentControls? _parseIndependent(Object? raw) {
+    if (raw is! Map) return null;
+    final mode = raw['mode'];
+    return RemoteIndependentControls(
+      mode: mode is String ? mode : 'overlay',
+      live: raw['live'] == true,
+      armed: raw['armed'] == true,
+      monitors: _parseVideoTargets(raw['monitors']),
+      remotes: _parseVideoTargets(raw['remotes']),
     );
   }
 

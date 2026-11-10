@@ -321,6 +321,29 @@
     "operatorPending": "Sincronização pendente — será enviada quando houver conexão."
   },
   "remote": {
+    "video": {
+      "independent": "Projeção independente",
+      "independentHint": "Marque os destinos e toque na seta de projetar.",
+      "mode_overlay": "Sobrepor",
+      "mode_share": "Compartilhar",
+      "remoteConnections": "Conexões Remotas",
+      "noRemotes": "Nenhuma conexão remota ativa",
+      "onAir": "NO AR",
+      "enableInScreens": "Ative em Telas para usar",
+      "closeMedia": "Fechar mídia",
+      "audioDestination": "Destino do áudio",
+      "audioPlayer": "Som: só player",
+      "audioConnections": "Som: só conexões",
+      "audioBoth": "Som: ambos",
+      "selectScreens": "Selecionar telas",
+      "noScreens": "Nenhuma tela disponível",
+      "showCaptions": "Mostrar legendas",
+      "hideCaptions": "Ocultar legendas",
+      "closeConfirmTitle": "Fechar a mídia?",
+      "closeConfirmMessage": "O que está tocando no desktop será encerrado.",
+      "closeConfirmCancel": "Cancelar",
+      "closeConfirmOk": "Fechar"
+    },
     "title": "Controle Remoto",
     "palcoOff": "Ligue o Palco primeiro — o controle usa a mesma conexão.",
     "noTargets": "Nenhum desktop/web conectado.",
@@ -335,6 +358,8 @@
     "desktop_hint": "ex: 192.168.1.50:7081",
     "connect": "Conectar",
     "disconnect": "Desconectar",
+    "mute": "Silenciar",
+    "unmute": "Ativar som",
     "mode_desktop": "Modo desktop",
     "mode_web": "Modo web link",
     "start_weblink": "Iniciar web link",
@@ -350,6 +375,8 @@
     "stop": "Parar",
     "next": "Próxima",
     "previous": "Anterior",
+    "previousSlide": "Slide anterior",
+    "nextSlide": "Próximo slide",
     "liturgy": "Liturgia do desktop",
     "token": "Token de emparelhamento",
     "scanQr": "Escanear QR",
@@ -415,9 +442,19 @@
     "tabHymns": "Hinos",
     "hymns": {
       "search": "Buscar hino",
+      "clear": "Limpar busca",
       "empty": "Busque pelo número ou nome"
     },
-    "stopProjection": "Parar projeção"
+    "stopProjection": "Parar projeção",
+    "liturgyCustomDay": "Avulsa",
+    "liturgyDayItems": "{count} itens",
+    "site": {
+      "back": "Voltar",
+      "forward": "Avançar",
+      "reload": "Recarregar",
+      "project": "Projetar no desktop",
+      "close": "Fechar navegador"
+    }
   },
   "albums": {
     "playAll": "Tocar tudo"

@@ -2,6 +2,9 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
+import 'package:louvorja_piano_mobile/core/services/remote/remote_slide_gallery.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/desktop_connection.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_device_name.dart';
@@ -26,6 +29,11 @@ class RemoteSession {
   DesktopConnection? _desktop;
   WebLinkServer? _web;
   StreamSubscription<RemotePlayerState>? _desktopStateSub;
+  StreamSubscription<RemoteVideoFrame>? _desktopFrameSub;
+
+  /// Último quadro do vídeo/YouTube aberto no desktop, já decodificado: a
+  /// prévia troca só a imagem, sem reconstruir a barra a cada quadro.
+  final ValueNotifier<Uint8List?> videoFrame = ValueNotifier(null);
   StreamSubscription<DesktopConnectionStatus>? _desktopStatusSub;
   StreamSubscription<RemoteError>? _desktopErrorSub;
   RemoteMode _mode = RemoteMode.idle;
@@ -66,8 +74,7 @@ class RemoteSession {
     // Assina ANTES de abrir o socket. O desktop manda state imediatamente
     // no upgrade WS; assinar depois perde esse frame em Stream.broadcast.
     _desktopStateSub = conn.states.listen((s) {
-      lastState = s;
-      _statesCtrl.add(s);
+      _receive(s);
     });
     _desktopStatusSub = conn.status.listen((s) {
       if (s == DesktopConnectionStatus.closed) {
@@ -75,6 +82,10 @@ class RemoteSession {
         return;
       }
       _emitStatus(s.toSessionStatus());
+    });
+    _desktopFrameSub = conn.frames.listen((frame) {
+      final bytes = RemoteSlideGallery.decode(frame.data);
+      if (bytes != null) videoFrame.value = bytes;
     });
     _desktopErrorSub = conn.errors.listen((error) {
       // Fechamento normal do Electron: derruba UI remota imediatamente.
@@ -84,9 +95,11 @@ class RemoteSession {
     final ok = await conn.connect(host: host, port: port, token: token);
     if (!ok) {
       await _desktopStateSub?.cancel();
+      await _desktopFrameSub?.cancel();
       await _desktopStatusSub?.cancel();
       await _desktopErrorSub?.cancel();
       _desktopStateSub = null;
+      _desktopFrameSub = null;
       _desktopStatusSub = null;
       _desktopErrorSub = null;
       await conn.dispose();
@@ -115,8 +128,7 @@ class RemoteSession {
     _web = server;
     _mode = RemoteMode.web;
     server.states.listen((s) {
-      lastState = s;
-      _statesCtrl.add(s);
+      _receive(s);
     });
     server.clientEvents.listen((up) {
       _emitStatus(
@@ -152,6 +164,9 @@ class RemoteSession {
     required bool playing,
     bool canPrevious = false,
     bool canNext = false,
+    RemoteMediaState? mediaModule,
+    int volume = 80,
+    Duration duration = const Duration(minutes: 3),
   }) {
     final state = RemotePlayerState(
       hymnId: 1,
@@ -159,16 +174,29 @@ class RemoteSession {
       mode: 'audio',
       playing: playing,
       position: const Duration(seconds: 34),
-      duration: const Duration(minutes: 3),
+      duration: duration,
       slideIndex: 1,
       slideCount: 5,
-      volume: 80,
+      volume: volume,
       canPrevious: canPrevious,
       canNext: canNext,
+      mediaModule: mediaModule,
     );
+    _receive(state);
+  }
+
+  /// Todo estado do alvo passa por aqui: a galeria de miniaturas é guardada
+  /// mesmo sem nenhuma tela de player aberta.
+  void _receive(RemotePlayerState state) {
     lastState = state;
+    // Vídeo fechado: o quadro antigo não pode aparecer no próximo vídeo.
+    if (state.videoControls == null) videoFrame.value = null;
+    RemoteSlideGallery.remember(state);
     _statesCtrl.add(state);
   }
+
+  @visibleForTesting
+  void debugEmitStateForTest(RemotePlayerState state) => _receive(state);
 
   Future<void> disconnect() async {
     await _dropDesktop();
@@ -188,6 +216,9 @@ class RemoteSession {
   }
 
   Future<void> _teardown() async {
+    videoFrame.value = null;
+    await _desktopFrameSub?.cancel();
+    _desktopFrameSub = null;
     await _desktopStateSub?.cancel();
     await _desktopStatusSub?.cancel();
     await _desktopErrorSub?.cancel();

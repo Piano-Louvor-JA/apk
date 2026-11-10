@@ -51,13 +51,15 @@ void main() {
     expect(find.byType(TabBar), findsOneWidget);
     expect(find.byType(Tab), findsNWidgets(5));
 
-    // título do player propagado
-    expect(find.text('Hino 100'), findsOneWidget);
-
-    // troca de aba (indexIsChanging listener)
+    // troca de aba (indexIsChanging listener); a barra fica em Hinos
     await tester.tap(find.text('remote.tabHymns'));
     await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
     expect(tester.takeException(), isNull);
+
+    // título do player propagado
+    expect(find.text('Hino 100'), findsOneWidget);
 
     // play/pause envia comando (play→pause pois playing=true)
     await tester.tap(find.byTooltip('remote.pause'));

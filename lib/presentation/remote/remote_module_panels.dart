@@ -832,14 +832,33 @@ class _RandomCardState extends State<_RandomCard> {
   }
 }
 
+/// Hino escolhido na busca, aguardando o operador apertar play.
+class RemoteHymnSelection {
+  const RemoteHymnSelection({required this.musicId, required this.mode});
+
+  final int musicId;
+  final String mode;
+}
+
 /// Painel Hinos: busca REMOTA no catálogo do alvo (ids corretos do
 /// desktop — a API pública tem ids distintos e media.open falhava com
-/// trackMissing). O resultado escolhido vira media.open {musicId, mode}.
+/// trackMissing). Tocar na linha só seleciona, para evitar projeção por toque
+/// acidental: quem envia media.open é o play da barra do player.
 class RemoteHymnsPanel extends StatefulWidget {
-  const RemoteHymnsPanel({super.key, this.send, this.state});
+  const RemoteHymnsPanel({
+    super.key,
+    this.send,
+    this.state,
+    this.selectedMusicId,
+    this.onSelectionChanged,
+  });
 
   final RemoteSend? send;
   final RemotePlayerState? state;
+  final int? selectedMusicId;
+
+  /// Null = selecao desfeita.
+  final ValueChanged<RemoteHymnSelection?>? onSelectionChanged;
 
   @override
   State<RemoteHymnsPanel> createState() => _RemoteHymnsPanelState();
@@ -866,8 +885,16 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
 
   String _lastQuery = '';
 
+  void _clearQuery() {
+    _queryCtrl.clear();
+    _lastQuery = '';
+    _onQuery('');
+  }
+
   void _onQuery(String q) {
     _debounce?.cancel();
+    // A linha escolhida sai da tela: o play nao pode ficar pulsando por ela.
+    if (widget.selectedMusicId != null) widget.onSelectionChanged?.call(null);
     final query = q.trim();
     if (query.isEmpty) {
       setState(() => _searching = false);
@@ -906,6 +933,14 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
             onChanged: _onQuery,
             decoration: InputDecoration(
               prefixIcon: const Icon(TablerIcons.search),
+              suffixIcon: _queryCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      key: const Key('remote-hymns-clear'),
+                      tooltip: 'remote.hymns.clear'.tr(),
+                      icon: const Icon(TablerIcons.x),
+                      onPressed: _clearQuery,
+                    ),
               labelText: 'remote.hymns.search'.tr(),
               isDense: true,
             ),
@@ -921,7 +956,15 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
                   key: Key('remote-hymns-mode-$m'),
                   label: Text(label),
                   selected: _mode == m,
-                  onSelected: (_) => setState(() => _mode = m),
+                  onSelected: (_) {
+                    setState(() => _mode = m);
+                    final selected = widget.selectedMusicId;
+                    if (selected != null) {
+                      widget.onSelectionChanged?.call(
+                        RemoteHymnSelection(musicId: selected, mode: m),
+                      );
+                    }
+                  },
                 ),
             ],
           ),
@@ -939,16 +982,24 @@ class _RemoteHymnsPanelState extends State<RemoteHymnsPanel> {
                   itemCount: hits.length,
                   itemBuilder: (_, i) {
                     final h = hits[i];
+                    final selected = h.musicId == widget.selectedMusicId;
                     return ListTile(
                       key: Key('remote-hymns-result-$i'),
                       dense: true,
+                      selected: selected,
+                      selectedTileColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.16,
+                      ),
                       title: Text(
                         h.track != null ? '${h.track} — ${h.name}' : h.name,
                       ),
-                      onTap: () => (widget.send ?? _defaultSend)(
-                        RemoteAction.mediaOpen,
-                        musicId: h.musicId,
-                        mode: _mode,
+                      onTap: () => widget.onSelectionChanged?.call(
+                        selected
+                            ? null
+                            : RemoteHymnSelection(
+                                musicId: h.musicId,
+                                mode: _mode,
+                              ),
                       ),
                     );
                   },

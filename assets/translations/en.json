@@ -322,6 +322,29 @@
     "operatorPending": "Sync pending — it will be sent once a connection is available."
   },
   "remote": {
+    "video": {
+      "independent": "Independent projection",
+      "independentHint": "Check the destinations and tap the project arrow.",
+      "mode_overlay": "Overlay",
+      "mode_share": "Share",
+      "remoteConnections": "Remote connections",
+      "noRemotes": "No active remote connections",
+      "onAir": "LIVE",
+      "enableInScreens": "Enable in Screens to use",
+      "closeMedia": "Close media",
+      "audioDestination": "Audio destination",
+      "audioPlayer": "Sound: player only",
+      "audioConnections": "Sound: connections only",
+      "audioBoth": "Sound: both",
+      "selectScreens": "Select screens",
+      "noScreens": "No screens available",
+      "showCaptions": "Show captions",
+      "hideCaptions": "Hide captions",
+      "closeConfirmTitle": "Close the media?",
+      "closeConfirmMessage": "What is playing on the desktop will stop.",
+      "closeConfirmCancel": "Cancel",
+      "closeConfirmOk": "Close"
+    },
     "title": "Remote Control",
     "palcoOff": "Turn on the Palco first — control uses the same connection.",
     "noTargets": "No desktop/web connected.",
@@ -336,6 +359,8 @@
     "desktop_hint": "e.g. 192.168.1.50:7081",
     "connect": "Connect",
     "disconnect": "Disconnect",
+    "mute": "Mute",
+    "unmute": "Unmute",
     "mode_desktop": "Desktop mode",
     "mode_web": "Web link mode",
     "start_weblink": "Start web link",
@@ -351,6 +376,8 @@
     "stop": "Stop",
     "next": "Next",
     "previous": "Previous",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide",
     "liturgy": "Desktop liturgy",
     "token": "Pairing token",
     "scanQr": "Scan QR",
@@ -416,9 +443,19 @@
     "tabHymns": "Hymns",
     "hymns": {
       "search": "Search hymn",
+      "clear": "Clear search",
       "empty": "Search by number or name"
     },
-    "stopProjection": "Stop projection"
+    "stopProjection": "Stop projection",
+    "liturgyCustomDay": "Standalone",
+    "liturgyDayItems": "{count} items",
+    "site": {
+      "back": "Back",
+      "forward": "Forward",
+      "reload": "Reload",
+      "project": "Project on desktop",
+      "close": "Close browser"
+    }
   },
   "albums": {
     "playAll": "Play all"
