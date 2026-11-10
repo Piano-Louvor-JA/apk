@@ -29,10 +29,10 @@ packages:
     dependency: transitive
     description:
       name: android_file_picker
-      sha256: "14ab27769b54c48d5a8a71aa9858372b7a3ae77572ea0a8aee744643c5d8c53d"
+      sha256: "868183c959e754e915954d8074c20cfa4cfdb4684b35ecc08378437be1a542d8"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.0"
+    version: "2.1.3"
   ansicolor:
     dependency: transitive
     description:
@@ -197,10 +197,10 @@ packages:
     dependency: "direct main"
     description:
       name: cached_network_image
-      sha256: "64a6c35e63cfd22865238d11fe8608bb538306ece5b2eb951106280441fdbb0c"
+      sha256: f865286d78afe21964f8a22f7e7e798ab6b0cceb6608effe4e31983776f4736f
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.4"
+    version: "4.0.6"
   cached_network_image_platform_interface:
     dependency: transitive
     description:
@@ -317,10 +317,10 @@ packages:
     dependency: "direct main"
     description:
       name: crypto
-      sha256: c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf
+      sha256: e3626ae6270383c9e3a549f34c9e4cd26c09ae6a9adaab2bf4737a00340efdc4
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.7"
+    version: "3.0.8"
   csslib:
     dependency: transitive
     description:
@@ -453,18 +453,18 @@ packages:
     dependency: "direct main"
     description:
       name: file_picker
-      sha256: "98c0b156b6380ba55bc767a14e2e6b3feb246e713ad40092424596fa79005bea"
+      sha256: c64036857780d7125f011d543f89eedcb5df61da473668bace4eee9ab875284d
       url: "https://pub.dev"
     source: hosted
-    version: "13.1.0"
+    version: "13.3.2"
   file_picker_darwin:
     dependency: transitive
     description:
       name: file_picker_darwin
-      sha256: "51aef9f4c80449c736e7cc02198675fda73689f0bd45a84da642cfeab0250d46"
+      sha256: daeb0219f6279c73eb9c63ae9a566beef04ae13d59b8feba0be2a7f3b258d3d4
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.2"
+    version: "2.4.2"
   file_picker_linux:
     dependency: transitive
     description:
@@ -477,18 +477,18 @@ packages:
     dependency: transitive
     description:
       name: file_picker_platform_interface
-      sha256: bbdc085a6f168e63f147e9ce8988f79fa0800a58e7f25a48f762c60837107ba5
+      sha256: "336e7168306834a2b68e6168ed768e00d3fabeac23154d5793e277ca9f97cf20"
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.0"
+    version: "4.2.0"
   file_picker_web:
     dependency: transitive
     description:
       name: file_picker_web
-      sha256: b3004268da0c1b52baa18df430e7ec4438194de855a807d26b447cbf07ef3496
+      sha256: a2288008280aabe371aff029466b3405e60838e0a1d714767488c59b926c8b8c
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.0"
+    version: "4.2.0"
   file_selector:
     dependency: "direct main"
     description:
@@ -623,10 +623,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_local_notifications
-      sha256: "9ee28742343dd13df758bb4185e8ded37ac2d1aeca6648c3ba7862c99797517e"
+      sha256: fd5fc8966a8b34337ac182dc394f3506139b69d8138d4e9e174a13d6468adcd4
       url: "https://pub.dev"
     source: hosted
-    version: "22.3.2"
+    version: "22.3.3"
   flutter_local_notifications_linux:
     dependency: transitive
     description:
@@ -740,10 +740,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_svg
-      sha256: "35882981abcbfb8c15b286f0cd690ff25bac12d95eff3e25ee207f37d4c42e7f"
+      sha256: "100c19dcc4ff60083e95a44a6f44f3a1bb887d353c5d86f6a9b688aa3cb46236"
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.0"
+    version: "2.3.2"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -758,10 +758,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_webrtc
-      sha256: c1d3674f61b14cbe98b60f0cce396835b1483163e644b8cd26fd3fdd55360fb9
+      sha256: b98ef03376401e54ff87fc78907b38e562b15ca8424aba589c263eddc3c1ecf9
       url: "https://pub.dev"
     source: hosted
-    version: "1.6.2+hotfix.3"
+    version: "1.6.3"
   freezed:
     dependency: "direct dev"
     description:
@@ -984,10 +984,10 @@ packages:
     dependency: "direct dev"
     description:
       name: json_serializable
-      sha256: e45aefa0324f08c683caafbb94b72837aa6193c61822799c916e45f4a263113d
+      sha256: cc7822761b40be9237bcaae62b755ffe5453ceff96a0001f1f5f2439251c66f1
       url: "https://pub.dev"
     source: hosted
-    version: "6.14.1"
+    version: "6.15.2"
   leak_tracker:
     dependency: transitive
     description:
@@ -1088,10 +1088,10 @@ packages:
     dependency: "direct main"
     description:
       name: mobile_scanner
-      sha256: "5a51ea79f0cf8293f616a5d08baae185b59b5e6bb24df01f2a63037ade0bade0"
+      sha256: "175c62fc813c2bd762757359a2088f8cbdb72020cf85d4cd27fc4d3fe59be058"
       url: "https://pub.dev"
     source: hosted
-    version: "7.4.2"
+    version: "7.5.0"
   mocktail:
     dependency: "direct dev"
     description:
@@ -1152,10 +1152,10 @@ packages:
     dependency: "direct main"
     description:
       name: open_filex
-      sha256: "9976da61b6a72302cf3b1efbce259200cd40232643a467aac7370addf94d6900"
+      sha256: "0c3fe80e73f0b3200fef6e175b83dae9790dd23c9cdbb6d15f46e2ff10ae84ad"
       url: "https://pub.dev"
     source: hosted
-    version: "4.7.0"
+    version: "5.0.0"
   package_config:
     dependency: transitive
     description:
@@ -1589,10 +1589,10 @@ packages:
     dependency: "direct main"
     description:
       name: tabler_icons_plus
-      sha256: "7f692f1873396a019e1bf56a54d0e4cb961b3855ad70dadc2c0910f2edcab181"
+      sha256: a4c8315147462fb94a9920af58d7d41bc014bb8f5414e13ffb6462b13fb80127
       url: "https://pub.dev"
     source: hosted
-    version: "3.49.0"
+    version: "3.50.0"
   term_glyph:
     dependency: transitive
     description:
@@ -1741,10 +1741,10 @@ packages:
     dependency: transitive
     description:
       name: vector_graphics_compiler
-      sha256: "4dca4feb77dc3ec7f6e27e49c53241eb8217f55e4f9b12599a27f8903bca5682"
+      sha256: "4c9d2e7121eea8b4f160e6e435900a0ae7214cfc97c2d6cf84c25532b789b50d"
       url: "https://pub.dev"
     source: hosted
-    version: "1.3.0"
+    version: "1.3.4"
   vector_math:
     dependency: transitive
     description:
@@ -1765,10 +1765,10 @@ packages:
     dependency: "direct main"
     description:
       name: wakelock_plus
-      sha256: "9a91139ee876c24a9ebe1484e4b9b7923b07d368566a5e0b2301870b0f5029c8"
+      sha256: "39a1d99085cf3190d41305bca05f0c0d77522f355f7f99bb648ee231192d9d68"
       url: "https://pub.dev"
     source: hosted
-    version: "1.8.1"
+    version: "1.8.2"
   wakelock_plus_platform_interface:
     dependency: transitive
     description:
@@ -1885,10 +1885,10 @@ packages:
     dependency: transitive
     description:
       name: windows_file_picker
-      sha256: "9f3aa833068b09e380fdc59560ad260a4a14e9397173abb533699f967443602e"
+      sha256: "18452aa293de3b6961c6d05b0e71b4be7bb90c67635abdd3aa5c4e75dd875072"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.0"
+    version: "2.0.1"
   xdg_directories:
     dependency: transitive
     description:
