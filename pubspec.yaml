@@ -24,7 +24,7 @@ dependencies:
 
   # Fonts
   # 9.0.0 troca TextTheme do Flutter por material_ui e não compila com ThemeData.
-  google_fonts: ^9.0.0
+  google_fonts: ^8.2.1
 
   # Internationalization
   easy_localization: ^3.0.7
@@ -79,7 +79,8 @@ dependencies:
   image_picker: ^1.2.4
   flutter_colorpicker: ^1.1.0
   image: ^4.12.0
-  archive: ^4.6.0
+  # 4.6.0 deixa de lançar erro em dado danificado: .slja corrompido seria importado pela metade.
+  archive: '>=4.5.2 <4.6.0'
   flutter_foreground_task: ^11.0.3
   multicast_dns: ^0.3.3+1
   mobile_scanner: ^7.5.0
@@ -87,7 +88,8 @@ dependencies:
   qr_flutter: ^4.1.0
   flutter_secure_storage: ^11.2.0
   file_selector: ^1.1.0
-  sentry_flutter: ^10.3.0
+  # 10.x exige Android API 26 (o app usa 24), remove CocoaPods e liga logs/métricas sempre.
+  sentry_flutter: ^9.30.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
