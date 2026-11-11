@@ -213,8 +213,20 @@
     "filterVersesHint": "Filtrar texto ou versos: amor, 3, 1-3, 1,3-5",
     "globalResults": "Resultados na Bíblia",
     "globalSearching": "Buscando na Bíblia…",
-    "quickSearchHint": "Referência (gn 1:1-3) ou texto...",
-    "goToReference": "Ir para referência"
+    "quickSearchHint": "Livro, capítulo ou palavra — ex.: jo 3:16",
+    "goToReference": "Ir para referência",
+    "search": {
+      "recent": "Recentes",
+      "clearRecent": "Limpar",
+      "examples": "Experimente",
+      "tip": "Escreva do seu jeito: jo 3:16, jo 3.16, 1 co 13, i coríntios 13, salmo 23 — ou uma palavra para achar no texto.",
+      "noResults": "Nada encontrado. Tente o nome do livro ou uma palavra.",
+      "chapterCount": "{} capítulos — toque num número ou digite",
+      "wholeChapter": "Capítulo inteiro",
+      "verseCount": "{} versículo(s)",
+      "searchText": "Buscar “{}” no texto",
+      "textSubtitle": "Nos capítulos já baixados"
+    }
   },
   "settings": {
     "title": "Configurações",
