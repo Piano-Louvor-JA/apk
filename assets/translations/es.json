@@ -560,5 +560,13 @@
     "sectionTitle": "Modo sin conexión",
     "mode": "Modo sin conexión — usando contenido descargado",
     "restored": "Conexión restaurada — sincronizando…"
+  },
+  "myEdits": {
+    "title": "Mis ediciones",
+    "empty": "Ninguna edición publicada aún.",
+    "musicLabel": "Canción #{id}",
+    "statusApproved": "Aprobada",
+    "statusRejected": "Rechazada",
+    "statusPublished": "Publicada"
   }
 }

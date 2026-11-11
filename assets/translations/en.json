@@ -560,5 +560,13 @@
     "sectionTitle": "Offline mode",
     "mode": "Offline mode — using downloaded content",
     "restored": "Connection restored — syncing…"
+  },
+  "myEdits": {
+    "title": "My Edits",
+    "empty": "No edits published yet.",
+    "musicLabel": "Song #{id}",
+    "statusApproved": "Approved",
+    "statusRejected": "Rejected",
+    "statusPublished": "Published"
   }
 }
