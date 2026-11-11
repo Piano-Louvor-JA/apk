@@ -152,9 +152,15 @@ jobs:
       - name: Baseline (staging)
         run: |
           cp scripts/test-regression.dart /tmp/test-regression.dart
+          # arquivos gerados pelo pub get (linux/flutter/*) bloqueiam o checkout
+          # staging — restaurar antes de trocar de branch (fix CI 11/11)
+          git checkout -- . || true
+          git clean -fd linux/flutter/ || true
           git checkout staging
           flutter pub get
           dart run /tmp/test-regression.dart --baseline
+          git checkout -- . || true
+          git clean -fd linux/flutter/ || true
           git checkout "${{ github.head_ref }}"
 
       - name: Compare (PR branch)
