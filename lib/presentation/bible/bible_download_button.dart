@@ -1,6 +1,5 @@
 library;
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,12 +7,8 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
-import 'package:louvorja_piano_mobile/core/services/bible_download_service.dart';
-import 'package:louvorja_piano_mobile/data/datasources/local/catalog_cache.dart';
-import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.dart';
-import 'package:louvorja_piano_mobile/data/repositories/bible_repository_impl.dart';
+import 'package:louvorja_piano_mobile/presentation/bible/bible_download_controller.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bloc/bible_bloc.dart';
-import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
 /// Indica se uma versão da Bíblia já foi baixada completamente.
 class BibleVersionDownloadMark {
@@ -61,68 +56,24 @@ class BibleDownloadButton extends StatefulWidget {
 }
 
 class _BibleDownloadButtonState extends State<BibleDownloadButton> {
-  bool _downloading = false;
-  int _done = 0;
-  int _total = 0;
-  int? _downloadedVersion;
+  final _download = BibleDownloadController.instance;
+  int? _lastRunning;
 
   @override
   void initState() {
     super.initState();
     BibleVersionDownloadMark.warmUp();
+    _download.addListener(_onDownload);
   }
 
-  Future<void> _start(BibleState state) async {
-    if (_downloading || state is! BibleLoaded) return;
-    final versionId = state.selectedVersionId;
-    final books = state.books;
+  void _onDownload() {
+    if (mounted) setState(() {});
+  }
 
-    setState(() => _downloading = true);
-    try {
-      final api = LouvorjaApiImpl(
-        baseUrls: ApiConfig.databaseUrls(),
-        filesUrls: ApiConfig.filesUrls(),
-        apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
-      );
-      final dir = await getApplicationDocumentsDirectory();
-      final repo = BibleRepositoryImpl(api, CatalogCache(dir));
-
-      final svc = BibleDownloadService(repo);
-      final (ok, failed) = await svc.downloadVersion(
-        versionId: versionId,
-        books: books,
-        onProgress: (d, t) {
-          if (mounted)
-            setState(() {
-              _done = d;
-              _total = t;
-            });
-        },
-      );
-      // Marca a versão como baixada: offline o dropdown mostra só as que
-      // têm conteúdo no disco; o botão vira check (pedido Rafael 2026-08-16).
-      if (ok > 0) {
-        await BibleVersionDownloadMark.markDownloaded(versionId);
-        if (mounted) setState(() => _downloadedVersion = versionId);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '$ok capítulos disponíveis offline${failed > 0 ? ' ($failed falhas)' : ''}',
-            ),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('errors.connection'.tr())));
-      }
-    } finally {
-      if (mounted) setState(() => _downloading = false);
-    }
+  void _start(BibleState state) {
+    if (_download.running || state is! BibleLoaded) return;
+    _lastRunning = state.selectedVersionId;
+    _download.start(versionId: state.selectedVersionId, books: state.books);
   }
 
   @override
@@ -132,21 +83,26 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
     final currentVersion = state is BibleLoaded
         ? state.selectedVersionId
         : null;
-    final downloaded = _downloadedVersion != null
-        ? _downloadedVersion == currentVersion
-        : BibleVersionDownloadMark.isDownloaded(currentVersion ?? -1);
+    final downloading = _download.running;
+    final downloaded =
+        !downloading &&
+        (BibleVersionDownloadMark.isDownloaded(currentVersion ?? -1) ||
+            (_lastRunning != null && _lastRunning == currentVersion &&
+                BibleVersionDownloadMark.isDownloaded(_lastRunning!)));
 
     return IconButton(
       tooltip: downloaded
           ? 'Versão disponível offline'
           : 'Baixar Bíblia para offline',
-      icon: _downloading
+      icon: downloading
           ? SizedBox(
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                value: _total > 0 ? _done / _total : null,
+                value: _download.total > 0
+                    ? _download.done / _download.total
+                    : null,
                 color: theme.colorScheme.primary,
               ),
             )
@@ -157,7 +113,7 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
               color: theme.colorScheme.primary,
             )
           : const Icon(TablerIcons.cloudDownload),
-      onPressed: downloaded || _downloading
+      onPressed: downloaded || downloading
           ? null
           : () => _start(context.read<BibleBloc>().state),
     );
@@ -165,7 +121,8 @@ class _BibleDownloadButtonState extends State<BibleDownloadButton> {
 
   @override
   void dispose() {
-    // Progresso é best-effort; download segue no isolado do repo.
+    // O download continua no controller; só para de ouvir o progresso.
+    _download.removeListener(_onDownload);
     super.dispose();
   }
 }

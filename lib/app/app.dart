@@ -2,6 +2,7 @@ library;
 
 import 'dart:async';
 import '../core/services/remote/remote_session.dart';
+import '../presentation/bible/bible_download_controller.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
@@ -69,6 +70,7 @@ class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
 
     return MaterialApp.router(
       title: 'LouvorJA PIANO',
+      scaffoldMessengerKey: appScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(accent: accent),
       darkTheme: AppTheme.dark(accent: accent),
