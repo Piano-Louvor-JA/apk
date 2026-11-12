@@ -1,7 +1,17 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
+
+import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
+import 'package:louvorja_piano_mobile/core/services/hymn_catalog_provider.dart';
+import 'package:louvorja_piano_mobile/core/services/playlist_player.dart';
+import 'package:louvorja_piano_mobile/data/datasources/local/playlist_io.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/playlist_storage.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/album_detail_page.dart';
+import 'package:louvorja_piano_mobile/presentation/playlists/playlist_sheets.dart';
 
 /// Playlists: seleção de hinos do ACERVO, salva no dispositivo.
 /// Paridade com a /media do web (playlist-storage). DIFERENTE de
@@ -38,34 +48,90 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     }
   }
 
+  final _newName = TextEditingController();
+
+  @override
+  void dispose() {
+    _newName.dispose();
+    super.dispose();
+  }
+
+  /// Criação inline (paridade desktop: "Nome da nova playlist..." + Criar).
   Future<void> _create() async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nova playlist'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Nome',
-            helperText: 'Ex.: Culto de sábado',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Criar'),
-          ),
-        ],
+    final name = _newName.text.trim();
+    if (name.isEmpty) return;
+    await _storage.create(name);
+    _newName.clear();
+    if (mounted) FocusScope.of(context).unfocus();
+    _load();
+  }
+
+  void _toast(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// Exporta no formato do desktop (abre no app e vice-versa).
+  Future<void> _export() async {
+    final list = _playlists ?? const <Playlist>[];
+    if (list.isEmpty) {
+      _toast('Nenhuma playlist para exportar.');
+      return;
+    }
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    try {
+      final saved = await FilePicker.saveFile(
+        fileName: 'playlists-$today.json',
+        bytes: Uint8List.fromList(utf8.encode(PlaylistIo.encode(list))),
+      );
+      if (saved != null) _toast('Playlists exportadas.');
+    } catch (_) {
+      _toast('Não foi possível exportar as playlists.');
+    }
+  }
+
+  /// Importa e mescla por nome (igual ao desktop).
+  Future<void> _import() async {
+    final file = await FilePicker.pickFile(type: FileType.any);
+    if (file == null) return;
+    final String raw;
+    try {
+      raw = utf8.decode(await file.readAsBytes());
+    } catch (_) {
+      _toast('Arquivo de playlists inválido.');
+      return;
+    }
+    final imported = PlaylistIo.decode(raw);
+    if (imported == null) {
+      _toast('Arquivo de playlists inválido.');
+      return;
+    }
+    final (merged, newLists, tracks) = PlaylistIo.merge(
+      await _storage.list(),
+      imported,
+    );
+    await _storage.saveAll(merged);
+    final parts = [
+      if (newLists > 0) '$newLists playlist(s) nova(s)',
+      if (tracks > 0) '$tracks faixa(s) adicionada(s)',
+    ];
+    _toast(
+      parts.isEmpty ? 'Nada novo para importar.' : 'Importado: ${parts.join(', ')}.',
+    );
+    _load();
+  }
+
+  Future<void> _addMusic(Playlist playlist) async {
+    await showAddMusicSheet(context, playlist.id);
+    _load();
+  }
+
+  Future<void> _openDetail(Playlist playlist) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PlaylistDetailPage(playlistId: playlist.id),
       ),
     );
-    if (name == null || name.trim().isEmpty || !mounted) return;
-    await _storage.create(name);
     _load();
   }
 
@@ -97,10 +163,10 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Excluir "${playlist.name}"?'),
+        title: Text('Excluir playlist “${playlist.name}”?'),
         content: const Text(
-          'A playlist é só a seleção de hinos — os hinos do acervo não são '
-          'apagados.',
+          'A playlist será excluída. As músicas e os arquivos baixados '
+          'serão mantidos.',
         ),
         actions: [
           TextButton(
@@ -109,7 +175,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir'),
+            child: const Text('Excluir playlist'),
           ),
         ],
       ),
@@ -121,85 +187,193 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final list = _playlists;
     return Scaffold(
-      appBar: AppBar(title: const Text('Playlists')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _create,
-        icon: const Icon(Icons.add),
-        label: const Text('Nova playlist'),
+      appBar: AppBar(
+        title: const Text('Playlists'),
+        actions: [
+          IconButton(
+            key: const Key('playlists-import'),
+            icon: const Icon(TablerIcons.upload),
+            tooltip: 'Importar playlists',
+            onPressed: _import,
+          ),
+          IconButton(
+            key: const Key('playlists-export'),
+            icon: const Icon(TablerIcons.download),
+            tooltip: 'Exportar playlists',
+            onPressed: _export,
+          ),
+        ],
       ),
-      body: _playlists == null && _error == null
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(_error!, textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: _load,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Tentar novamente'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : _playlists!.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.queue_music, size: 48),
-                    SizedBox(height: 12),
-                    Text(
-                      'Nenhuma playlist ainda.\n\n'
-                      'Playlist é a sua seleção de hinos do acervo — '
-                      'diferente das coletâneas da comunidade.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: _playlists!.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final p = _playlists![index];
-                return Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.queue_music),
-                    title: Text(p.name),
-                    subtitle: Text('${p.items.length} hinos'),
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PlaylistDetailPage(playlistId: p.id),
-                        ),
-                      );
-                      _load();
-                    },
-                    trailing: PopupMenuButton<String>(
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(value: 'rename', child: Text('Renomear')),
-                        PopupMenuItem(value: 'delete', child: Text('Excluir')),
-                      ],
-                      onSelected: (value) {
-                        if (value == 'rename') _rename(p);
-                        if (value == 'delete') _delete(p);
-                      },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const Key('playlists-new-name'),
+                    controller: _newName,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _create(),
+                    decoration: const InputDecoration(
+                      hintText: 'Nome da nova playlist...',
+                      border: OutlineInputBorder(),
+                      isDense: true,
                     ),
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  key: const Key('playlists-create'),
+                  onPressed: _create,
+                  icon: const Icon(TablerIcons.plus, size: 18),
+                  label: const Text('Criar'),
+                ),
+              ],
             ),
+          ),
+          Expanded(
+            child: list == null && _error == null
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_error!, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: _load,
+                          icon: const Icon(TablerIcons.refresh),
+                          label: const Text('Tentar novamente'),
+                        ),
+                      ],
+                    ),
+                  )
+                : list!.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(TablerIcons.playlist, size: 48),
+                          SizedBox(height: 12),
+                          Text(
+                            'Nenhuma playlist criada ainda.\n\n'
+                            'Playlist é a sua seleção de hinos do acervo — '
+                            'diferente das coletâneas da comunidade.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final p = list[index];
+                      final empty = p.items.isEmpty;
+                      return Card(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _openDetail(p),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 10, 4, 6),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.primary
+                                            .withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        TablerIcons.playlist,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            p.name,
+                                            style: theme.textTheme.titleMedium,
+                                          ),
+                                          Text(
+                                            '${p.items.length} faixa(s)',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(TablerIcons.chevronRight),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(TablerIcons.pencil),
+                                      tooltip: 'Renomear playlist',
+                                      onPressed: () => _rename(p),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(TablerIcons.plus),
+                                      tooltip: 'Adicionar músicas',
+                                      onPressed: () => _addMusic(p),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(TablerIcons.arrowsShuffle),
+                                      tooltip: 'Tocar aleatório',
+                                      onPressed: empty
+                                          ? null
+                                          : () => PlaylistPlayer.instance.play(
+                                              context,
+                                              p,
+                                              shuffle: true,
+                                            ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(TablerIcons.playerPlay),
+                                      tooltip: 'Tocar playlist',
+                                      onPressed: empty
+                                          ? null
+                                          : () => PlaylistPlayer.instance.play(
+                                              context,
+                                              p,
+                                            ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(TablerIcons.trash),
+                                      tooltip: 'Excluir playlist',
+                                      onPressed: () => _delete(p),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -233,6 +407,29 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   }
 
   Future<void> _removeItem(int index) async {
+    final item = _playlist?.items.elementAtOrNull(index);
+    if (item == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remover da playlist?'),
+        content: Text(
+          '“${item.title}” sai de “${_playlist!.name}”. A música e os '
+          'arquivos baixados continuam no acervo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     await _storage.removeItem(widget.playlistId, index);
     _load();
   }
@@ -241,7 +438,39 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   Widget build(BuildContext context) {
     final playlist = _playlist;
     return Scaffold(
-      appBar: AppBar(title: Text(playlist?.name ?? 'Playlist')),
+      appBar: AppBar(
+        title: Text(playlist?.name ?? 'Playlist'),
+        actions: playlist == null
+            ? null
+            : [
+                IconButton(
+                  icon: const Icon(TablerIcons.plus),
+                  tooltip: 'Adicionar músicas',
+                  onPressed: () async {
+                    await showAddMusicSheet(context, playlist.id);
+                    _load();
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(TablerIcons.arrowsShuffle),
+                  tooltip: 'Tocar aleatório',
+                  onPressed: playlist.items.isEmpty
+                      ? null
+                      : () => PlaylistPlayer.instance.play(
+                          context,
+                          playlist,
+                          shuffle: true,
+                        ),
+                ),
+                IconButton(
+                  icon: const Icon(TablerIcons.playerPlay),
+                  tooltip: 'Tocar playlist',
+                  onPressed: playlist.items.isEmpty
+                      ? null
+                      : () => PlaylistPlayer.instance.play(context, playlist),
+                ),
+              ],
+      ),
       body: playlist == null
           ? const Center(child: Text('Playlist não encontrada.'))
           : playlist.items.isEmpty
@@ -249,8 +478,8 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'Playlist vazia.\n\nAbra um hino do acervo e use '
-                  '"Adicionar à playlist".',
+                  'Playlist vazia.\n\nToque em + para buscar músicas, ou use '
+                  'o ícone de playlist nos resultados da busca de Hinos.',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -273,27 +502,89 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                 final item = playlist.items[index];
                 return ListTile(
                   key: ValueKey('${item.musicId}-${item.albumId}-$index'),
-                  leading: Text('${index + 1}'),
-                  title: Text(item.title),
-                  subtitle: item.albumId == null
-                      ? null
-                      : Text('Álbum ${item.albumId}'),
-                  onTap: () {
-                    if (item.albumId == null) return;
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AlbumDetailPage(albumId: item.albumId!),
+                  leading: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        child: Text(
+                          '${index + 1}',
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                    );
-                  },
-                  trailing: IconButton(
-                    icon: const Icon(Icons.remove_circle_outline),
-                    tooltip: 'Remover da playlist',
-                    onPressed: () => _removeItem(index),
+                      const SizedBox(width: 8),
+                      _ItemCover(albumId: item.albumId),
+                    ],
+                  ),
+                  title: Text(item.title),
+                  // Toque toca a playlist a partir desta faixa.
+                  onTap: () => PlaylistPlayer.instance.play(
+                    context,
+                    playlist,
+                    startAt: index,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(TablerIcons.x),
+                        tooltip: 'Remover da playlist',
+                        onPressed: () => _removeItem(index),
+                      ),
+                      const Icon(TablerIcons.gripVertical, size: 18),
+                    ],
                   ),
                 );
               },
             ),
     );
+  }
+}
+
+/// Capinha da coletânea da faixa (mesma capa usada no álbum e na busca).
+class _ItemCover extends StatelessWidget {
+  final int? albumId;
+
+  const _ItemCover({required this.albumId});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const size = 40.0;
+    final placeholder = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        TablerIcons.music,
+        size: 18,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+    final id = albumId;
+    final cover = id == null ? null : hymnCatalogProvider.albumCoverById(id);
+    if (cover == null || cover.isEmpty) return placeholder;
+    final Widget image = cover.startsWith('asset:')
+        ? Image.asset(
+            cover.substring('asset:'.length),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => placeholder,
+          )
+        // coverage:ignore-start
+        : CachedNetworkImage(
+            imageUrl: DownloadUrlBuilder.build(cover),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            placeholder: (_, _) => placeholder,
+            errorWidget: (_, _, _) => placeholder,
+          );
+    // coverage:ignore-end
+    return ClipRRect(borderRadius: BorderRadius.circular(6), child: image);
   }
 }

@@ -1,5 +1,6 @@
 library;
 
+import 'package:louvorja_piano_mobile/core/services/music_search.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/catalog_cache.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
@@ -148,12 +149,7 @@ class HymnRepositoryImpl implements HymnRepository {
   @override
   Future<List<Hymn>> searchHymns(String query) async {
     final hymns = await _api.fetchMusicIndex();
-    final q = query.toLowerCase().trim();
-    return hymns.where((h) {
-      final title = (h.title ?? '').toLowerCase();
-      final number = h.number?.toString() ?? '';
-      return title.contains(q) || number.contains(q);
-    }).toList();
+    return MusicSearch.search(hymns, query);
   }
 
   @override
