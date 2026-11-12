@@ -9,6 +9,7 @@ import '../../../../core/services/dlna/stage_session.dart';
 import '../../../../core/services/palco/palco_controller.dart'
     show PalcoAudioRoute;
 import 'dart:async';
+import 'package:louvorja_piano_mobile/core/utils/media_image_url.dart';
 
 import '../../tools/monitor_share_link.dart';
 
@@ -313,7 +314,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
 
   Future<String?> _resolveBg(String img) async {
     if (!img.startsWith('asset:')) {
-      return '${ApiConfig.urlFiles}/$img'.replaceAll('//images', '/images');
+      return MediaImageUrl.resolve(img, ApiConfig.urlFiles);
     }
     try {
       final assetPath = img.substring('asset:'.length);
@@ -362,7 +363,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
     if (img != null && img.isNotEmpty) {
       bg = img.startsWith('asset:')
           ? img
-          : '${ApiConfig.urlFiles}/$img'.replaceAll('//images', '/images');
+          : MediaImageUrl.resolve(img, ApiConfig.urlFiles);
     }
     return GestureDetector(
       key: const Key('miniplayer-preview'),

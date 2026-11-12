@@ -65,3 +65,14 @@ de staging como substituto para os gates de push/main.
 - Desktop: **10.738 testes aprovados, 1 ignorado e 19 falhas anteriores**,
   conforme a reprodução descrita acima. Build aprovado.
 - Electron nativo e APK no emulador ficam abertos na Liturgia com API local.
+
+## Correção de fundos das músicas
+
+Áudio já baixado agora recupera e guarda o detalhe completo da música (capa e
+slides), mantendo o fallback de reprodução quando o catálogo está indisponível.
+URLs absolutas de imagem não recebem mais o prefixo da API. A resolução é
+compartilhada pela tela cheia, miniplayer e envio de fundo para a TV.
+
+Validação: 1.794 testes aprovados e 2 ignorados; análise sem erros/warnings
+bloqueantes; APK debug gerado e instalado. Tu És Digno foi conferida no emulador
+com fundo na tela cheia e na prévia, preservando o áudio local.

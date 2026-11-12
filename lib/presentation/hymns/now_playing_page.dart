@@ -1,6 +1,7 @@
 library;
 
 import 'dart:async';
+import 'package:louvorja_piano_mobile/core/utils/media_image_url.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -272,7 +273,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     }
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
     // Caminho relativo da API (coletâneas): resolve pro endpoint de files.
-    return '${widget.filesUrl}/$raw';
+    return MediaImageUrl.resolve(raw, widget.filesUrl);
   }
 
   /// F3.3g: posição corrente do player local (para sincronizar a TV no
@@ -488,7 +489,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     if (img == null || img.isEmpty) return null;
     // asset: (capa de hinario local) — devolve cru, o chamador trata.
     if (img.startsWith('asset:')) return img;
-    return '${widget.filesUrl}/$img'.replaceAll('//images', '/images');
+    return MediaImageUrl.resolve(img, widget.filesUrl);
   }
 
   /// Sheet de "Adicionar à playlist": lista playlists existentes + criar

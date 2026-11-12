@@ -30,9 +30,15 @@ abstract final class LiturgyPlayback {
       offline: offline,
     );
     if (local != null) {
-      final detail =
-          catalog.cachedMusic(id) ??
-          Hymn(id: id, title: item.name, durationMs: item.durationMs);
+      var detail = catalog.cachedMusic(id);
+      if (detail == null) {
+        try {
+          detail = await catalog.music(id).timeout(const Duration(seconds: 3));
+        } catch (_) {
+          /* O áudio baixado continua disponível mesmo sem o catálogo. */
+        }
+      }
+      detail ??= Hymn(id: id, title: item.name, durationMs: item.durationMs);
       return LiturgyMusicPlayback(detail: detail, source: local, isLocal: true);
     }
     final detail = await catalog.music(id);

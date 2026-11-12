@@ -15,11 +15,57 @@ class Offline extends Mock implements OfflineMusicPort {}
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
-    'arquivo local toca sem buscar metadados e preserva modo instrumental',
+    'áudio offline conserva capa e slides ao obter o detalhe completo',
     () async {
       SharedPreferences.setMockInitialValues({});
       final api = Api();
       final offline = Offline();
+      when(() => offline.isSupported).thenReturn(true);
+      when(
+        () => offline.localPathFor(42, instrumental: false),
+      ).thenAnswer((_) async => '/offline/42.mp3');
+      when(() => api.fetchMusic(42)).thenAnswer(
+        (_) async => const Hymn(
+          id: 42,
+          title: 'Tu És Digno',
+          imageUrl: 'images/capa.jpg',
+          lyricRaw: [
+            {
+              'lyric': 'Tu és digno',
+              'url_image': 'images/fundo.jpg',
+              'show_slide': 1,
+              'order': 1,
+            },
+          ],
+        ),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final result = await LiturgyPlayback.resolve(
+        const LiturgyItem(
+          id: 'm',
+          type: LiturgyItemType.music,
+          name: 'Tu És Digno',
+          musicId: 42,
+        ),
+        catalog: LiturgyCatalogRepository(prefs, api),
+        offline: offline,
+      );
+      expect(result.source, '/offline/42.mp3');
+      expect(result.isLocal, isTrue);
+      expect(result.detail.imageUrl, 'images/capa.jpg');
+      expect(result.detail.lyricRaw!.single['url_image'], 'images/fundo.jpg');
+      final cached = LiturgyCatalogRepository(prefs, Api()).cachedMusic(42)!;
+      expect(cached.imageUrl, 'images/capa.jpg');
+      expect(cached.lyricRaw, isNotEmpty);
+    },
+  );
+  test(
+    'arquivo local continua tocando quando os metadados estão indisponíveis',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final api = Api();
+      final offline = Offline();
+      when(() => api.fetchMusic(42)).thenThrow(StateError('offline'));
       when(() => offline.isSupported).thenReturn(true);
       when(
         () => offline.localPathFor(42, instrumental: true),
@@ -41,7 +87,7 @@ void main() {
       expect(result.source, '/offline/42i.mp3');
       expect(result.isLocal, isTrue);
       expect(result.detail.title, 'Hino');
-      verifyNever(() => api.fetchMusic(42));
+      verify(() => api.fetchMusic(42)).called(1);
     },
   );
   test('stream seleciona a URL do modo explícito do item', () async {
