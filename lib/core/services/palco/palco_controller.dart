@@ -26,6 +26,7 @@ class PalcoController extends ChangeNotifier {
   PalcoController({PalcoSender? sender}) : _sender = sender ?? PalcoSender();
   final PalcoSender _sender;
   StreamSubscription<PalcoMessage>? _eventsSub;
+  StreamSubscription<void>? _clientsSub;
 
   /// Porta WS efetiva do sender (efêmera em teste).
   int get wsPort => _sender.effectiveWsPort;
@@ -39,6 +40,28 @@ class PalcoController extends ChangeNotifier {
   /// F3.3x: IP da TV conectada (visto pelo socket WS no momento do connect).
   String? get receiverIp => _sender.receiverIp;
   int get clientCount => _sender.clientCount;
+  List<PalcoClientInfo> get clients => _sender.clients;
+
+  /// Comandos para um palco específico (receivers com hello, v0.3.1+).
+  bool identifyClient(PalcoClientInfo c, {required String slotLabel}) =>
+      _sender.sendToClient(
+        c,
+        PalcoMessage(
+          type: 'identify',
+          fields: {'name': c.name, 'slotLabel': slotLabel},
+        ),
+      );
+  bool renameClient(PalcoClientInfo c, String name) =>
+      _sender.renameClient(c, name);
+  void applyMute(PalcoClientInfo c) => _sender.applyMute(c);
+  bool reloadClient(PalcoClientInfo c) =>
+      _sender.sendToClient(c, PalcoMessage(type: 'reload'));
+
+  /// Manda a TV conectar em outra transmissão (mesmo celular, outra porta).
+  bool moveClient(PalcoClientInfo c, int wsPort) => _sender.sendToClient(
+    c,
+    PalcoMessage(type: 'moveTo', fields: {'port': wsPort}),
+  );
 
   /// Eventos receiver→sender expostos (unlocked, ended, remote-key...).
   Stream<PalcoMessage> get events => _sender.events;
@@ -58,6 +81,9 @@ class PalcoController extends ChangeNotifier {
       _handleRemoteEvent(m);
       notifyListeners();
     }, onError: (_) {});
+    // Receiver entrou/saiu/se identificou: atualiza a lista do módulo Palco.
+    _clientsSub?.cancel();
+    _clientsSub = _sender.rolesChanged.listen((_) => notifyListeners());
     debugPrint('[PALCO] conectado (sender ativo, TV=$tv.ip)');
     notifyListeners();
     return true;
@@ -66,6 +92,8 @@ class PalcoController extends ChangeNotifier {
   Future<void> disconnect() async {
     await _eventsSub?.cancel();
     _eventsSub = null;
+    await _clientsSub?.cancel();
+    _clientsSub = null;
     await _sender.stop();
     _httpBase = null;
     target = null;

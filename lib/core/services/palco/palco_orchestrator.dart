@@ -32,6 +32,7 @@ class PalcoOrchestrator extends ChangeNotifier {
   static const _activeKey = 'palco.multi.active.v1';
   static const _mutedKey = 'palco.multi.muted.v1';
   static const _hideLogoKey = 'palco.idle.hideLogo.v1';
+  static const _mutedTvsKey = 'palco.tv.muted.v1';
 
   /// Tela de espera das conexões sem o logo LouvorJA.
   bool get hideIdleLogo => PalcoSender.hideIdleLogo;
@@ -56,6 +57,25 @@ class PalcoOrchestrator extends ChangeNotifier {
     notifyListeners();
     final prefs = await _prefs();
     await prefs?.setStringList(_mutedKey, _muted.toList());
+  }
+
+  /// TVs desmarcadas no Palco: continuam conectadas, mas na tela de espera.
+  bool isTvMuted(PalcoClientInfo c) =>
+      PalcoSender.mutedTvs.contains(PalcoSender.muteKey(c));
+
+  Future<void> setTvMuted(PalcoClientInfo c, bool muted) async {
+    final key = PalcoSender.muteKey(c);
+    if (muted
+        ? !PalcoSender.mutedTvs.add(key)
+        : !PalcoSender.mutedTvs.remove(key)) {
+      return;
+    }
+    for (final s in _slots.values) {
+      if (s.controller.isRunning) s.controller.applyMute(c);
+    }
+    notifyListeners();
+    final prefs = await _prefs();
+    await prefs?.setStringList(_mutedTvsKey, PalcoSender.mutedTvs.toList());
   }
 
   /// Conexões no ar, com TV/navegador ligado e marcadas: recebem a projeção
@@ -87,6 +107,9 @@ class PalcoOrchestrator extends ChangeNotifier {
       }
     }
     PalcoSender.hideIdleLogo = prefs.getBool(_hideLogoKey) ?? false;
+    PalcoSender.mutedTvs
+      ..clear()
+      ..addAll(prefs.getStringList(_mutedTvsKey) ?? const []);
     _muted
       ..clear()
       ..addAll(prefs.getStringList(_mutedKey) ?? const []);
