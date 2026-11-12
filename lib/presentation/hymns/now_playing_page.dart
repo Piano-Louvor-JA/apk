@@ -37,6 +37,10 @@ import '../shared/widgets/player_timeline.dart';
 /// - toque/seta = goToSlide → seek do áudio (bidirecional)
 /// - modos: cantado / instrumental (se houver) / sem áudio
 class NowPlayingPage extends StatefulWidget {
+  /// Telas cheias abertas: enquanto houver uma, ela projeta a letra e o
+  /// miniplayer não (evita mandar o mesmo trecho duas vezes ao palco).
+  static int openCount = 0;
+
   final Hymn detail;
   final bool instrumental;
 
@@ -111,6 +115,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   @override
   void initState() {
     super.initState();
+    NowPlayingPage.openCount += 1;
     _slides = LyricSlides.fromApi(
       musicName: widget.detail.title ?? '',
       coverUrl: widget.detail.imageUrl,
@@ -188,6 +193,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   @override
   void dispose() {
+    NowPlayingPage.openCount -= 1;
     PipController.setEnabled(false);
     // SPEC 13 (apk#132): NÃO dar MediaSession.release() aqui — os botões
     // NATIVOS do PiP (RemoteActions) e da notificação disparam broadcasts
@@ -339,6 +345,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       footer: widget.detail.title,
       background: bg,
       module: 'hymns',
+      isCover: _index == 0,
     );
     if (!ok && mounted) {
       ScaffoldMessenger.of(
