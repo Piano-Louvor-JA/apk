@@ -174,8 +174,14 @@ class PalcoController extends ChangeNotifier {
 
   /// Retorno de palco (/retorno, paridade desktop): trecho atual, próximo
   /// e andamento — o receiver em modo retorno mostra o próximo embaixo.
-  void sendStageReturn(Map<String, dynamic> fields) =>
-      _sender.send(PalcoMessage(type: 'stageReturn', version: 1, fields: fields));
+  void sendStageReturn(Map<String, dynamic> fields) => _sender.send(
+    PalcoMessage(type: 'stageReturn', version: 1, fields: fields),
+  );
+
+  /// Tela de espera com/sem logo.
+  void sendIdleStyle({required bool hideLogo}) => _sender.send(
+    PalcoMessage(type: 'idleStyle', fields: {'hideLogo': hideLogo}),
+  );
 
   void pauseAudio() => _sender.send(
     const PalcoMessage(type: 'audio', fields: {'action': 'pause'}),

@@ -65,6 +65,10 @@ class PalcoSender {
     '/appinfo.json': 'application/json',
   };
 
+  /// Tela de espera sem logo (opção global, painel do botão de TV):
+  /// reenviada a cada receiver que conecta.
+  static bool hideIdleLogo = false;
+
   static const int httpPort = 4980;
   static const int wsPort = 4981;
 
@@ -180,6 +184,16 @@ class PalcoSender {
                 );
               } catch (_) {}
             }
+            try {
+              ws.add(
+                jsonEncode(
+                  PalcoMessage(
+                    type: 'idleStyle',
+                    fields: {'hideLogo': hideIdleLogo},
+                  ).toJson(),
+                ),
+              );
+            } catch (_) {}
             ws.listen(
               (data) {
                 try {
@@ -341,7 +355,9 @@ class PalcoSender {
           final bytes = (await rootBundle.load(
             'assets/palco${path}',
           )).buffer.asUint8List();
-          res.headers.contentType = ContentType.parse(_receiverAssetTypes[path]!);
+          res.headers.contentType = ContentType.parse(
+            _receiverAssetTypes[path]!,
+          );
           res.headers.set('Access-Control-Allow-Origin', '*');
           res.add(bytes);
         } catch (_) {

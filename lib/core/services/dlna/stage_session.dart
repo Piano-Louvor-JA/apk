@@ -244,8 +244,12 @@ class StageSession extends ChangeNotifier {
   void rerouteCurrentAudio() {
     if (_currentAudioUrl == null) return;
     if (!_routesToTv) {
-      // voltou pra local: para na TV (player local segue por conta da UI)
-      _audioTarget().stopAudio();
+      // Áudio no celular: só silencia as conexões. 'stop' no receiver
+      // volta para "aguardando" e apagava a letra projetada (espelho
+      // sumia ao pausar/retomar no miniplayer).
+      for (final p in _allConnectedControllers()) {
+        p.pauseAudio();
+      }
       return;
     }
     var url = _currentAudioUrl!;
@@ -428,6 +432,7 @@ class StageSession extends ChangeNotifier {
     _videoOnStage = true;
     notifyListeners();
   }
+
   bool _stageVideoPaused = false;
   bool get isStageVideoPaused => _stageVideoPaused;
 
@@ -658,6 +663,10 @@ class StageSession extends ChangeNotifier {
   /// Controllers que recebem a projeção (multi-palco).
   List<PalcoController> _projectionTargets() {
     final orch = PalcoOrchestrator.instance;
+    // Várias conexões no ar: projeta em todas as marcadas no painel.
+    if (orch.usesMarks) {
+      return orch.projectionSlots.map((s) => s.controller).toList();
+    }
     if (orch.isMirrorMode) {
       final group = orch.mirrorGroup!;
       debugPrint(
@@ -727,7 +736,8 @@ class StageSession extends ChangeNotifier {
   }
 
   /// Volta ao idle (background aguardando mídia).
-  Future<void> clearContent() async {
+  /// [allConnections]: limpa também as conexões desmarcadas no painel.
+  Future<void> clearContent({bool allConnections = false}) async {
     _lastContent = null;
     if (!isOn) return;
     // F3.3p: limpa TAMBÉM sequência de slides/timer pendentes.
@@ -736,7 +746,12 @@ class StageSession extends ChangeNotifier {
     _palco?.stopTimer();
     if (isPalcoMode) {
       // Multi-palco: idle nos mesmos targets da projeção.
-      for (final p in _projectionTargets()) {
+      final targets = allConnections
+          ? PalcoOrchestrator.instance.slots
+                .map((s) => s.controller)
+                .where((c) => c.isConnected)
+          : _projectionTargets();
+      for (final p in targets) {
         p.projectIdle();
       }
       return;

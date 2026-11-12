@@ -215,7 +215,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage>
   int? _selectedHymnId;
 
   Future<void> _selectHymn(Hymn hymn) async {
-    if (_selectedHymnId == hymn.id || _playingHymnId == hymn.id) {
+    // Player fechado (faixa limpa): o toque volta a mostrar o player,
+    // mesmo que a linha ainda esteja marcada.
+    final inPlayer = nowPlaying.track?.hymnId == hymn.id;
+    if (inPlayer && (_selectedHymnId == hymn.id || _playingHymnId == hymn.id)) {
       // Já selecionado: o toque abre/fecha a letra, como antes.
       setState(
         () => _expandedHymnId = _expandedHymnId == hymn.id ? null : hymn.id,

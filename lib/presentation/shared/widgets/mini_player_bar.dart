@@ -126,7 +126,14 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
   Future<void> _stop() async {
     await widget.player.stop();
     widget.notifier.stop();
-    StageSession.instance.stopHymnAudio(); // espelha no Palco
+    final stage = StageSession.instance;
+    stage.stopHymnAudio(); // espelha no Palco
+    // Fechar o player encerra o que foi enviado: todas as conexões e
+    // monitores voltam para "aguardando" (antes ficavam no último slide).
+    projecting.value = false;
+    _endStageReturn();
+    await stage.clearContent(allConnections: true);
+    await MonitorShareSession.instance.setProjecting(false);
   }
 
   // Prévia da letra (paridade Controle Remoto): slide atual pelo tempo.
@@ -370,7 +377,10 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
             const ColoredBox(color: Colors.black),
             if (bg != null)
               bg.startsWith('asset:')
-                  ? Image.asset(bg.substring('asset:'.length), fit: BoxFit.cover)
+                  ? Image.asset(
+                      bg.substring('asset:'.length),
+                      fit: BoxFit.cover,
+                    )
                   // coverage:ignore-start
                   : CachedNetworkImage(
                       imageUrl: bg,
@@ -381,7 +391,10 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
             const ColoredBox(color: Colors.black54),
             Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 child: Text(
                   slide.text,
                   textAlign: TextAlign.center,
@@ -632,7 +645,9 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
                     key: const Key('miniplayer-toggle'),
                     iconSize: 30,
                     icon: Icon(
-                      playing ? TablerIcons.playerPause : TablerIcons.playerPlay,
+                      playing
+                          ? TablerIcons.playerPause
+                          : TablerIcons.playerPlay,
                     ),
                     onPressed: _toggle,
                     tooltip: playing ? 'common.pause'.tr() : 'common.play'.tr(),
@@ -741,7 +756,12 @@ class _PulsingArrowState extends State<_PulsingArrow>
     super.dispose();
   }
 
-  static const _bold = [Offset(0.5, 0), Offset(-0.5, 0), Offset(0, 0.5), Offset(0, -0.5)];
+  static const _bold = [
+    Offset(0.5, 0),
+    Offset(-0.5, 0),
+    Offset(0, 0.5),
+    Offset(0, -0.5),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -759,7 +779,9 @@ class _PulsingArrowState extends State<_PulsingArrow>
     return ScaleTransition(
       scale: _scale,
       child: IconButton(
-        tooltip: widget.projecting ? 'Parar projeção' : 'Projetar nos selecionados',
+        tooltip: widget.projecting
+            ? 'Parar projeção'
+            : 'Projetar nos selecionados',
         style: widget.projecting
             ? IconButton.styleFrom(backgroundColor: primary)
             : IconButton.styleFrom(

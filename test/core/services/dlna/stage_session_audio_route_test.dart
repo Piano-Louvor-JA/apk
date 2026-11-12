@@ -136,20 +136,23 @@ void main() {
   }
 
   group('StageSession — getters em modo palco', () {
-    test('isOn/isPalcoMode/rendererName/receiverRoles/playerState/ip', () async {
-      final (stage, rx) = await onCov();
-      addTearDown(() async {
-        await rx.close();
-        await stage.turnOff();
-      });
+    test(
+      'isOn/isPalcoMode/rendererName/receiverRoles/playerState/ip',
+      () async {
+        final (stage, rx) = await onCov();
+        addTearDown(() async {
+          await rx.close();
+          await stage.turnOff();
+        });
 
-      expect(stage.isOn, isTrue);
-      expect(stage.isPalcoMode, isTrue);
-      expect(stage.rendererName, 'TV teste');
-      expect(stage.receiverRoles, isA<Map<String, int>>());
-      expect(stage.remotePlayerState, isA<Map<String, dynamic>>());
-      expect(stage.receiverIp, '127.0.0.1');
-    });
+        expect(stage.isOn, isTrue);
+        expect(stage.isPalcoMode, isTrue);
+        expect(stage.rendererName, 'TV teste');
+        expect(stage.receiverRoles, isA<Map<String, int>>());
+        expect(stage.remotePlayerState, isA<Map<String, dynamic>>());
+        expect(stage.receiverIp, '127.0.0.1');
+      },
+    );
 
     test('getters com palco desligado voltam ao default', () async {
       final stage = StageSession.instance;
@@ -216,10 +219,16 @@ void main() {
       await stage.project(title: 'a', body: 'b');
       await Future<void>.delayed(const Duration(milliseconds: 150));
 
-      rx.send({'type': 'remote-key', 'fields': {'key': 'right'}});
+      rx.send({
+        'type': 'remote-key',
+        'fields': {'key': 'right'},
+      });
       await Future<void>.delayed(const Duration(milliseconds: 150));
 
-      rx.send({'type': 'ended', 'fields': {'media': 'video'}});
+      rx.send({
+        'type': 'ended',
+        'fields': {'media': 'video'},
+      });
       await Future<void>.delayed(const Duration(milliseconds: 150));
       expect(stage.isVideoOnStage, isFalse);
 
@@ -235,11 +244,7 @@ void main() {
         await stage.turnOff();
       });
 
-      await stage.startTimer(
-        duration: 90,
-        mode: 'countdown',
-        label: 'Culto',
-      );
+      await stage.startTimer(duration: 90, mode: 'countdown', label: 'Culto');
       await Future<void>.delayed(const Duration(milliseconds: 250));
       expect(rx.received.any((m) => m['type'] == 'timer'), isTrue);
       stage.stopTimerStage();
@@ -262,18 +267,75 @@ void main() {
       await stage.turnOff();
 
       final png = [
-        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00,
-        0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-        0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89,
-        0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63,
-        0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4,
-        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60,
+        0x89,
+        0x50,
+        0x4E,
+        0x47,
+        0x0D,
+        0x0A,
+        0x1A,
+        0x0A,
+        0x00,
+        0x00,
+        0x00,
+        0x0D,
+        0x49,
+        0x48,
+        0x44,
+        0x52,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x08,
+        0x06,
+        0x00,
+        0x00,
+        0x00,
+        0x1F,
+        0x15,
+        0xC4,
+        0x89,
+        0x00,
+        0x00,
+        0x00,
+        0x0D,
+        0x49,
+        0x44,
+        0x41,
+        0x54,
+        0x78,
+        0x9C,
+        0x63,
+        0x00,
+        0x01,
+        0x00,
+        0x00,
+        0x05,
+        0x00,
+        0x01,
+        0x0D,
+        0x0A,
+        0x2D,
+        0xB4,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x49,
+        0x45,
+        0x4E,
+        0x44,
+        0xAE,
+        0x42,
+        0x60,
         0x82,
       ];
-      await stage.setBackgroundBytes(
-        Uint8List.fromList(png),
-        scope: 'hymns',
-      );
+      await stage.setBackgroundBytes(Uint8List.fromList(png), scope: 'hymns');
 
       final loaded = await StageSettingsRepository(
         scope: 'hymns',
@@ -284,152 +346,171 @@ void main() {
   });
 
   group('StageSession — ramos extras (bible/slides/reroute/refresh)', () {
-  test('project isBible com footerVersion envia tipografia própria', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
-    });
+    test(
+      'project isBible com footerVersion envia tipografia própria',
+      () async {
+        final (stage, _, rx) = await setUpPalco();
+        addTearDown(() async {
+          await rx.close();
+          await stage.turnOff();
+        });
 
-    final ok = await stage.project(
-      title: 'João 3:16',
-      body: 'Porque Deus amou o mundo',
-      footer: 'João 3',
-      footerVersion: 'ARA',
-      footerRef: 'NT',
-      isBible: true,
-      module: 'bible',
+        final ok = await stage.project(
+          title: 'João 3:16',
+          body: 'Porque Deus amou o mundo',
+          footer: 'João 3',
+          footerVersion: 'ARA',
+          footerRef: 'NT',
+          isBible: true,
+          module: 'bible',
+        );
+        expect(ok, isTrue);
+
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        final proj = rx.received.lastWhere((m) => m['type'] == 'projection');
+        expect(proj['text'] as String, contains('João 3:16'));
+      },
     );
-    expect(ok, isTrue);
+    test('remote-key left/right navega slides sem lançar', () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
 
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    final proj = rx.received.lastWhere((m) => m['type'] == 'projection');
-    expect(proj['text'] as String, contains('João 3:16'));
-  });
-  test('remote-key left/right navega slides sem lançar', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
+      rx.send({
+        'type': 'remote-key',
+        'fields': {'key': 'right'},
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      rx.send({
+        'type': 'remote-key',
+        'fields': {'key': 'left'},
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+
+      expect(stage.isVideoOnStage, isFalse);
     });
-
-    rx.send({'type': 'remote-key', 'fields': {'key': 'right'}});
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-    rx.send({'type': 'remote-key', 'fields': {'key': 'left'}});
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-
-    expect(stage.isVideoOnStage, isFalse);
-  });
-  test('stopSlides e stopTimerStage em palco ligado (no-op seguros)', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
-    });
-
-    stage.stopSlides();
-    stage.stopTimerStage();
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-    expect(stage.isOn, isTrue);
-  });
-  test('rerouteCurrentAudio / pause/stop/seek de áudio não lançam', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
-    });
-
-    stage.rerouteCurrentAudio();
-    stage.pauseHymnAudio();
-    stage.seekHymnAudio(const Duration(seconds: 5));
-    stage.stopHymnAudio();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    expect(stage.isOn, isTrue);
-  });
-  test('refresh recarrega settings e reprojeta sem lançar', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
-    });
-
-    await stage.refresh();
-    expect(stage.isOn, isTrue);
-  });
-  test('checkTvNeedsPalcoOpen sem alvo retorna null/false rápido', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
-    });
-
-    final r = await stage.checkTvNeedsPalcoOpen();
-    expect(r, anyOf(isNull, isA<bool>(), isA<Map<String, dynamic>>()));
-  });
-  test('projectPptxSlides com arquivo inexistente retorna 0 sem lançar',
+    test(
+      'stopSlides e stopTimerStage em palco ligado (no-op seguros)',
       () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
-    });
+        final (stage, _, rx) = await setUpPalco();
+        addTearDown(() async {
+          await rx.close();
+          await stage.turnOff();
+        });
 
-    expect(stage.projectPptxSlides('/tmp/nao_existe_slide.pptx'), 0);
-  });
-  test('navigateSlides sem sequência carregada retorna false', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
-    });
+        stage.stopSlides();
+        stage.stopTimerStage();
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        expect(stage.isOn, isTrue);
+      },
+    );
+    test('rerouteCurrentAudio / pause/stop/seek de áudio não lançam', () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
 
-    expect(stage.navigateSlides('next'), isFalse);
-    expect(stage.navigateSlides('prev'), isFalse);
-    expect(stage.navigateSlides('outro'), isFalse);
-  });
-  test('playVideoOnStage com URL externa projeta e ended volta ao idle',
+      stage.rerouteCurrentAudio();
+      stage.pauseHymnAudio();
+      stage.seekHymnAudio(const Duration(seconds: 5));
+      stage.stopHymnAudio();
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(stage.isOn, isTrue);
+    });
+    test('refresh recarrega settings e reprojeta sem lançar', () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      await stage.refresh();
+      expect(stage.isOn, isTrue);
+    });
+    test('checkTvNeedsPalcoOpen sem alvo retorna null/false rápido', () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      final r = await stage.checkTvNeedsPalcoOpen();
+      expect(r, anyOf(isNull, isA<bool>(), isA<Map<String, dynamic>>()));
+    });
+    test(
+      'projectPptxSlides com arquivo inexistente retorna 0 sem lançar',
       () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
-      await stage.turnOff();
+        final (stage, _, rx) = await setUpPalco();
+        addTearDown(() async {
+          await rx.close();
+          await stage.turnOff();
+        });
+
+        expect(stage.projectPptxSlides('/tmp/nao_existe_slide.pptx'), 0);
+      },
+    );
+    test('navigateSlides sem sequência carregada retorna false', () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+
+      expect(stage.navigateSlides('next'), isFalse);
+      expect(stage.navigateSlides('prev'), isFalse);
+      expect(stage.navigateSlides('outro'), isFalse);
     });
+    test(
+      'playVideoOnStage com URL externa projeta e ended volta ao idle',
+      () async {
+        final (stage, _, rx) = await setUpPalco();
+        addTearDown(() async {
+          await rx.close();
+          await stage.turnOff();
+        });
 
-    expect(stage.playVideoOnStage('https://x/video.mp4'), isTrue);
-    expect(stage.isVideoOnStage, isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+        expect(stage.playVideoOnStage('https://x/video.mp4'), isTrue);
+        expect(stage.isVideoOnStage, isTrue);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
 
-    stage.toggleStageVideoPause();
-    stage.stopVideoOnStage();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    expect(stage.isVideoOnStage, isFalse);
-    expect(stage.isStageVideoPaused, anyOf(isTrue, isFalse));
-  });
-  test('playVideoOnStage com palco desligado retorna false', () async {
-    final stage = StageSession.instance;
-    await stage.turnOff();
-    expect(stage.playVideoOnStage('https://x/v.mp4'), isFalse);
-  });
-  test('audioRoute setter duplicado e mudanças não lançam', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async {
-      await rx.close();
+        stage.toggleStageVideoPause();
+        stage.stopVideoOnStage();
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        expect(stage.isVideoOnStage, isFalse);
+        expect(stage.isStageVideoPaused, anyOf(isTrue, isFalse));
+      },
+    );
+    test('playVideoOnStage com palco desligado retorna false', () async {
+      final stage = StageSession.instance;
       await stage.turnOff();
+      expect(stage.playVideoOnStage('https://x/v.mp4'), isFalse);
     });
+    test('audioRoute setter duplicado e mudanças não lançam', () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
 
-    stage.audioRoute = PalcoAudioRoute.tv;
-    final before = stage.audioRoute;
-    stage.audioRoute = PalcoAudioRoute.tv; // igual: no-op
-    expect(stage.audioRoute, before);
-    stage.audioRoute = PalcoAudioRoute.mirror;
-    expect(stage.audioRoute, PalcoAudioRoute.mirror);
-  });
+      stage.audioRoute = PalcoAudioRoute.tv;
+      final before = stage.audioRoute;
+      stage.audioRoute = PalcoAudioRoute.tv; // igual: no-op
+      expect(stage.audioRoute, before);
+      stage.audioRoute = PalcoAudioRoute.mirror;
+      expect(stage.audioRoute, PalcoAudioRoute.mirror);
+    });
   });
 
   // ===== Onda 76: mídia LOCAL servida + reroute + background =====
   test('playHymnAudio arquivo local existente: serve via /media', () async {
     final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+    addTearDown(() async {
+      await rx.close();
+      await stage.turnOff();
+    });
 
     final f = File('${_tmpCov!.path}/hino_local.mp3');
     await f.writeAsBytes(List.filled(64, 7));
@@ -443,60 +524,143 @@ void main() {
     expect(play['url'].toString(), contains('hymn_hino_local.mp3'));
   });
 
-  test('playHymnAudio arquivo local INEXISTENTE: segue com URL original', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+  test(
+    'playHymnAudio arquivo local INEXISTENTE: segue com URL original',
+    () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
 
-    stage.audioRoute = PalcoAudioRoute.tv;
-    final route = stage.playHymnAudio('/tmp/nao_existe_76.mp3');
-    expect(route, PalcoAudioRoute.tv);
+      stage.audioRoute = PalcoAudioRoute.tv;
+      final route = stage.playHymnAudio('/tmp/nao_existe_76.mp3');
+      expect(route, PalcoAudioRoute.tv);
 
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    final play = rx.received.lastWhere((m) => m['type'] == 'audio');
-    expect(play['url'], '/tmp/nao_existe_76.mp3');
-  });
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      final play = rx.received.lastWhere((m) => m['type'] == 'audio');
+      expect(play['url'], '/tmp/nao_existe_76.mp3');
+    },
+  );
 
-  test('rerouteCurrentAudio: local → tv re-envia servido; tv → local para', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+  test(
+    'rerouteCurrentAudio: local → tv re-envia servido; tv → local pausa',
+    () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
 
-    final f = File('${_tmpCov!.path}/reroute.mp3');
-    await f.writeAsBytes(List.filled(32, 9));
+      final f = File('${_tmpCov!.path}/reroute.mp3');
+      await f.writeAsBytes(List.filled(32, 9));
 
-    stage.audioRoute = PalcoAudioRoute.local;
-    stage.playHymnAudio(f.path, title: 'R');
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+      stage.audioRoute = PalcoAudioRoute.local;
+      stage.playHymnAudio(f.path, title: 'R');
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-    stage.audioRoute = PalcoAudioRoute.tv;
-    stage.rerouteCurrentAudio();
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final play = rx.received.lastWhere((m) => m['type'] == 'audio');
-    expect(play['url'].toString(), contains('hymn_reroute.mp3'));
+      stage.audioRoute = PalcoAudioRoute.tv;
+      stage.rerouteCurrentAudio();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      final play = rx.received.lastWhere((m) => m['type'] == 'audio');
+      expect(play['url'].toString(), contains('hymn_reroute.mp3'));
 
-    stage.audioRoute = PalcoAudioRoute.local;
-    stage.rerouteCurrentAudio();
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(rx.received.last['action'], 'stop');
-  });
+      stage.audioRoute = PalcoAudioRoute.local;
+      stage.rerouteCurrentAudio();
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(
+        rx.received.last['action'],
+        'pause',
+      ); // pausa: 'stop' apagava a letra no receiver
+    },
+  );
 
-  test('setBackgroundFromFile persiste e serve bgPalco no palco ligado', () async {
-    final (stage, _, rx) = await setUpPalco();
-    addTearDown(() async { await rx.close(); await stage.turnOff(); });
+  test(
+    'setBackgroundFromFile persiste e serve bgPalco no palco ligado',
+    () async {
+      final (stage, _, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
 
-    final png = File('${_tmpCov!.path}/bg.png')
-      ..writeAsBytesSync([
-        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D, 0x49,
-        0x48, 0x44, 0x52, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1F, 0x15,
-        0xC4, 0x89, 0, 0, 0, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63,
-        0, 1, 0, 0, 5, 0, 1, 0x0D, 0x0A, 0x2D, 0xB4, 0, 0, 0, 0, 0x49, 0x45,
-        0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
-      ]);
+      final png = File('${_tmpCov!.path}/bg.png')
+        ..writeAsBytesSync([
+          0x89,
+          0x50,
+          0x4E,
+          0x47,
+          0x0D,
+          0x0A,
+          0x1A,
+          0x0A,
+          0,
+          0,
+          0,
+          0x0D,
+          0x49,
+          0x48,
+          0x44,
+          0x52,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          8,
+          6,
+          0,
+          0,
+          0,
+          0x1F,
+          0x15,
+          0xC4,
+          0x89,
+          0,
+          0,
+          0,
+          0x0A,
+          0x49,
+          0x44,
+          0x41,
+          0x54,
+          0x78,
+          0x9C,
+          0x63,
+          0,
+          1,
+          0,
+          0,
+          5,
+          0,
+          1,
+          0x0D,
+          0x0A,
+          0x2D,
+          0xB4,
+          0,
+          0,
+          0,
+          0,
+          0x49,
+          0x45,
+          0x4E,
+          0x44,
+          0xAE,
+          0x42,
+          0x60,
+          0x82,
+        ]);
 
-    await stage.setBackgroundFromFile(png.path);
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final bg = rx.received.lastWhere((m) => m['type'] == 'bgPalco');
-    expect(bg['url'].toString(), contains('palco_bg.png'));
-  });
+      await stage.setBackgroundFromFile(png.path);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      final bg = rx.received.lastWhere((m) => m['type'] == 'bgPalco');
+      expect(bg['url'].toString(), contains('palco_bg.png'));
+    },
+  );
 }
 
 /// Receiver fake com stream de mensagens decodificadas.
@@ -530,7 +694,6 @@ Future<StreamIterator<Map<String, dynamic>>> _iter(
   final it = StreamIterator<Map<String, dynamic>>(s);
   return it;
 }
-
 
 /// Fake do channel do path_provider apontando pra um dir temporário.
 class _FakePathProvider extends PathProviderPlatform {
