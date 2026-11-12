@@ -282,6 +282,8 @@
     "desktopMonitors": "Conectar monitor",
     "desktopMonitorsSubtitle": "TVs, monitores y proyectores conectados por cable al computador",
     "palco": "Escenario",
+    "connections": "Conexiones",
+    "connectionsSubtitle": "Transmisión, monitores y Escenario",
     "palcoSubtitle": "TVs con la app Palco detectadas en la red",
     "transmission": "Transmisión",
     "transmissionSubtitle": "TVs y OBS conectados al celular",

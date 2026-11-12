@@ -24,6 +24,9 @@ class ToolsPage extends StatefulWidget {
 class _ToolsPageState extends State<ToolsPage> {
   _ToolView? _activeView;
 
+  /// Dentro do agregador Conexões (Transmissão, Conectar monitor e Palco).
+  bool _inConnections = false;
+
   @override
   Widget build(BuildContext context) {
     if (_activeView != null) {
@@ -32,16 +35,50 @@ class _ToolsPageState extends State<ToolsPage> {
     return _buildGallery();
   }
 
+  void _open(_ToolView tool) {
+    setState(() {
+      if (tool == _ToolView.connections) {
+        _inConnections = true;
+      } else {
+        _activeView = tool;
+      }
+    });
+  }
+
   Widget _buildGallery() {
     final theme = Theme.of(context);
-    final tools = _ToolView.values;
+    final tools = _ToolView.values
+        .where((t) => _inConnections ? t.inConnections : !t.inConnections)
+        .toList();
 
+    // Voltar do Android dentro de Conexões: volta à galeria, não sai do app.
+    return PopScope(
+      canPop: !_inConnections,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _inConnections) setState(() => _inConnections = false);
+      },
+      child: _galleryScaffold(theme, tools),
+    );
+  }
+
+  Widget _galleryScaffold(ThemeData theme, List<_ToolView> tools) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('tools.title'.tr()),
+        leading: _inConnections
+            ? IconButton(
+                key: const Key('tools-connections-back'),
+                icon: const Icon(TablerIcons.arrowLeft),
+                onPressed: () => setState(() => _inConnections = false),
+              )
+            : null,
+        title: Text(
+          (_inConnections ? 'tools.connections' : 'tools.title').tr(),
+        ),
         automaticallyImplyLeading: false,
       ),
       body: GridView.builder(
+        // Cada nível com rolagem própria: Conexões abre do topo.
+        key: ValueKey(_inConnections),
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
@@ -54,11 +91,12 @@ class _ToolsPageState extends State<ToolsPage> {
           final tool = tools[index];
           final accent = theme.colorScheme;
           return _ToolCard(
+            key: Key('tool-card-${tool.name}'),
             icon: tool.icon,
             title: tool.label.tr(),
             subtitle: tool.subtitle.tr(),
             color: tool.color(accent),
-            onTap: () => setState(() => _activeView = tool),
+            onTap: () => _open(tool),
           );
         },
       ),
@@ -93,8 +131,7 @@ class _ToolsPageState extends State<ToolsPage> {
           onPressed: () => setState(() => _activeView = null),
         ),
         title: Text(view.label.tr()),
-        // F3.3l: o botão do Palco vive na AppBar da PRÓPRIA ferramenta
-        // (Bíblia/Liturgia/Timer já têm StageCastButton) — um cast só.
+        // O destino da projeção é escolhido no botão Telas da navegação.
       ),
       body: switch (view) {
         _ToolView.liturgy => const LiturgyPage(),
@@ -104,6 +141,8 @@ class _ToolsPageState extends State<ToolsPage> {
         _ToolView.transmission => const TransmissionPage(),
         _ToolView.desktopMonitors => const DesktopMonitorsPage(),
         _ToolView.palco => const PalcoPage(),
+        // Agregador: aberto por _open, nunca vira view própria.
+        _ToolView.connections => const SizedBox.shrink(),
       },
     );
   }
@@ -114,15 +153,21 @@ enum _ToolView {
   bible,
   timer,
   remoteControl,
+  connections,
   transmission,
   desktopMonitors,
   palco;
+
+  /// Fica dentro do card Conexões, não na galeria principal.
+  bool get inConnections =>
+      this == transmission || this == desktopMonitors || this == palco;
 
   IconData get icon => switch (this) {
     liturgy => TablerIcons.clipboardText,
     bible => TablerIcons.book2,
     timer => TablerIcons.clock,
     remoteControl => TablerIcons.deviceGamepad2,
+    connections => TablerIcons.plugConnected,
     transmission => TablerIcons.broadcast,
     desktopMonitors => TablerIcons.devicesPc,
     palco => TablerIcons.deviceTv,
@@ -133,6 +178,7 @@ enum _ToolView {
     bible => 'tools.bible',
     timer => 'tools.timer',
     remoteControl => 'tools.remoteControl',
+    connections => 'tools.connections',
     transmission => 'tools.transmission',
     desktopMonitors => 'tools.desktopMonitors',
     palco => 'tools.palco',
@@ -143,6 +189,7 @@ enum _ToolView {
     bible => 'tools.bibleSubtitle',
     timer => 'tools.timerSubtitle',
     remoteControl => 'tools.remoteControlSubtitle',
+    connections => 'tools.connectionsSubtitle',
     transmission => 'tools.transmissionSubtitle',
     desktopMonitors => 'tools.desktopMonitorsSubtitle',
     palco => 'tools.palcoSubtitle',
@@ -153,6 +200,7 @@ enum _ToolView {
     bible => scheme.tertiary,
     timer => scheme.secondary,
     remoteControl => scheme.error,
+    connections => scheme.primary,
     transmission => scheme.primary,
     desktopMonitors => scheme.tertiary,
     palco => scheme.secondary,
@@ -167,6 +215,7 @@ class _ToolCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _ToolCard({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,

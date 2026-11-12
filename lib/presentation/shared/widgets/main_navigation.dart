@@ -179,7 +179,7 @@ class _ScreensButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(TablerIcons.deviceTv, size: 24, color: color),
+              Icon(TablerIcons.cast, size: 24, color: color),
               const SizedBox(height: 4),
               Text(
                 'nav.screens'.tr(),

@@ -7,8 +7,6 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/stage_customization_sheet.dart'
-    show StageModule;
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
@@ -48,42 +46,56 @@ String _typeToKey(dynamic type) {
   return snake;
 }
 
-class LiturgyPage extends StatelessWidget {
+class LiturgyPage extends StatefulWidget {
   final LiturgyBloc? testBloc;
 
   const LiturgyPage({super.key, this.testBloc});
 
   @override
+  State<LiturgyPage> createState() => _LiturgyPageState();
+}
+
+/// O bloc nasce UMA vez por página e fecha ao sair. Antes ele era criado
+/// dentro do build: qualquer reconstrução (tela pai, hot reload) trocava de
+/// bloc, o item adicionado ia para um e a tela escutava outro (só aparecia
+/// ao sair e voltar), e os antigos nunca fechavam.
+class _LiturgyPageState extends State<LiturgyPage> {
+  LiturgyBloc? _bloc;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.testBloc != null) return;
+    SharedPreferences.getInstance().then((prefs) {
+      if (!mounted) return;
+      setState(() {
+        _bloc = LiturgyBloc(LiturgyRepository(prefs))
+          ..add(LiturgyLoadRequested(_todayWeekday()));
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _bloc?.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (testBloc != null) {
-      return BlocProvider<LiturgyBloc>.value(
-        value: testBloc!,
-        child: const _LiturgyView(),
+    final bloc = widget.testBloc ?? _bloc;
+    if (bloc == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('liturgy.title'.tr()),
+          actions: const [StageClearButton(), StageStopVideoButton()],
+        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
-    return FutureBuilder<SharedPreferences>(
-      future: SharedPreferences.getInstance(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Scaffold(
-            appBar: AppBar(
-              title: Text('liturgy.title'.tr()),
-              actions: const [
-                StageClearButton(),
-                StageStopVideoButton(),
-                StageCastButton(module: StageModule.liturgy),
-              ],
-            ),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
-        final bloc = LiturgyBloc(LiturgyRepository(snapshot.data!));
-        bloc.add(LiturgyLoadRequested(_todayWeekday()));
-        return BlocProvider<LiturgyBloc>.value(
-          value: bloc,
-          child: const _LiturgyView(),
-        );
-      },
+    return BlocProvider<LiturgyBloc>.value(
+      value: bloc,
+      child: const _LiturgyView(),
     );
   }
 
@@ -97,23 +109,10 @@ class _LiturgyView extends StatefulWidget {
   State<_LiturgyView> createState() => _LiturgyViewState();
 }
 
-/// Enquanto o Controle Remoto (desktop) está conectado, a liturgia do
-/// DESKTOP substitui a local: mesma lista, tap = executa no desktop.
-/// Desconectou, volta pra liturgia local do APK.
+/// Liturgia NATIVA do apk: sempre a local, com ou sem Controle Remoto
+/// conectado. A liturgia do desktop fica no Controle Remoto
+/// (RemoteLiturgyPage), são coisas diferentes.
 class _LiturgyViewState extends State<_LiturgyView> {
-  StreamSubscription? _remoteSub;
-  RemotePlayerState? _remoteState;
-
-  @override
-  void initState() {
-    super.initState();
-    // Liturgia pode abrir depois do state inicial chegar pelo WS.
-    _remoteState = RemoteSession.instance.lastState;
-    _remoteSub = RemoteSession.instance.states.listen((s) {
-      if (mounted) setState(() => _remoteState = s);
-    });
-  }
-
   /// Importa liturgia exportada pelo LouvorJA Delphi (arquivo .ja).
   ///
   /// Merge por dia: itens com mesmo (tipo+nome+musicaId/filePath) não
@@ -298,12 +297,6 @@ class _LiturgyViewState extends State<_LiturgyView> {
     }
   }
 
-  @override
-  void dispose() {
-    _remoteSub?.cancel();
-    super.dispose();
-  }
-
   Future<void> _confirmDeleteDay(
     BuildContext context,
     LiturgyLoaded state,
@@ -336,77 +329,64 @@ class _LiturgyViewState extends State<_LiturgyView> {
     }
   }
 
-  /// Espelho ativo: liturgia do alvo conectado (desktop OU web link)
-  /// substitui a local.
-  bool get _isMirroring =>
-      _remoteState?.liturgyItems.isNotEmpty == true &&
-      RemoteSession.instance.isControlling;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text('liturgy.title'.tr()),
-        // Espelhada: sem ações de edição local — só exibição (lockada).
-        actions: _isMirroring
-            ? const [StageStopVideoButton()]
-            : [
-                IconButton(
-                  key: const Key('liturgy-import-ja'),
-                  tooltip: 'liturgy.importJa'.tr(),
-                  icon: const Icon(TablerIcons.fileImport, size: 22),
-                  onPressed: () => _importJaFile(context),
+        actions: [
+          IconButton(
+            key: const Key('liturgy-import-ja'),
+            tooltip: 'liturgy.importJa'.tr(),
+            icon: const Icon(TablerIcons.fileImport, size: 22),
+            onPressed: () => _importJaFile(context),
+          ),
+          IconButton(
+            key: const Key('liturgy-avulsa-btn'),
+            tooltip: 'liturgy.avulsa.openAvulsa'.tr(),
+            icon: const Icon(TablerIcons.calendarPlus, size: 22),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const LiturgyAvulsaPage(),
+              ),
+            ),
+          ),
+          BlocBuilder<LiturgyBloc, LiturgyState>(
+            builder: (context, state) {
+              final locked = state is LiturgyLoaded && state.locked;
+              return IconButton(
+                key: const Key('liturgy-lock-toggle'),
+                tooltip: locked ? 'liturgy.unlock'.tr() : 'liturgy.lock'.tr(),
+                icon: Icon(
+                  locked ? TablerIcons.lock : TablerIcons.lockOpen,
+                  size: 22,
+                  color: locked ? theme.colorScheme.primary : null,
                 ),
-                IconButton(
-                  key: const Key('liturgy-avulsa-btn'),
-                  tooltip: 'liturgy.avulsa.openAvulsa'.tr(),
-                  icon: const Icon(TablerIcons.calendarPlus, size: 22),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const LiturgyAvulsaPage(),
-                    ),
-                  ),
-                ),
-                BlocBuilder<LiturgyBloc, LiturgyState>(
-                  builder: (context, state) {
-                    final locked = state is LiturgyLoaded && state.locked;
-                    return IconButton(
-                      key: const Key('liturgy-lock-toggle'),
-                      tooltip: locked
-                          ? 'liturgy.unlock'.tr()
-                          : 'liturgy.lock'.tr(),
-                      icon: Icon(
-                        locked ? TablerIcons.lock : TablerIcons.lockOpen,
-                        size: 22,
-                        color: locked ? theme.colorScheme.primary : null,
-                      ),
-                      onPressed: state is LiturgyLoaded
-                          ? () => context.read<LiturgyBloc>().add(
-                              LiturgyLockToggled(),
-                            )
-                          : null,
-                    );
-                  },
-                ),
-                BlocBuilder<LiturgyBloc, LiturgyState>(
-                  builder: (context, state) {
-                    final loaded = state is LiturgyLoaded;
-                    final hasItems = loaded && state.items.isNotEmpty;
-                    final locked = loaded && state.locked;
-                    return IconButton(
-                      key: const Key('liturgy-delete-day'),
-                      tooltip: 'liturgy.deleteDay'.tr(),
-                      icon: const Icon(TablerIcons.trash, size: 22),
-                      onPressed: hasItems && !locked
-                          ? () => _confirmDeleteDay(context, state)
-                          : null,
-                    );
-                  },
-                ),
-                const StageClearButton(),
-                const StageCastButton(module: StageModule.liturgy),
-              ],
+                onPressed: state is LiturgyLoaded
+                    ? () =>
+                          context.read<LiturgyBloc>().add(LiturgyLockToggled())
+                    : null,
+              );
+            },
+          ),
+          BlocBuilder<LiturgyBloc, LiturgyState>(
+            builder: (context, state) {
+              final loaded = state is LiturgyLoaded;
+              final hasItems = loaded && state.items.isNotEmpty;
+              final locked = loaded && state.locked;
+              return IconButton(
+                key: const Key('liturgy-delete-day'),
+                tooltip: 'liturgy.deleteDay'.tr(),
+                icon: const Icon(TablerIcons.trash, size: 22),
+                onPressed: hasItems && !locked
+                    ? () => _confirmDeleteDay(context, state)
+                    : null,
+              );
+            },
+          ),
+          const StageClearButton(),
+        ],
       ),
       floatingActionButton: BlocBuilder<LiturgyBloc, LiturgyState>(
         builder: (context, state) {
@@ -426,10 +406,6 @@ class _LiturgyViewState extends State<_LiturgyView> {
           if (state is! LiturgyLoaded) {
             return const Center(child: CircularProgressIndicator());
           }
-          // Espelho: Controle Remoto conectado → liturgia do DESKTOP.
-          if (_isMirroring) {
-            return RemoteLiturgyMirror(state: _remoteState!);
-          }
           return _Body(state: state);
         },
       ),
@@ -448,10 +424,7 @@ class RemoteLiturgyMirror extends StatefulWidget {
   final Future<void> Function(RemoteCommand command)? send;
 
   /// Abre o navegador do celular para um item de site. Injetável para testes.
-  final Future<void> Function(
-    BuildContext context,
-    RemoteSiteBrowserPage page,
-  )?
+  final Future<void> Function(BuildContext context, RemoteSiteBrowserPage page)?
   openSite;
 
   const RemoteLiturgyMirror({

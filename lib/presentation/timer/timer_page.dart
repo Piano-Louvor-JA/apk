@@ -13,8 +13,6 @@ import '../../core/services/dlna/stage_session.dart';
 import '../../data/repositories/countdown_preset_repository.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/stage_customization_sheet.dart'
-    show StageModule;
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
 
 class TimerPage extends StatefulWidget {
@@ -361,7 +359,6 @@ class _TimerPageState extends State<TimerPage> {
         actions: const [
           StageClearButton(),
           StageStopVideoButton(),
-          StageCastButton(module: StageModule.timer),
         ],
       ),
       body: SingleChildScrollView(

@@ -282,6 +282,8 @@
     "desktopMonitors": "Connect monitor",
     "desktopMonitorsSubtitle": "TVs, monitors and projectors wired to the computer",
     "palco": "Stage",
+    "connections": "Connections",
+    "connectionsSubtitle": "Broadcast, monitors and Stage",
     "palcoSubtitle": "TVs running the Palco app found on the network",
     "transmission": "Broadcast",
     "transmissionSubtitle": "TVs and OBS connected to the phone",

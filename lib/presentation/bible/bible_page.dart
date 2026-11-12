@@ -23,8 +23,6 @@ import 'package:louvorja_piano_mobile/core/services/bible_offline_versions.dart'
 import 'package:louvorja_piano_mobile/presentation/bible/book_colors.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bible_download_button.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/stage_customization_sheet.dart'
-    show StageModule;
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bloc/bible_bloc.dart';
@@ -257,7 +255,6 @@ class _BibleViewState extends State<_BibleView> {
             else ...const [
               StageClearButton(),
               StageStopVideoButton(),
-              StageCastButton(module: StageModule.bible),
               BibleDownloadButton(),
             ],
             IconButton(

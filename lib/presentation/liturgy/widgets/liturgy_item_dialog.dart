@@ -6,6 +6,7 @@ library;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 
+import 'package:louvorja_piano_mobile/core/services/liturgy_music_search.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/media_duration_reader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -322,6 +323,9 @@ void showLiturgyItemDialog(
                       onSearch: () async {
                         final result = await showSearch(
                           context: context,
+                          // Igual ao desktop: todo o catálogo (índice de
+                          // músicas) e a busca da liturgia (título, número,
+                          // coletânea, erro de digitação e letra).
                           delegate: HymnSearchDelegate(() async {
                             final api = LouvorjaApiImpl(
                               baseUrls: ApiConfig.databaseUrls(),
@@ -331,8 +335,12 @@ void showLiturgyItemDialog(
                                 defaultValue: '',
                               ),
                             );
+                            try {
+                              final index = await api.fetchMusicIndex();
+                              if (index.isNotEmpty) return index;
+                            } catch (_) {}
                             return await api.fetchHymnal();
-                          }),
+                          }, search: LiturgyMusicSearch.search),
                         );
                         if (result != null) {
                           setModalState(() {
