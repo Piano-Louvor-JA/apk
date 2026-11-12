@@ -9,6 +9,8 @@ import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import '../../../../core/services/hymn_audio_player.dart';
 import '../../../../core/services/hymn_player_adapter.dart';
 import '../../../../core/services/now_playing.dart';
+import '../../../../core/services/palco/palco_orchestrator.dart';
+import '../../palco/remote_control_sheet.dart';
 import 'mini_player_bar.dart';
 import 'offline_status_scope.dart';
 import '../../hymns/now_playing_page.dart';
@@ -39,6 +41,39 @@ class MainNavigation extends StatelessWidget {
       _NavTab(icon: TablerIcons.tools, label: 'nav.tools'.tr()),
       _NavTab(icon: TablerIcons.settings, label: 'nav.more'.tr()),
     ];
+
+    Widget navTab(int i) {
+      final tab = tabs[i];
+      final isSelected = i == currentIndex;
+      final color = isSelected
+          ? theme.colorScheme.primary
+          : theme.colorScheme.onSurfaceVariant;
+
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _onTap(i),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(tab.icon, size: 24, color: color),
+                const SizedBox(height: 4),
+                Text(
+                  tab.label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       // SPEC 7: banner "modo offline" global sobre o conteúdo de qualquer tab.
@@ -84,40 +119,18 @@ class MainNavigation extends StatelessWidget {
               child: SizedBox(
                 height: 60,
                 child: Row(
-                  children: List.generate(tabs.length, (i) {
-                    final tab = tabs[i];
-                    final isSelected = i == currentIndex;
-                    final color = isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant;
-
-                    return Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _onTap(i),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(tab.icon, size: 24, color: color),
-                              const SizedBox(height: 4),
-                              Text(
-                                tab.label,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w400,
-                                  color: color,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                  children: [
+                    // Início, Hinos, Ferramentas, Telas, Mais.
+                    for (var i = 0; i < 3; i++) navTab(i),
+                    // Telas: painel de conexões (monitores, transmissões,
+                    // TVs do Palco) de qualquer aba, não só do player.
+                    Expanded(
+                      child: _ScreensButton(
+                        onTap: () => showConnectionsSheet(context),
                       ),
-                    );
-                  }),
+                    ),
+                    navTab(3),
+                  ],
                 ),
               ),
             ),
@@ -140,4 +153,43 @@ class _NavTab {
   final String label;
 
   _NavTab({required this.icon, required this.label});
+}
+
+/// Botão "Telas" da barra: laranja quando alguma transmissão está no ar.
+class _ScreensButton extends StatelessWidget {
+  const _ScreensButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: PalcoOrchestrator.instance,
+    builder: (context, _) {
+      final theme = Theme.of(context);
+      final live = PalcoOrchestrator.instance.slots.any(
+        (s) => s.controller.isRunning,
+      );
+      final color = live
+          ? theme.colorScheme.primary
+          : theme.colorScheme.onSurfaceVariant;
+      return GestureDetector(
+        key: const Key('nav-screens'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(TablerIcons.deviceTv, size: 24, color: color),
+              const SizedBox(height: 4),
+              Text(
+                'nav.screens'.tr(),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: color),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }

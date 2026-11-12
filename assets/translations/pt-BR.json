@@ -3,6 +3,7 @@
     "name": "LouvorJA PIANO"
   },
   "nav": {
+    "screens": "Telas",
     "home": "Início",
     "hymns": "Hinos",
     "liturgy": "Liturgia",
@@ -279,6 +280,8 @@
   "tools": {
     "desktopMonitors": "Conectar monitor",
     "desktopMonitorsSubtitle": "TVs, monitores e projetores ligados por cabo ao computador",
+    "palco": "Palco",
+    "palcoSubtitle": "TVs com o app Palco detectadas na rede",
     "transmission": "Transmissão",
     "transmissionSubtitle": "TVs e OBS conectados ao celular",
     "title": "Ferramentas",

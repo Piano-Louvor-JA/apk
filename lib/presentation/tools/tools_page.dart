@@ -3,6 +3,7 @@
 library;
 
 import 'desktop_monitors_page.dart';
+import 'palco_page.dart';
 import 'transmission_page.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -76,6 +77,9 @@ class _ToolsPageState extends State<ToolsPage> {
     if (view == _ToolView.transmission) {
       return TransmissionPage(onBack: () => setState(() => _activeView = null));
     }
+    if (view == _ToolView.palco) {
+      return PalcoPage(onBack: () => setState(() => _activeView = null));
+    }
     if (view == _ToolView.remoteControl) {
       return RemoteControlToolPage(
         onBack: () => setState(() => _activeView = null),
@@ -99,6 +103,7 @@ class _ToolsPageState extends State<ToolsPage> {
         _ToolView.timer => const TimerPage(),
         _ToolView.transmission => const TransmissionPage(),
         _ToolView.desktopMonitors => const DesktopMonitorsPage(),
+        _ToolView.palco => const PalcoPage(),
       },
     );
   }
@@ -110,7 +115,8 @@ enum _ToolView {
   timer,
   remoteControl,
   transmission,
-  desktopMonitors;
+  desktopMonitors,
+  palco;
 
   IconData get icon => switch (this) {
     liturgy => TablerIcons.clipboardText,
@@ -119,6 +125,7 @@ enum _ToolView {
     remoteControl => TablerIcons.deviceGamepad2,
     transmission => TablerIcons.broadcast,
     desktopMonitors => TablerIcons.devicesPc,
+    palco => TablerIcons.deviceTv,
   };
 
   String get label => switch (this) {
@@ -128,6 +135,7 @@ enum _ToolView {
     remoteControl => 'tools.remoteControl',
     transmission => 'tools.transmission',
     desktopMonitors => 'tools.desktopMonitors',
+    palco => 'tools.palco',
   };
 
   String get subtitle => switch (this) {
@@ -137,6 +145,7 @@ enum _ToolView {
     remoteControl => 'tools.remoteControlSubtitle',
     transmission => 'tools.transmissionSubtitle',
     desktopMonitors => 'tools.desktopMonitorsSubtitle',
+    palco => 'tools.palcoSubtitle',
   };
 
   Color color(ColorScheme scheme) => switch (this) {
@@ -146,6 +155,7 @@ enum _ToolView {
     remoteControl => scheme.error,
     transmission => scheme.primary,
     desktopMonitors => scheme.tertiary,
+    palco => scheme.secondary,
   };
 }
 

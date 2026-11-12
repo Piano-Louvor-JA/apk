@@ -2,20 +2,30 @@
 // UI de controle remoto -- não testável em unit tests (Palco WS + widget tree)
 library;
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/core/services/palco/palco_orchestrator.dart';
+import 'package:louvorja_piano_mobile/presentation/settings/widgets/stage_section.dart'
+    show StageAudioRouteSelector;
+import 'package:louvorja_piano_mobile/presentation/tools/palco_page.dart';
 import 'package:louvorja_piano_mobile/presentation/tools/transmission_page.dart';
 import 'package:louvorja_piano_mobile/presentation/tools/desktop_monitors_page.dart';
 import 'package:louvorja_piano_mobile/presentation/tools/monitor_share_link.dart';
 
-/// Painel de controle remoto: envia comandos multimídia a receivers
-/// desktop/web conectados ao sender do Palco (remote.command/remote.ack).
+/// Abre o painel de conexões (botão "Telas" da barra de navegação).
+Future<void> showConnectionsSheet(BuildContext context) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const RemoteControlSheet(),
+    );
+
+/// Painel de conexões do player: monitores do computador, transmissões
+/// abertas e os palcos (TVs) conectados a elas.
 class RemoteControlSheet extends StatefulWidget {
   const RemoteControlSheet({super.key});
 
@@ -24,182 +34,149 @@ class RemoteControlSheet extends StatefulWidget {
 }
 
 class _RemoteControlSheetState extends State<RemoteControlSheet> {
-  Map<String, int> _roles = const {};
-  Map<String, dynamic> _playerState = const {};
-  bool _sending = false;
-  String _targetRole = 'desktop';
-
   @override
   void initState() {
     super.initState();
-    _refresh();
     // Monitores do computador: atualiza o ✓ com o estado real ao abrir.
     MonitorShareSession.instance.refresh();
     MonitorShareSession.instance.loadHideIdle();
   }
 
-  void _refresh() {
-    final palco = StageSession.instance;
-    if (!palco.isPalcoMode) return;
-    setState(() {
-      _roles = Map<String, int>.from(palco.receiverRoles);
-      _playerState = Map<String, dynamic>.from(palco.remotePlayerState);
-      if (_roles.containsKey(_targetRole)) return;
-      // alvo desconectou: primeiro role não-TV disponível
-      _targetRole =
-          _roles.keys.where((r) => r != 'tv').firstOrNull ?? _targetRole;
-    });
-  }
+  @override
+  Widget build(BuildContext context) => DraggableScrollableSheet(
+    expand: false,
+    initialChildSize: 0.5,
+    builder: (context, scrollController) => ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.all(16),
+      children: const [
+        _SharedMonitorsSection(),
+        Divider(height: 32),
+        _RemoteConnectionsSection(),
+        _PalcoSection(),
+      ],
+    ),
+  );
+}
 
-  Future<void> _send(String command, {double? value}) async {
-    if (_sending) return;
-    setState(() => _sending = true);
-    try {
-      final state = await StageSession.instance.sendRemoteCommand(
-        command,
-        role: _targetRole,
-        value: value,
-      );
-      if (mounted && state != null) {
-        setState(() => _playerState = state);
-      }
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  bool get _playing => _playerState['playing'] == true;
-  double get _volume => (_playerState['volume'] as num?)?.toDouble() ?? 0.7;
+/// TVs com o app Palco conectadas às transmissões, com as ações por TV.
+class _PalcoSection extends StatefulWidget {
+  const _PalcoSection();
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palco = StageSession.instance;
-    final controllable = _roles.keys.where((r) => r != 'tv').toList();
+  State<_PalcoSection> createState() => _PalcoSectionState();
+}
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        StageSession.instance,
-        MonitorShareSession.instance,
-        // receivers mudam: reconecta o refresh
-      ]),
-      builder: (context, _) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.5,
-        builder: (context, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.all(16),
-          children: [
-            const _SharedMonitorsSection(),
-            const Divider(height: 32),
-            _RemoteConnectionsSection(
-              footer: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+class _PalcoSectionState extends State<_PalcoSection> {
+  // Lembrado entre aberturas do painel enquanto o app está aberto.
+  static bool _expanded = true;
+
+  void _toggle() => setState(() => _expanded = !_expanded);
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: PalcoOrchestrator.instance,
+    builder: (context, _) {
+      final theme = Theme.of(context);
+      final connected = palcoConnections();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          _HeaderBar(
+            child: InkWell(
+              key: const Key('palco-section-toggle'),
+              borderRadius: BorderRadius.circular(8),
+              onTap: _toggle,
+              child: Row(
                 children: [
-                  const SizedBox(height: 16),
-                  Text(
-                    'Controle do desktop/web',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  Icon(
+                    TablerIcons.deviceTv,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Palco',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  if (!palco.isPalcoMode) ...[
-                    Text(
-                      'remote.palcoOff'.tr(),
-                      style: theme.textTheme.bodyMedium,
+                  AnimatedRotation(
+                    turns: _expanded ? 0 : 0.5,
+                    duration: const Duration(milliseconds: 200),
+                    child: IconButton(
+                      tooltip: _expanded ? 'Recolher' : 'Expandir',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _toggle,
+                      icon: const Icon(TablerIcons.chevronUp),
                     ),
-                  ] else if (controllable.isEmpty) ...[
-                    Text(
-                      'remote.noTargets'.tr(),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'remote.noTargetsHint'.tr(),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ] else ...[
-                    // seletor de alvo
-                    SegmentedButton<String>(
-                      segments: [
-                        for (final r in controllable)
-                          ButtonSegment(
-                            value: r,
-                            // role cru ('desktop'/'web') vira chave i18n
-                            label: Text('remote.$r'.tr()),
-                          ),
-                      ],
-                      selected: {_targetRole},
-                      onSelectionChanged: (s) =>
-                          setState(() => _targetRole = s.first),
-                    ),
-                    const SizedBox(height: 16),
-                    // estado do player
-                    if (_playerState.isNotEmpty)
-                      Text(
-                        _playing ? 'remote.playing'.tr() : 'remote.paused'.tr(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    // controles
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        IconButton.filled(
-                          iconSize: 32,
-                          onPressed: _sending
-                              ? null
-                              : () => _send(_playing ? 'pause' : 'play'),
-                          icon: Icon(
-                            _playing
-                                ? TablerIcons.playerPause
-                                : TablerIcons.playerPlay,
-                          ),
-                        ),
-                        IconButton.outlined(
-                          iconSize: 28,
-                          onPressed: _sending ? null : () => _send('stop'),
-                          icon: const Icon(TablerIcons.playerStop),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'remote.volume'.tr(),
-                      style: theme.textTheme.labelMedium,
-                    ),
-                    Row(
-                      children: [
-                        const Icon(TablerIcons.volume, size: 18),
-                        Expanded(
-                          child: Slider(
-                            value: _volume.clamp(0.0, 1.0),
-                            onChanged: _sending
-                                ? null
-                                : (v) => setState(
-                                    () => _playerState = {
-                                      ..._playerState,
-                                      'volume': v,
-                                    },
-                                  ),
-                            onChangeEnd: (v) => _send('volume', value: v),
-                          ),
-                        ),
-                        const Icon(TablerIcons.volume2, size: 18),
-                      ],
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            alignment: Alignment.topCenter,
+            child: !_expanded
+                ? const SizedBox(width: double.infinity)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              connected.isEmpty
+                                  ? 'Nenhum palco conectado. Abra o app Palco '
+                                        'na TV: ele procura o celular na rede '
+                                        'sozinho.'
+                                  : 'Transmitir nas marcadas · '
+                                        '${connected.length} TV(s)',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                          TextButton(
+                            key: const Key('remote-open-palco'),
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const PalcoPage(),
+                              ),
+                            ),
+                            child: const Text('Procurar TVs'),
+                          ),
+                        ],
+                      ),
+                      if (connected.isNotEmpty)
+                        const PalcoConnectedList(dense: true),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            TablerIcons.volume,
+                            size: 18,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Áudio do Palco',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const StageAudioRouteSelector(),
+                    ],
+                  ),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 /// Monitores compartilhados pelo app desktop: ✓ = recebe a projeção.
@@ -230,43 +207,45 @@ class _SharedMonitorsSectionState extends State<_SharedMonitorsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          key: const Key('shared-monitors-toggle'),
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Row(
-            children: [
-              Icon(
-                TablerIcons.devicesPc,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Monitores compartilhados',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+        _HeaderBar(
+          child: InkWell(
+            key: const Key('shared-monitors-toggle'),
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                Icon(
+                  TablerIcons.devicesPc,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Monitores compartilhados',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              if (session.busy)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                if (session.busy)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                AnimatedRotation(
+                  turns: _expanded ? 0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: IconButton(
+                    tooltip: _expanded ? 'Recolher' : 'Expandir',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    icon: const Icon(TablerIcons.chevronUp),
+                  ),
                 ),
-              AnimatedRotation(
-                turns: _expanded ? 0 : 0.5,
-                duration: const Duration(milliseconds: 200),
-                child: IconButton(
-                  tooltip: _expanded ? 'Recolher' : 'Expandir',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => setState(() => _expanded = !_expanded),
-                  icon: const Icon(TablerIcons.chevronUp),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         AnimatedSize(
@@ -384,10 +363,7 @@ class _SharedMonitorsSectionState extends State<_SharedMonitorsSection> {
 /// Conexões remotas = transmissões abertas em Ferramentas › Transmissão.
 /// ✓ = recebe a projeção. Padrão: todas marcadas.
 class _RemoteConnectionsSection extends StatefulWidget {
-  const _RemoteConnectionsSection({required this.footer});
-
-  /// Controle do desktop/web (comandos de player), dentro da seção.
-  final Widget footer;
+  const _RemoteConnectionsSection();
 
   @override
   State<_RemoteConnectionsSection> createState() =>
@@ -437,37 +413,39 @@ class _RemoteConnectionsSectionState extends State<_RemoteConnectionsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          key: const Key('remote-connections-toggle'),
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Row(
-            children: [
-              Icon(
-                TablerIcons.broadcast,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Conexões remotas',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+        _HeaderBar(
+          child: InkWell(
+            key: const Key('remote-connections-toggle'),
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                Icon(
+                  TablerIcons.broadcast,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Conexões remotas',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              AnimatedRotation(
-                turns: _expanded ? 0 : 0.5,
-                duration: const Duration(milliseconds: 200),
-                child: IconButton(
-                  tooltip: _expanded ? 'Recolher' : 'Expandir',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => setState(() => _expanded = !_expanded),
-                  icon: const Icon(TablerIcons.chevronUp),
+                AnimatedRotation(
+                  turns: _expanded ? 0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: IconButton(
+                    tooltip: _expanded ? 'Recolher' : 'Expandir',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    icon: const Icon(TablerIcons.chevronUp),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         AnimatedSize(
@@ -561,11 +539,27 @@ class _RemoteConnectionsSectionState extends State<_RemoteConnectionsSection> {
                           ),
                         ),
                     ],
-                    widget.footer,
                   ],
                 ),
         ),
       ],
     );
   }
+}
+
+/// Faixa de fundo dos títulos do painel: separa cada bloco.
+class _HeaderBar extends StatelessWidget {
+  const _HeaderBar({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+    borderRadius: BorderRadius.circular(12),
+    clipBehavior: Clip.antiAlias,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: child,
+    ),
+  );
 }

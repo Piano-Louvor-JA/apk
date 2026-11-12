@@ -8,7 +8,6 @@ import '../../../../core/services/now_playing.dart';
 import '../../../../core/services/dlna/stage_session.dart';
 import '../../../../core/services/palco/palco_controller.dart'
     show PalcoAudioRoute;
-import '../../palco/remote_control_sheet.dart';
 import 'dart:async';
 
 import '../../tools/monitor_share_link.dart';
@@ -665,19 +664,6 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
                   projecting: projecting.value,
                   busy: _projectBusy,
                   onPressed: _toggleProjection,
-                ),
-                // Controle remoto/palco: mesma sessão WS de antes.
-                IconButton.outlined(
-                  key: const Key('miniplayer-remote'),
-                  icon: const Icon(TablerIcons.deviceTv, size: 20),
-                  color: theme.colorScheme.primary,
-                  onPressed: () => showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    useSafeArea: true,
-                    builder: (_) => const RemoteControlSheet(),
-                  ),
-                  tooltip: 'remote.title'.tr(),
                 ),
                 IconButton(
                   key: const Key('miniplayer-stop'),

@@ -3,6 +3,7 @@
     "name": "LouvorJA PIANO"
   },
   "nav": {
+    "screens": "Screens",
     "home": "Home",
     "hymns": "Hymns",
     "liturgy": "Liturgy",
@@ -280,6 +281,8 @@
   "tools": {
     "desktopMonitors": "Connect monitor",
     "desktopMonitorsSubtitle": "TVs, monitors and projectors wired to the computer",
+    "palco": "Stage",
+    "palcoSubtitle": "TVs running the Palco app found on the network",
     "transmission": "Broadcast",
     "transmissionSubtitle": "TVs and OBS connected to the phone",
     "title": "Tools",
