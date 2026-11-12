@@ -4,6 +4,8 @@
 library;
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_item_rules.dart';
+import 'package:louvorja_piano_mobile/core/utils/liturgy_format.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'package:louvorja_piano_mobile/core/services/liturgy_music_search.dart';
@@ -35,16 +37,14 @@ const _typeGroups = <_TypeGroup>[
     labelKey: 'liturgy.dialog.groups.default',
     types: [
       LiturgyItemType.music,
-      LiturgyItemType.annotation,
-      LiturgyItemType.notice,
       LiturgyItemType.scheduled,
-      LiturgyItemType.prayer,
-      LiturgyItemType.verse,
+      LiturgyItemType.annotation,
     ],
   ),
   _TypeGroup(
     labelKey: 'liturgy.dialog.groups.internal',
     types: [
+      LiturgyItemType.audio,
       LiturgyItemType.video,
       LiturgyItemType.images,
       LiturgyItemType.pdf,
@@ -66,6 +66,7 @@ class _TypeGroup {
 
 const _urlTypes = {LiturgyItemType.onlineVideo, LiturgyItemType.site};
 const _fileTypes = {
+  LiturgyItemType.audio,
   LiturgyItemType.video,
   LiturgyItemType.images,
   LiturgyItemType.pdf,
@@ -133,7 +134,14 @@ void showLiturgyItemDialog(
 }) {
   final isEditing = existing != null;
   final nameCtrl = TextEditingController(text: existing?.name ?? '');
-  final subtitleCtrl = TextEditingController(text: existing?.subtitle ?? '');
+  final subtitleCtrl = TextEditingController(
+    text: existing?.complementaryTitle ?? '',
+  );
+  final startTimeCtrl = TextEditingController(text: existing?.startTime ?? '');
+  final endTimeCtrl = TextEditingController(text: existing?.endTime ?? '');
+  final musicMode = ValueNotifier<String>(existing?.musicMode ?? 'audio');
+  var paths = [...?existing?.filePaths];
+  var durationMs = existing?.durationMs ?? 0;
   final urlCtrl = TextEditingController(text: existing?.url ?? '');
   final notesCtrl = TextEditingController(text: existing?.notes ?? '');
   final filePathCtrl = TextEditingController(text: existing?.filePath ?? '');
@@ -352,8 +360,8 @@ void showLiturgyItemDialog(
                             }
                             if (result.durationMs != null &&
                                 result.durationMs! > 0) {
-                              durationMinutes.value =
-                                  result.durationMs! ~/ 60000;
+                              durationMs = result.durationMs!;
+                              durationMinutes.value = durationMs ~/ 60000;
                             }
                           });
                         }
@@ -361,6 +369,27 @@ void showLiturgyItemDialog(
                     ),
                     const SizedBox(height: AppSpacing.s3),
                   ],
+
+                  if (type.value == LiturgyItemType.music)
+                    DropdownButtonFormField<String>(
+                      initialValue: musicMode.value,
+                      decoration: InputDecoration(
+                        labelText: 'liturgy.fields.musicMode'.tr(),
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'audio',
+                          child: Text('liturgy.fields.vocal'.tr()),
+                        ),
+                        DropdownMenuItem(
+                          value: 'instrumental',
+                          child: Text('liturgy.fields.instrumental'.tr()),
+                        ),
+                      ],
+                      onChanged: (value) => setModalState(
+                        () => musicMode.value = value ?? 'audio',
+                      ),
+                    ),
 
                   // Agendado: data/hora
                   if (type.value == LiturgyItemType.scheduled) ...[
@@ -405,10 +434,12 @@ void showLiturgyItemDialog(
                             : FileType.any;
                         final files = type.value == LiturgyItemType.images
                             ? await FilePicker.pickFiles(type: fileType)
-                            : [
-                                ?await FilePicker.pickFile(type: fileType),
-                              ];
+                            : [?await FilePicker.pickFile(type: fileType)];
                         if (files.isNotEmpty) {
+                          paths = files
+                              .map((f) => f.path)
+                              .whereType<String>()
+                              .toList();
                           final path = files.first.path;
                           // Duração automática de vídeo/áudio local (MP4).
                           var probed = 0;
@@ -421,6 +452,7 @@ void showLiturgyItemDialog(
                               nameCtrl.text = files.first.name;
                             }
                             if (probed > 0) {
+                              durationMs = probed;
                               durationMinutes.value = probed ~/ 60000;
                             }
                           });
@@ -430,34 +462,47 @@ void showLiturgyItemDialog(
                     const SizedBox(height: AppSpacing.s3),
                   ],
 
-                  // Duracao (stepper)
-                  Row(
-                    children: [
-                      Text(
-                        'liturgy.dialog.duration'.tr(),
-                        style: Theme.of(ctx).textTheme.labelSmall,
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: 'common.decrease'.tr(),
-                        icon: const Icon(TablerIcons.minus, size: 18),
-                        onPressed: durationMinutes.value > 0
-                            ? () => setModalState(() => durationMinutes.value--)
-                            : null,
-                      ),
-                      Text(
-                        '${durationMinutes.value} ${'liturgy.durationMin'.tr()}',
-                        style: Theme.of(ctx).textTheme.bodyMedium,
-                      ),
-                      IconButton(
-                        tooltip: 'common.increase'.tr(),
-                        icon: const Icon(TablerIcons.plus, size: 18),
-                        onPressed: durationMinutes.value < 99
-                            ? () => setModalState(() => durationMinutes.value++)
-                            : null,
-                      ),
-                    ],
-                  ),
+                  // Os mesmos tipos sem duração do desktop.
+                  if (!LiturgyItemRules.withoutDuration.contains(type.value))
+                    Row(
+                      children: [
+                        Text(
+                          'liturgy.dialog.duration'.tr(),
+                          style: Theme.of(ctx).textTheme.labelSmall,
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'common.decrease'.tr(),
+                          icon: const Icon(TablerIcons.minus, size: 18),
+                          onPressed: durationMinutes.value > 0
+                              ? () => setModalState(() {
+                                  durationMs = (durationMs - 60000).clamp(
+                                    0,
+                                    5940000,
+                                  );
+                                  durationMinutes.value = durationMs ~/ 60000;
+                                })
+                              : null,
+                        ),
+                        Text(
+                          LiturgyFormat.formatElapsed(durationMs),
+                          style: Theme.of(ctx).textTheme.bodyMedium,
+                        ),
+                        IconButton(
+                          tooltip: 'common.increase'.tr(),
+                          icon: const Icon(TablerIcons.plus, size: 18),
+                          onPressed: durationMinutes.value < 99
+                              ? () => setModalState(() {
+                                  durationMs = (durationMs + 60000).clamp(
+                                    0,
+                                    5940000,
+                                  );
+                                  durationMinutes.value = durationMs ~/ 60000;
+                                })
+                              : null,
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: AppSpacing.s3),
                 ],
 
@@ -510,6 +555,27 @@ void showLiturgyItemDialog(
                   const SizedBox(height: AppSpacing.s4),
                 ],
 
+                if (type.value == LiturgyItemType.category) ...[
+                  TextField(
+                    key: const Key('liturgy-category-start'),
+                    controller: startTimeCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'liturgy.fields.startTime'.tr(),
+                      hintText: 'HH:MM',
+                    ),
+                    keyboardType: TextInputType.datetime,
+                  ),
+                  TextField(
+                    key: const Key('liturgy-category-end'),
+                    controller: endTimeCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'liturgy.fields.endTime'.tr(),
+                      hintText: 'HH:MM',
+                    ),
+                    keyboardType: TextInputType.datetime,
+                  ),
+                ],
+
                 // -- Botoes --
                 if (type.value != null)
                   Row(
@@ -528,7 +594,8 @@ void showLiturgyItemDialog(
                           // subtitle ou name da música) não pode abrir/travar
                           // com título vazio — cascata subtitle → label.
                           if (name.isEmpty) {
-                            name = subtitleCtrl.text.trim();
+                            name = existing?.subtitle.trim() ?? '';
+                            if (name.isEmpty) name = subtitleCtrl.text.trim();
                           }
                           if (name.isEmpty &&
                               selectedMusicId.value == null &&
@@ -536,7 +603,34 @@ void showLiturgyItemDialog(
                               urlCtrl.text.isEmpty) {
                             return;
                           }
-                          final item = LiturgyItem(
+                          if (type.value == LiturgyItemType.category &&
+                              (LiturgyFormat.normalizeTimeHHmm(
+                                        startTimeCtrl.text,
+                                      ) ==
+                                      null ||
+                                  (endTimeCtrl.text.trim().isNotEmpty &&
+                                      LiturgyFormat.normalizeTimeHHmm(
+                                            endTimeCtrl.text,
+                                          ) ==
+                                          null))) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'liturgy.fields.invalidTime'.tr(),
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          final base =
+                              existing ??
+                              LiturgyItem(
+                                id: DateTime.now().microsecondsSinceEpoch
+                                    .toString(),
+                                type: type.value!,
+                                name: name,
+                              );
+                          final item = base.copyWith(
                             id:
                                 existing?.id ??
                                 DateTime.now().millisecondsSinceEpoch
@@ -545,21 +639,34 @@ void showLiturgyItemDialog(
                             name: name.isNotEmpty
                                 ? name
                                 : selectedMusicLabel.value,
-                            subtitle: subtitleCtrl.text.trim(),
-                            durationMs: durationMinutes.value * 60000,
+                            subtitle: existing?.subtitle ?? '',
+                            complementaryTitle: subtitleCtrl.text.trim(),
+                            musicMode: musicMode.value,
+                            filePaths: paths,
+                            startTime: type.value == LiturgyItemType.category
+                                ? LiturgyFormat.normalizeTimeHHmm(
+                                    startTimeCtrl.text,
+                                  )
+                                : existing?.startTime,
+                            endTime: type.value == LiturgyItemType.category
+                                ? LiturgyFormat.normalizeTimeHHmm(
+                                        endTimeCtrl.text,
+                                      ) ??
+                                      ''
+                                : existing?.endTime,
+                            durationMs:
+                                LiturgyItemRules.withoutDuration.contains(
+                                  type.value,
+                                )
+                                ? 0
+                                : durationMs,
                             categoryId:
                                 parentCategoryId ?? existing?.categoryId,
                             accentColor: existing?.accentColor ?? '',
                             musicId: selectedMusicId.value,
-                            url: urlCtrl.text.trim().isNotEmpty
-                                ? urlCtrl.text.trim()
-                                : null,
-                            filePath: filePathCtrl.text.trim().isNotEmpty
-                                ? filePathCtrl.text.trim()
-                                : null,
-                            notes: notesCtrl.text.trim().isNotEmpty
-                                ? notesCtrl.text.trim()
-                                : null,
+                            url: urlCtrl.text.trim(),
+                            filePath: filePathCtrl.text.trim(),
+                            notes: notesCtrl.text.trim(),
                             scheduledAt:
                                 type.value == LiturgyItemType.scheduled &&
                                     scheduledAt.value != null

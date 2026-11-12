@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:louvorja_piano_mobile/core/services/download_url_builder.dart';
@@ -24,6 +25,11 @@ String buildLiturgyMusicUrl(String relativeUrl) {
   }
   return DownloadUrlBuilder.build(relativeUrl);
 }
+
+/// A preferência do item seleciona a mesma faixa vocal/instrumental do desktop.
+String resolveLiturgyMusicPath(Hymn hymn, LiturgyItem item) =>
+    (item.musicMode == 'instrumental' ? hymn.urlInstrumental : hymn.urlMusic) ??
+    '';
 
 /// Executa a acao correspondente ao tipo do item da liturgia.
 ///
@@ -125,7 +131,7 @@ class LiturgyItemExecutor {
     }
     try {
       final hymn = await _api.fetchMusic(item.musicId!);
-      final relativeUrl = hymn.urlMusic ?? '';
+      final relativeUrl = resolveLiturgyMusicPath(hymn, item);
       if (relativeUrl.isEmpty) {
         return 'Audio nao disponivel';
       }
@@ -174,7 +180,9 @@ class LiturgyItemExecutor {
     BuildContext context,
     LiturgyItem item,
   ) async {
-    final path = item.filePath;
+    final path = item.filePath?.trim().isNotEmpty == true
+        ? item.filePath
+        : item.filePaths.firstOrNull;
     if (path == null || path.trim().isEmpty) {
       return 'Arquivo nao selecionado';
     }
@@ -230,13 +238,13 @@ class LiturgyItemExecutor {
       case LiturgyItemType.presentation:
       case LiturgyItemType.otherFiles:
       case LiturgyItemType.scheduled:
+      case LiturgyItemType.audio:
         return true;
       case LiturgyItemType.category:
       case LiturgyItemType.annotation:
       case LiturgyItemType.notice:
       case LiturgyItemType.prayer:
       case LiturgyItemType.verse:
-      case LiturgyItemType.audio:
         return false;
     }
   }

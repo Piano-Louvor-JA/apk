@@ -71,6 +71,7 @@
     },
     "categoryPlaceholder": "Ex: Opening, Sabbath School, Divine Service...",
     "types": {
+      "audio": "Audio",
       "category": "Category",
       "music": "Music",
       "annotation": "Notes",
@@ -113,6 +114,12 @@
     },
     "durationMin": "min",
     "fields": {
+      "invalidTime": "Enter a start time in HH:MM and a valid or empty end time.",
+      "endTime": "End time (optional)",
+      "startTime": "Start time",
+      "instrumental": "Instrumental",
+      "vocal": "Vocals",
+      "musicMode": "Playback mode",
       "url": "URL",
       "selectMusic": "Selected music",
       "searchMusic": "Select music",

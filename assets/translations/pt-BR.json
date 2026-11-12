@@ -63,6 +63,7 @@
       "action": "Clonar Liturgia"
     },
     "types": {
+      "audio": "Áudio",
       "category": "Categoria/Separador",
       "music": "Musica",
       "annotation": "Anotacoes",
@@ -119,6 +120,12 @@
     },
     "durationMin": "min",
     "fields": {
+      "invalidTime": "Informe o início em HH:MM e um término válido ou vazio.",
+      "endTime": "Hora do término (opcional)",
+      "startTime": "Hora de início",
+      "instrumental": "Instrumental",
+      "vocal": "Vocal",
+      "musicMode": "Modo de reprodução",
       "url": "URL",
       "selectMusic": "Musica selecionada",
       "searchMusic": "Selecionar musica",

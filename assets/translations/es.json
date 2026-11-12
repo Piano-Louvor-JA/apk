@@ -71,6 +71,7 @@
     },
     "categoryPlaceholder": "Ej: Apertura, Escuela Sabatica, Culto Divino...",
     "types": {
+      "audio": "Audio",
       "category": "Categoria",
       "music": "Musica",
       "annotation": "Notas",
@@ -113,6 +114,12 @@
     },
     "durationMin": "min",
     "fields": {
+      "invalidTime": "Ingrese el inicio en HH:MM y un fin válido o vacío.",
+      "endTime": "Hora de fin (opcional)",
+      "startTime": "Hora de inicio",
+      "instrumental": "Instrumental",
+      "vocal": "Vocal",
+      "musicMode": "Modo de reproducción",
       "url": "URL",
       "selectMusic": "Musica seleccionada",
       "searchMusic": "Seleccionar musica",

@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_item_rules.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
@@ -713,7 +714,10 @@ class _MirrorItemCard extends StatelessWidget {
         title: Text(
           item.name.isEmpty
               ? 'liturgy.types.${_typeToKey(item.type)}'.tr()
-              : item.name,
+              : [
+                  item.complementaryTitle,
+                  item.name,
+                ].whereType<String>().where((s) => s.isNotEmpty).join(' — '),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: isCategory ? FontWeight.w700 : FontWeight.w500,
             fontSize: isCategory ? null : 14,
@@ -773,8 +777,10 @@ class _BodyState extends State<_Body> {
   // Tick periodico para atualizar o display em tempo real
   Timer? _tickTimer;
 
-  int get _totalDurationMs =>
-      widget.state.items.fold(0, (sum, item) => sum + item.durationMs);
+  int get _totalDurationMs => widget.state.items.fold(
+    0,
+    (sum, item) => sum + LiturgyItemRules.durationMs(item),
+  );
 
   String _formatDuration(int ms) {
     final h = ms ~/ 3600000;
@@ -1208,6 +1214,7 @@ class _Timeline extends StatelessWidget {
               hasChildren: seg.children.isNotEmpty,
               isCollapsed: isCollapsed,
               draggable: !locked,
+              dragIndex: segIndex,
               onToggleCollapse: isCategory && seg.children.isNotEmpty
                   ? () => onToggleCollapse(seg.item.id)
                   : null,
@@ -1263,6 +1270,7 @@ class _ItemCard extends StatelessWidget {
   final bool isCollapsed;
   final VoidCallback? onToggleCollapse;
   final bool draggable;
+  final int dragIndex;
 
   const _ItemCard({
     required this.item,
@@ -1273,6 +1281,7 @@ class _ItemCard extends StatelessWidget {
     this.isCollapsed = false,
     this.onToggleCollapse,
     this.draggable = false,
+    this.dragIndex = 0,
   });
 
   @override
@@ -1335,7 +1344,10 @@ class _ItemCard extends StatelessWidget {
         title: Text(
           item.name.isEmpty
               ? 'liturgy.types.${_typeToKey(item.type)}'.tr()
-              : item.name,
+              : [
+                  item.complementaryTitle,
+                  item.name,
+                ].whereType<String>().where((s) => s.isNotEmpty).join(' — '),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: isCategory ? FontWeight.w700 : FontWeight.w500,
             fontSize: isChild ? 14 : null,
@@ -1343,21 +1355,30 @@ class _ItemCard extends StatelessWidget {
             color: item.done ? theme.colorScheme.onSurfaceVariant : null,
           ),
         ),
-        subtitle: item.subtitle.isNotEmpty
-            ? Text(
-                item.subtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: isChild ? 12 : null,
-                ),
-              )
-            : null,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isCategory && item.startTime?.isNotEmpty == true)
+              Text(
+                [item.startTime, item.endTime]
+                    .whereType<String>()
+                    .where((time) => time.isNotEmpty)
+                    .join(' – '),
+                style: theme.textTheme.bodySmall,
+              ),
+            if (item.subtitle.isNotEmpty)
+              Text(item.subtitle, style: theme.textTheme.bodySmall),
+            if (item.notes?.isNotEmpty == true)
+              Text(item.notes!, style: theme.textTheme.bodySmall),
+          ],
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (draggable && !isChild)
               ReorderableDragStartListener(
                 key: Key('drag-${item.id}'),
-                index: 0,
+                index: dragIndex,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 2),
                   child: Icon(
@@ -1387,7 +1408,7 @@ class _ItemCard extends StatelessWidget {
                 onPressed: () =>
                     showLiturgyItemDialog(context, parentCategoryId: item.id),
               ),
-            if (item.durationMs > 0)
+            if (LiturgyItemRules.durationMs(item) > 0)
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.s1),
                 child: Text(

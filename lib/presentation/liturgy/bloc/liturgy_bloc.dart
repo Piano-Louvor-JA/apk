@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_item_rules.dart';
 import 'package:louvorja_piano_mobile/data/repositories/liturgy_repository.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 
@@ -162,7 +163,7 @@ class LiturgyBloc extends Bloc<LiturgyEvent, LiturgyState> {
     final state = this.state;
     if (state is! LiturgyLoaded) return;
     if (state.locked) return;
-    final items = [...state.items, event.item];
+    final items = LiturgyItemRules.insert(state.items, event.item);
     _repo.saveItems(state.selectedDay, items);
     emit(state.copyWith(items: items));
   }
@@ -171,9 +172,20 @@ class LiturgyBloc extends Bloc<LiturgyEvent, LiturgyState> {
     final state = this.state;
     if (state is! LiturgyLoaded) return;
     if (state.locked) return;
-    final items = state.items
-        .map((e) => e.id == event.item.id ? event.item : e)
-        .toList();
+    final previous = state.items
+        .where((e) => e.id == event.item.id)
+        .firstOrNull;
+    if (previous == null) return;
+    final items =
+        previous.categoryId != event.item.categoryId &&
+            event.item.categoryId != null
+        ? LiturgyItemRules.insert(
+            state.items.where((e) => e.id != event.item.id).toList(),
+            event.item,
+          )
+        : state.items
+              .map((e) => e.id == event.item.id ? event.item : e)
+              .toList();
     _repo.saveItems(state.selectedDay, items);
     emit(state.copyWith(items: items));
   }
@@ -195,12 +207,29 @@ class LiturgyBloc extends Bloc<LiturgyEvent, LiturgyState> {
   void _onToggleDone(LiturgyToggleDone event, Emitter<LiturgyState> emit) {
     final state = this.state;
     if (state is! LiturgyLoaded) return;
-    final items = state.items.map((e) {
-      if (e.id == event.itemId) {
-        return e.copyWith(done: !e.done);
+    final target = state.items.where((e) => e.id == event.itemId).firstOrNull;
+    if (target == null) return;
+    var items = state.items.map((item) {
+      if (item.id == target.id ||
+          (target.type == LiturgyItemType.category &&
+              item.categoryId == target.id)) {
+        return item.copyWith(done: !target.done);
       }
-      return e;
+      return item;
     }).toList();
+    if (target.type != LiturgyItemType.category) {
+      items = items.map((item) {
+        if (item.type != LiturgyItemType.category) return item;
+        final children = items.where(
+          (child) =>
+              child.type != LiturgyItemType.category &&
+              child.categoryId == item.id,
+        );
+        return children.isEmpty
+            ? item
+            : item.copyWith(done: children.every((child) => child.done));
+      }).toList();
+    }
     _repo.saveItems(state.selectedDay, items);
     emit(state.copyWith(items: items));
   }
@@ -209,13 +238,11 @@ class LiturgyBloc extends Bloc<LiturgyEvent, LiturgyState> {
     final state = this.state;
     if (state is! LiturgyLoaded) return;
     if (state.locked) return;
-    final items = [...state.items];
-    final adjustedNew = event.newIndex > event.oldIndex
-        ? event.newIndex - 1
-        : event.newIndex;
-    if (adjustedNew < 0 || adjustedNew >= items.length) return;
-    final item = items.removeAt(event.oldIndex);
-    items.insert(adjustedNew, item);
+    final items = LiturgyItemRules.reorder(
+      state.items,
+      event.oldIndex,
+      event.newIndex,
+    );
     _repo.saveItems(state.selectedDay, items);
     emit(state.copyWith(items: items));
   }

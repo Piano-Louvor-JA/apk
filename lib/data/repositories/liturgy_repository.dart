@@ -4,6 +4,7 @@ import '../../core/services/liturgy_widget_updater.dart';
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -61,7 +62,20 @@ class LiturgyRepository {
 
   /// Clona liturgia de um dia para outro.
   Future<void> cloneDay(LiturgyWeekday from, LiturgyWeekday to) async {
-    final items = loadItems(from);
+    final source = loadItems(from);
+    final random = Random.secure();
+    final ids = {
+      for (final item in source)
+        item.id:
+            '${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 32)}',
+    };
+    final items = source.map((item) {
+      final json = item.toJson();
+      json['id'] = ids[item.id];
+      json['categoryId'] = ids[item.categoryId];
+      json['done'] = false;
+      return LiturgyItem.fromJson(json);
+    }).toList();
     final notes = loadNotes(from);
     await saveItems(to, items);
     await saveNotes(to, notes);
@@ -98,7 +112,7 @@ class LiturgyRepository {
     final raw = _prefs.getString(_orderKey(day));
     if (raw == null) return [];
     try {
-      return jsonDecode(raw) as List<String>;
+      return (jsonDecode(raw) as List<dynamic>).cast<String>();
     } catch (_) {
       return [];
     }
