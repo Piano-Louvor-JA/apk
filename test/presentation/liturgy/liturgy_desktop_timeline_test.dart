@@ -56,13 +56,20 @@ void main() {
         expect(
           tester
               .widgetList<ReorderableDragStartListener>(
-                find.byType(ReorderableDragStartListener),
+                find.byWidgetPredicate(
+                  (w) =>
+                      w is ReorderableDragStartListener &&
+                      [
+                        const Key('drag-a'),
+                        const Key('drag-b'),
+                      ].contains(w.key),
+                ),
               )
               .map((e) => e.index),
           [0, 1],
         );
         await expectLater(
-          find.byType(ReorderableListView),
+          find.byType(ReorderableListView).first,
           matchesGoldenFile('goldens/liturgy_timeline_${brightness.name}.png'),
         );
         await tester.pumpWidget(const SizedBox());

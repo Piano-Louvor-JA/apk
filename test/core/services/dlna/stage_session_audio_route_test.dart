@@ -3,6 +3,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
@@ -48,6 +49,56 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     return (stage, await _iter(rx.messages.stream), rx);
   }
+
+  test(
+    'snapshot de site chega ao receiver como imagem servida localmente',
+    () async {
+      final (stage, iter, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+      expect(
+        stage.projectWebSnapshot(Uint8List.fromList([137, 80, 78, 71])),
+        isTrue,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final message = rx.received.lastWhere((m) => m['type'] == 'projection');
+      expect(message.toString(), contains('liturgy-web.png'));
+      expect(message.toString(), isNot(contains('<iframe')));
+    },
+  );
+
+  test(
+    'refresh preserva texto formatado e cor do título no receiver',
+    () async {
+      final (stage, iter, rx) = await setUpPalco();
+      addTearDown(() async {
+        await rx.close();
+        await stage.turnOff();
+      });
+      await stage.project(
+        title: 'Título',
+        body: 'Texto',
+        richBody: '<p><b>Texto</b></p>',
+        titleColor: '#ff0000',
+        module: 'liturgy',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final before = rx.received.lastWhere((m) => m['type'] == 'projection');
+      final count = rx.received.where((m) => m['type'] == 'projection').length;
+      await stage.refresh();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(
+        rx.received.where((m) => m['type'] == 'projection').length,
+        count + 1,
+      );
+      final after = rx.received.lastWhere((m) => m['type'] == 'projection');
+      expect(after['text'], before['text']);
+      expect(after.toString(), contains('<b>Texto</b>'));
+      expect(after.toString(), contains('#ff0000'));
+    },
+  );
 
   test('modo local (default): playHymnAudio não envia nada ao palco', () async {
     final (stage, iter, rx) = await setUpPalco();

@@ -13,6 +13,21 @@ import 'package:louvorja_piano_mobile/presentation/liturgy/liturgy_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('dia vazio permite criar momento sem exigir categoria', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const MaterialApp(home: LiturgyPage()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liturgy-add-moment')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('liturgy-add-moment')));
+    await tester.pumpAndSettle();
+    expect(find.text('liturgy.types.music'), findsOneWidget);
+    expect(find.text('liturgy.types.annotation'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('reconstruir a página mantém o mesmo bloc e o item adicionado', (
     tester,
   ) async {

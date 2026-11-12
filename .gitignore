@@ -25,6 +25,8 @@ coverage/
 # Generated
 .dart_tool/
 *.freezed.dart
+# Entidade de avulsa: necessária também nos jobs sem geração de código.
+!lib/domain/entities/custom_liturgy.freezed.dart
 *.g.dart
 *.mocks.dart
 

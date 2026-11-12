@@ -1,6 +1,7 @@
 library;
 
 import 'dart:async';
+import '../core/services/sync/operator_state_boot.dart';
 import '../core/services/remote/remote_session.dart';
 import '../presentation/bible/bible_download_controller.dart';
 
@@ -45,7 +46,10 @@ class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(RemoteSession.instance.restoreLastDesktopConnection());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(RemoteSession.instance.restoreLastDesktopConnection());
+      unawaited(OperatorStateBoot.flushOnResume());
+    }
   }
 
   @override

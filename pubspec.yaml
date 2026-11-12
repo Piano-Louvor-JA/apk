@@ -8,6 +8,7 @@ environment:
   flutter: ">=3.32.0"
 
 dependencies:
+  html: ^0.15.6
   xml: any
   flutter:
     sdk: flutter
@@ -91,6 +92,7 @@ dependencies:
   # 10.x exige Android API 26 (o app usa 24), remove CocoaPods e liga logs/métricas sempre.
   sentry_flutter: ^9.30.0
   webview_flutter: ^4.14.1
+  youtube_explode_dart: ^3.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -112,6 +114,7 @@ dev_dependencies:
 
   # Brand assets nativos (Android/iOS/Web)
   flutter_launcher_icons: ^0.14.3
+  webview_flutter_platform_interface: ^2.15.1
 
 flutter_launcher_icons:
   android: true

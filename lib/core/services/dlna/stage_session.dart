@@ -2,6 +2,7 @@ library;
 
 import 'dart:async' show unawaited, StreamSubscription;
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
@@ -330,6 +331,51 @@ class StageSession extends ChangeNotifier {
     }
   }
 
+  /// Página web renderizada pelo próprio Android: não depende de iframe remoto.
+  bool projectWebSnapshot(Uint8List bytes) {
+    final targets = _projectionTargets();
+    if (targets.isEmpty) return false;
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    var sent = false;
+    for (final target in targets) {
+      final url = target.serveMedia('liturgy-web.png', bytes);
+      if (url != null) {
+        target.project(text: '', footer: '', background: '$url?t=$stamp');
+        sent = true;
+      }
+    }
+    return sent;
+  }
+
+  /// Galeria de imagens local com os mesmos controles de slides do PPTX.
+  int projectImageFiles(List<String> paths, {int initialIndex = 0}) {
+    final targets = _projectionTargets();
+    if (targets.isEmpty) return 0;
+    final urls = <String>[];
+    for (var i = 0; i < paths.length; i++) {
+      final file = File(paths[i]);
+      if (!file.existsSync()) return 0;
+      try {
+        final name =
+            'gallery-${DateTime.now().microsecondsSinceEpoch}-$i.${paths[i].split('.').last}';
+        final url = targets.first.serveMedia(name, file.readAsBytesSync());
+        if (url == null) return 0;
+        urls.add(url);
+      } catch (_) {
+        return 0;
+      }
+    }
+    _slideUrls = urls;
+    if (urls.isNotEmpty) _projectSlide(initialIndex.clamp(0, urls.length - 1));
+    return urls.length;
+  }
+
+  bool showSlide(int index) {
+    if (index < 0 || index >= _slideUrls.length) return false;
+    _projectSlide(index);
+    return true;
+  }
+
   /// Carrega e projeta a 1a imagem de slides extraídos de um .pptx.
   /// Retorna a quantidade de slides projetados (0 = nada extraído).
   int projectPptxSlides(String pptxPath) {
@@ -590,7 +636,19 @@ class StageSession extends ChangeNotifier {
     if (!isOn) return;
     final current = _lastContent;
     if (current != null) {
-      await _project(current);
+      await project(
+        title: current.title,
+        body: current.body,
+        richBody: current.richBody,
+        titleColor: current.titleColor,
+        footer: current.footer,
+        module: current.module,
+        isBible: current.isBible,
+        background: current.background,
+        footerRef: current.footerRef,
+        footerVersion: current.footerVersion,
+        isCover: current.isCover,
+      );
     } else {
       await _projectIdle();
     }
@@ -603,6 +661,8 @@ class StageSession extends ChangeNotifier {
   Future<bool> project({
     required String title,
     String? body,
+    String? richBody,
+    String? titleColor,
     String? footer,
     String? background,
     String? footerRef,
@@ -615,6 +675,12 @@ class StageSession extends ChangeNotifier {
     final content = _StageContent(
       title: title,
       body: body,
+      richBody: richBody,
+      titleColor: titleColor,
+      background: background,
+      footerRef: footerRef,
+      footerVersion: footerVersion,
+      isCover: isCover,
       footer: footer,
       module: module,
       isBible: isBible,
@@ -623,8 +689,12 @@ class StageSession extends ChangeNotifier {
     if (isPalcoMode) {
       // Palco WS: texto nativo (body com \n vira <br> no receiver).
       final text = [
-        title,
-        body,
+        titleColor != null && RegExp(r'^#[a-fA-F0-9]{6}$').hasMatch(titleColor)
+            ? '<span style="color:$titleColor">${richBody == null ? title : const HtmlEscape().convert(title)}</span>'
+            : richBody == null
+            ? title
+            : const HtmlEscape().convert(title),
+        richBody ?? body,
       ].whereType<String>().where((s) => s.isNotEmpty).join('<br><br>');
       // F3.3m/o: estilos da letra (sombra/caixinha) e footer destacado.
       // Bíblia tem tipografia PRÓPRIA (tamanho/peso/cor) — diferente da música.
@@ -804,13 +874,25 @@ class StageSession extends ChangeNotifier {
 
 class _StageContent {
   final String title;
-  final String? body;
+  final String? body,
+      richBody,
+      titleColor,
+      background,
+      footerRef,
+      footerVersion;
+  final bool? isCover;
   final String? footer;
   final String module;
   final bool isBible;
   const _StageContent({
     required this.title,
     this.body,
+    this.richBody,
+    this.titleColor,
+    this.background,
+    this.footerRef,
+    this.footerVersion,
+    this.isCover,
     this.footer,
     this.module = 'hymns',
     this.isBible = false,

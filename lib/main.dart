@@ -17,6 +17,7 @@ import 'core/services/media_state_mirror.dart';
 import 'core/services/offline_status.dart';
 import 'core/services/settings_controller.dart';
 import 'core/services/sync/operator_state_boot.dart';
+import 'core/services/sync/operator_state_client.dart';
 import 'core/telemetry/telemetry.dart';
 
 void main() async {
@@ -40,6 +41,7 @@ void main() async {
   await settings.loadSettings();
   // O pull recarrega o controller sem chamar setters/enfileirar novamente.
   OperatorStateBoot.client(prefs, onApplied: settings.loadSettings);
+  OperatorStateClient.onEnqueued = OperatorStateBoot.scheduleFlush;
 
   // sync v2 (apk#107): flush no boot — a fila pendente sobe quando há sessão
   // e o pull da resposta aplica LWW (agendados + prefs). Sem rede/sessão a

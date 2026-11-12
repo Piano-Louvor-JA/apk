@@ -2,6 +2,9 @@ import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 
 /// Regras de domínio de liturgy-item-helpers.ts do desktop.
 abstract final class LiturgyItemRules {
+  static bool keepsControls(LiturgyItem item) =>
+      item.type == LiturgyItemType.annotation ||
+      item.type == LiturgyItemType.site;
   static const withoutDuration = {
     LiturgyItemType.category,
     LiturgyItemType.annotation,
