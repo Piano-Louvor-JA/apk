@@ -6,11 +6,11 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/countdown_alert_service.dart';
 import '../../core/services/dlna/stage_session.dart';
 import '../../data/repositories/countdown_preset_repository.dart';
-import '../../domain/entities/countdown_preset.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 import 'package:louvorja_piano_mobile/presentation/hymns/stage_customization_sheet.dart'
@@ -44,40 +44,147 @@ class _TimerPageState extends State<TimerPage> {
   // F3.3 PERSONALIZAÇÃO: também projeta o texto do timer com as configs
   // do módulo (BG, cor, fonte, alinhamento, sombra, caixa) — além do
   // timer nativo. O receiver aplica os estilos no elemento timer.
+  // Projetar: cada bloco tem seu botão; só um vai pra TV por vez.
+  bool _projectStopwatch = false;
+  bool _projectCountdown = false;
+
+  /// Contagem na TV: rodando = renderer nativo do receiver; parada =
+  /// mostra o valor fixo.
   void _castCountdown() {
     final stage = StageSession.instance;
-    if (!stage.isOn || !stage.isPalcoMode) return;
-    if (!_countdownRunning) {
-      stage.stopTimerStage();
+    if (!stage.isOn || !_projectCountdown) return;
+    if (_countdownRunning && stage.isPalcoMode) {
+      stage.startTimer(
+        duration: _countdownRemaining.inSeconds,
+        mode: 'countdown',
+        label: 'timer.countdown'.tr(),
+      );
       return;
     }
-    // Timer nativo conta na TV; StageSession injeta settings do módulo.
-    final label = 'timer.countdown'.tr();
-    stage.startTimer(
-      duration: _countdownRemaining.inSeconds,
-      mode: 'countdown',
-      label: label,
-    );
+    stage.stopTimerStage();
+    unawaited(stage.project(title: _countdownText(), module: 'timer'));
   }
 
+  /// Cronômetro na TV: rodando = chrono a partir do decorrido; parado =
+  /// mostra o tempo fixo.
   void _castStopwatch() {
     final stage = StageSession.instance;
-    if (!stage.isOn || !stage.isPalcoMode) return;
-    if (!_stopwatch.isRunning) {
-      stage.stopTimerStage();
+    if (!stage.isOn || !_projectStopwatch) return;
+    if (_stopwatch.isRunning && stage.isPalcoMode) {
+      stage.startTimer(
+        duration: _stopwatch.elapsed.inSeconds,
+        mode: 'chrono',
+        label: 'timer.stopwatch'.tr(),
+      );
       return;
     }
-    // chrono: TV conta a partir do elapsed atual (renderer nativo).
-    final label = 'timer.stopwatch'.tr();
-    stage.startTimer(
-      duration: _stopwatch.elapsed.inSeconds,
-      mode: 'chrono',
-      label: label,
+    stage.stopTimerStage();
+    unawaited(
+      stage.project(
+        title: _formatDuration(
+          _stopwatch.isRunning ? _stopwatch.elapsed : _elapsed,
+          millis: false,
+        ),
+        module: 'timer',
+      ),
     );
   }
 
-  void _castStop() {
-    StageSession.instance.stopTimerStage();
+  Future<void> _stopProjection() async {
+    final stage = StageSession.instance;
+    stage.stopTimerStage();
+    await stage.clearContent();
+  }
+
+  Future<void> _toggleProjectStopwatch() async {
+    if (_projectStopwatch) {
+      setState(() => _projectStopwatch = false);
+      await _stopProjection();
+      return;
+    }
+    setState(() {
+      _projectStopwatch = true;
+      _projectCountdown = false;
+    });
+    _castStopwatch();
+  }
+
+  Future<void> _toggleProjectCountdown() async {
+    if (_projectCountdown) {
+      setState(() => _projectCountdown = false);
+      await _stopProjection();
+      return;
+    }
+    setState(() {
+      _projectCountdown = true;
+      _projectStopwatch = false;
+    });
+    _castCountdown();
+  }
+
+  String _countdownText() => _formatCountdown(
+    _countdownRemaining > Duration.zero
+        ? _countdownRemaining
+        : Duration(minutes: _countdownMinutes, seconds: _countdownSeconds),
+  );
+
+  // Tempos salvos do cronômetro (paridade desktop: "Tempos Salvos").
+  static const _savedTimesKey = 'timer_saved_times_ms';
+  List<int> _savedTimesMs = const [];
+
+  static const _countdownSavedKey = 'timer_countdown_saved_ms';
+  List<int> _countdownSavedMs = const [];
+
+  Future<void> _loadSavedTimes() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<int> read(String key) => [
+      for (final e in prefs.getStringList(key) ?? const <String>[])
+        if (int.tryParse(e) != null) int.parse(e),
+    ];
+    if (mounted) {
+      setState(() {
+        _savedTimesMs = read(_savedTimesKey);
+        _countdownSavedMs = read(_countdownSavedKey);
+      });
+    }
+  }
+
+  Future<void> _persistSavedTimes(String key, List<int> next) async {
+    setState(() {
+      if (key == _savedTimesKey) {
+        _savedTimesMs = next;
+      } else {
+        _countdownSavedMs = next;
+      }
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(key, [for (final e in next) '$e']);
+  }
+
+  void _saveStopwatchTime() {
+    final elapsed = _stopwatch.isRunning ? _stopwatch.elapsed : _elapsed;
+    if (elapsed == Duration.zero) return;
+    unawaited(
+      _persistSavedTimes(_savedTimesKey, [
+        ..._savedTimesMs,
+        elapsed.inMilliseconds,
+      ]),
+    );
+  }
+
+  /// Salvar da contagem = mesmo do cronômetro: guarda o tempo do momento
+  /// (restante se iniciada; senão o tempo escolhido).
+  void _saveCountdownTime() {
+    final current = _countdownRemaining > Duration.zero
+        ? _countdownRemaining
+        : Duration(minutes: _countdownMinutes, seconds: _countdownSeconds);
+    if (current == Duration.zero) return;
+    unawaited(
+      _persistSavedTimes(_countdownSavedKey, [
+        ..._countdownSavedMs,
+        current.inMilliseconds,
+      ]),
+    );
   }
 
   // Countdown
@@ -85,22 +192,23 @@ class _TimerPageState extends State<TimerPage> {
   int _countdownSeconds = 0;
   Duration _countdownRemaining = Duration.zero;
   bool _countdownRunning = false;
-  late final CountdownPresetRepository _presetRepository;
   late final CountdownAlertService _alertService;
-  List<CountdownPreset> _presets = const [];
 
   @override
   void initState() {
     super.initState();
-    _presetRepository = widget.presetRepository ?? CountdownPresetRepository();
     _alertService = widget.alertService ?? CountdownAlertService();
-    _loadPresets();
+    _loadSavedTimes();
     // F3.3l: palco ligado DEPOIS do start — re-espelha o timer corrente.
     StageSession.instance.addListener(_onStageChanged);
   }
 
   void _onStageChanged() {
     if (!mounted) return;
+    if (!StageSession.instance.isOn) {
+      _projectStopwatch = false;
+      _projectCountdown = false;
+    }
     if (_stopwatch.isRunning) {
       _castStopwatch();
     } else if (_countdownRunning) {
@@ -109,53 +217,27 @@ class _TimerPageState extends State<TimerPage> {
     setState(() {}); // badge aparece/some
   }
 
-  Future<void> _loadPresets() async {
-    final presets = await _presetRepository.load();
-    if (mounted) setState(() => _presets = presets);
-  }
 
-  Future<void> _saveCurrentPreset() async {
-    final duration = Duration(
-      minutes: _countdownMinutes,
-      seconds: _countdownSeconds,
-    );
-    if (duration == Duration.zero) return;
-    final preset = CountdownPreset(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: _formatCountdown(duration),
-      duration: duration,
-    );
-    final updated = [..._presets, preset];
-    await _presetRepository.save(updated);
-    if (mounted) setState(() => _presets = updated);
-  }
-
-  Future<void> _deletePreset(CountdownPreset preset) async {
-    final updated = _presets.where((item) => item.id != preset.id).toList();
-    await _presetRepository.save(updated);
-    if (mounted) setState(() => _presets = updated);
-  }
-
-  void _applyPreset(CountdownPreset preset) {
-    setState(() {
-      _countdownMinutes = preset.duration.inMinutes;
-      _countdownSeconds = preset.duration.inSeconds.remainder(60);
-      _countdownRemaining = Duration.zero;
-    });
-  }
-
-  String _formatDuration(Duration d) {
+  String _formatDuration(Duration d, {bool millis = true}) {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60);
     final s = d.inSeconds.remainder(60);
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    final base =
+        '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    return millis ? '$base.${_ms(d)}' : base;
   }
 
-  String _formatCountdown(Duration d) {
+  String _formatCountdown(Duration d, {bool millis = false}) {
     final m = d.inMinutes.remainder(60);
     final s = d.inSeconds.remainder(60);
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    final base =
+        '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    return millis ? '$base.${_ms(d)}' : base;
   }
+
+  /// Centésimos (2 dígitos): 41.343 s → "34".
+  static String _ms(Duration d) =>
+      (d.inMilliseconds.remainder(1000) ~/ 10).toString().padLeft(2, '0');
 
   void _toggleStopwatch() {
     setState(() {
@@ -174,7 +256,7 @@ class _TimerPageState extends State<TimerPage> {
 
   void _tickStopwatch() {
     if (!_stopwatch.isRunning) return;
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 31), () {
       if (_stopwatch.isRunning && mounted) {
         setState(() {});
         _tickStopwatch();
@@ -187,8 +269,13 @@ class _TimerPageState extends State<TimerPage> {
       _stopwatch.reset();
       _elapsed = Duration.zero;
     });
-    _castStop(); // F3.3l
+    _castStopwatch();
   }
+
+  // Contagem por prazo absoluto (Date.now), não por decremento: os
+  // milissegundos ficam certos e não atrasa com a tela ocupada.
+  Timer? _countdownTimer;
+  DateTime? _countdownDeadline;
 
   void _startCountdown() {
     final total = Duration(
@@ -200,47 +287,49 @@ class _TimerPageState extends State<TimerPage> {
       _countdownRemaining = total;
       _countdownRunning = true;
     });
-    _tickCountdown();
+    _countdownDeadline = DateTime.now().add(total);
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(
+      const Duration(milliseconds: 31),
+      (_) => _tickCountdown(),
+    );
     _castCountdown(); // F3.3l
   }
 
   void _tickCountdown() {
-    if (!_countdownRunning || _countdownRemaining == Duration.zero) {
-      if (_countdownRemaining == Duration.zero && _countdownRunning) {
-        setState(() {
-          _countdownRunning = false;
-        });
-      }
+    final deadline = _countdownDeadline;
+    if (!mounted || !_countdownRunning || deadline == null) {
+      _countdownTimer?.cancel();
       return;
     }
-    Future.delayed(const Duration(seconds: 1), () {
-      if (_countdownRunning && mounted) {
-        setState(() {
-          _countdownRemaining =
-              _countdownRemaining - const Duration(seconds: 1);
-        });
-        if (_countdownRemaining == Duration.zero) {
-          _countdownRunning = false;
-          unawaited(_alertService.notifyFinished());
-        }
-        _tickCountdown();
-      }
-    });
+    final left = deadline.difference(DateTime.now());
+    if (left <= Duration.zero) {
+      _countdownTimer?.cancel();
+      setState(() {
+        _countdownRemaining = Duration.zero;
+        _countdownRunning = false;
+      });
+      unawaited(_alertService.notifyFinished());
+      return;
+    }
+    setState(() => _countdownRemaining = left);
   }
 
   void _stopCountdown() {
+    _countdownTimer?.cancel();
     setState(() {
       _countdownRunning = false;
     });
-    _castStop(); // F3.3l
+    _castCountdown();
   }
 
   void _resetCountdown() {
+    _countdownTimer?.cancel();
     setState(() {
       _countdownRunning = false;
       _countdownRemaining = Duration.zero;
     });
-    _castStop(); // F3.3l
+    _castCountdown();
   }
 
   @override
@@ -248,7 +337,11 @@ class _TimerPageState extends State<TimerPage> {
     StageSession.instance.removeListener(_onStageChanged);
     _stopwatch.stop();
     _countdownRunning = false;
-    _castStop(); // F3.3l: sair da tela tira o timer da TV
+    _countdownTimer?.cancel();
+    // Sair da tela tira o timer da TV.
+    if (_projectStopwatch || _projectCountdown) {
+      unawaited(_stopProjection());
+    }
     super.dispose();
   }
 
@@ -339,7 +432,29 @@ class _TimerPageState extends State<TimerPage> {
                         icon: const Icon(TablerIcons.refresh),
                         label: Text('common.reset'.tr()),
                       ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        key: const Key('stopwatch-save'),
+                        onPressed: _saveStopwatchTime,
+                        icon: const Icon(TablerIcons.bookmark),
+                        label: Text('timer.save'.tr()),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  _ProjectButton(
+                    key: const Key('stopwatch-project'),
+                    projecting: _projectStopwatch,
+                    onPressed: StageSession.instance.isOn
+                        ? _toggleProjectStopwatch
+                        : null,
+                  ),
+                  _SavedTimesList(
+                    keyPrefix: 'stopwatch-saved',
+                    items: _savedTimesMs,
+                    format: (ms) => _formatDuration(Duration(milliseconds: ms)),
+                    onChanged: (next) =>
+                        _persistSavedTimes(_savedTimesKey, next),
                   ),
                 ],
               ),
@@ -352,12 +467,13 @@ class _TimerPageState extends State<TimerPage> {
               title: 'timer.countdown'.tr(),
               summary: Text(
                 _countdownRemaining > Duration.zero
-                    ? _formatCountdown(_countdownRemaining)
+                    ? _formatCountdown(_countdownRemaining, millis: true)
                     : _formatCountdown(
                         Duration(
                           minutes: _countdownMinutes,
                           seconds: _countdownSeconds,
                         ),
+                        millis: true,
                       ),
                 key: const Key('countdown-display'),
                 style: theme.textTheme.displaySmall?.copyWith(
@@ -407,41 +523,16 @@ class _TimerPageState extends State<TimerPage> {
                         ),
                         const SizedBox(width: 12),
                         OutlinedButton.icon(
-                          key: const Key('countdown-save-preset'),
+                          key: const Key('countdown-save'),
                           onPressed:
                               _countdownMinutes == 0 && _countdownSeconds == 0
                               ? null
-                              : _saveCurrentPreset,
+                              : _saveCountdownTime,
                           icon: const Icon(TablerIcons.bookmark),
-                          label: const Text('Salvar'),
+                          label: Text('timer.save'.tr()),
                         ),
                       ],
                     ),
-                    if (_presets.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Presets salvos',
-                          style: theme.textTheme.labelLarge,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _presets
-                            .map(
-                              (preset) => InputChip(
-                                key: Key('countdown-preset-${preset.id}'),
-                                label: Text(preset.label),
-                                onPressed: () => _applyPreset(preset),
-                                onDeleted: () => _deletePreset(preset),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
                   ] else ...[
                     Wrap(
                       alignment: WrapAlignment.center,
@@ -460,9 +551,34 @@ class _TimerPageState extends State<TimerPage> {
                           icon: const Icon(TablerIcons.refresh),
                           label: Text('common.reset'.tr()),
                         ),
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          key: const Key('countdown-save-running'),
+                          onPressed: _saveCountdownTime,
+                          icon: const Icon(TablerIcons.bookmark),
+                          label: Text('timer.save'.tr()),
+                        ),
                       ],
                     ),
                   ],
+                  const SizedBox(height: 8),
+                  _ProjectButton(
+                    key: const Key('countdown-project'),
+                    projecting: _projectCountdown,
+                    onPressed: StageSession.instance.isOn
+                        ? _toggleProjectCountdown
+                        : null,
+                  ),
+                  _SavedTimesList(
+                    keyPrefix: 'countdown-saved',
+                    items: _countdownSavedMs,
+                    format: (ms) => _formatCountdown(
+                      Duration(milliseconds: ms),
+                      millis: true,
+                    ),
+                    onChanged: (next) =>
+                        _persistSavedTimes(_countdownSavedKey, next),
+                  ),
                   if (_countdownRemaining == Duration.zero &&
                       !_countdownRunning &&
                       (_countdownMinutes > 0 || _countdownSeconds > 0))
@@ -615,6 +731,90 @@ class _LocalClockCardState extends State<_LocalClockCard> {
       ],
     ),
   );
+}
+
+/// Lista "Tempos salvos" (paridade desktop): nº, tempo, remover e limpar.
+class _SavedTimesList extends StatelessWidget {
+  final String keyPrefix;
+  final List<int> items;
+  final String Function(int ms) format;
+  final ValueChanged<List<int>> onChanged;
+
+  const _SavedTimesList({
+    required this.keyPrefix,
+    required this.items,
+    required this.format,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'timer.savedTimes'.tr(),
+                style: theme.textTheme.labelLarge,
+              ),
+            ),
+            TextButton(
+              key: Key('$keyPrefix-clear'),
+              onPressed: () => onChanged(const []),
+              child: Text('timer.clearAll'.tr()),
+            ),
+          ],
+        ),
+        for (var i = 0; i < items.length; i++)
+          ListTile(
+            key: Key('$keyPrefix-$i'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Text('${i + 1}.', style: theme.textTheme.labelLarge),
+            title: Text(
+              format(items[i]),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            trailing: IconButton(
+              icon: const Icon(TablerIcons.x, size: 18),
+              onPressed: () => onChanged([
+                for (var j = 0; j < items.length; j++)
+                  if (j != i) items[j],
+              ]),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Projetar/Parar projeção (desabilitado com o palco desligado).
+class _ProjectButton extends StatelessWidget {
+  final bool projecting;
+  final VoidCallback? onPressed;
+
+  const _ProjectButton({
+    super.key,
+    required this.projecting,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(projecting ? TablerIcons.square : TablerIcons.deviceTv),
+      label: Text(
+        (projecting ? 'remote.stopProjection' : 'remote.project').tr(),
+      ),
+    );
+  }
 }
 
 class _NumberStepper extends StatelessWidget {

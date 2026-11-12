@@ -44,6 +44,7 @@
     "back": "Voltar"
   },
   "hymns": {
+    "searchCriteria": "A busca considera o título, a coletânea e a letra da música. Alguns resultados podem corresponder apenas a um trecho da letra.",
     "title": "Hinos",
     "searchPlaceholder": "Buscar por número, título ou trecho",
     "availableOffline": "Disponível offline",
@@ -252,6 +253,9 @@
     "privacyPolicy": "Política de Privacidade"
   },
   "timer": {
+    "save": "Salvar",
+    "savedTimes": "Tempos salvos",
+    "clearAll": "Limpar tudo",
     "clock": "Relógio",
     "format24h": "Formato de 24 horas",
     "showSeconds": "Mostrar segundos",
@@ -273,6 +277,10 @@
     "unknown": "Ocorreu um erro inesperado. Tente novamente."
   },
   "tools": {
+    "desktopMonitors": "Conectar monitor",
+    "desktopMonitorsSubtitle": "TVs, monitores e projetores ligados por cabo ao computador",
+    "transmission": "Transmissão",
+    "transmissionSubtitle": "TVs e OBS conectados ao celular",
     "title": "Ferramentas",
     "liturgy": "Liturgia",
     "liturgySubtitle": "Organize o culto do dia",
@@ -565,6 +573,9 @@
     }
   },
   "albums": {
+    "shuffle": "Tocar aleatório",
+    "appendQueue": "Adicionar à fila",
+    "appendedQueue": "Adicionado à fila: {} música(s)",
     "playAll": "Tocar tudo"
   },
   "offline": {
