@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:louvorja_piano_mobile/presentation/tools/desktop_monitors_page.dart';
+import 'package:louvorja_piano_mobile/presentation/tools/monitor_share_link.dart';
 
 /// Painel de controle remoto: envia comandos multimídia a receivers
 /// desktop/web conectados ao sender do Palco (remote.command/remote.ack).
@@ -27,6 +29,9 @@ class _RemoteControlSheetState extends State<RemoteControlSheet> {
   void initState() {
     super.initState();
     _refresh();
+    // Monitores do computador: atualiza o ✓ com o estado real ao abrir.
+    MonitorShareSession.instance.refresh();
+    MonitorShareSession.instance.loadHideIdle();
   }
 
   void _refresh() {
@@ -71,6 +76,7 @@ class _RemoteControlSheetState extends State<RemoteControlSheet> {
     return AnimatedBuilder(
       animation: Listenable.merge([
         StageSession.instance,
+        MonitorShareSession.instance,
         // receivers mudam: reconecta o refresh
       ]),
       builder: (context, _) => DraggableScrollableSheet(
@@ -80,6 +86,8 @@ class _RemoteControlSheetState extends State<RemoteControlSheet> {
           controller: scrollController,
           padding: const EdgeInsets.all(16),
           children: [
+            const _SharedMonitorsSection(),
+            const Divider(height: 32),
             Row(
               children: [
                 Icon(
@@ -177,6 +185,144 @@ class _RemoteControlSheetState extends State<RemoteControlSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Monitores compartilhados pelo app desktop: ✓ = recebe a projeção.
+/// Padrão: todos marcados (o desktop já abre todos ao conectar).
+class _SharedMonitorsSection extends StatelessWidget {
+  const _SharedMonitorsSection();
+
+  // Widget const: o pai reconstruir NÃO o atualiza — ele mesmo escuta o
+  // estado (senão o ✓ e a opção de espera ficavam congelados na tela).
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: MonitorShareSession.instance,
+    builder: (context, _) => _content(context),
+  );
+
+  Widget _content(BuildContext context) {
+    final theme = Theme.of(context);
+    final session = MonitorShareSession.instance;
+    final monitors = session.monitors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              TablerIcons.devicesPc,
+              size: 20,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Monitores compartilhados',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (session.busy)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (!session.connected) ...[
+          Text(
+            'Nenhum computador conectado.',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Use as TVs e projetores ligados por cabo ao computador como '
+            'telas do celular.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const DesktopMonitorsPage(),
+              ),
+            ),
+            icon: const Icon(TablerIcons.plugConnected, size: 18),
+            label: const Text('Conectar monitor'),
+          ),
+        ] else if (monitors.isEmpty) ...[
+          Text(
+            'O computador ${session.target!.address.split(':').first} não '
+            'tem monitor escolhido para compartilhar.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ] else ...[
+          Text(
+            'Projetar nos marcados · ${session.target!.address.split(':').first}',
+            style: theme.textTheme.bodySmall,
+          ),
+          // Chave liga/desliga; o nome acompanha: Retirar ↔ Inserir.
+          SwitchListTile(
+            key: const Key('shared-monitors-hide-idle'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: session.hideIdle,
+            onChanged: (v) => session.setHideIdle(v),
+            // O nome diz o que a chave faz ao tocar: desligada = Retirar
+            // (liga e tira o fundo); ligada = Inserir (desliga e volta o fundo).
+            title: Text(
+              session.hideIdle
+                  ? 'Inserir fundo preto de espera'
+                  : 'Retirar fundo preto de espera',
+            ),
+            subtitle: Text(
+              session.hideIdle
+                  ? 'Sem projeção, os monitores mostram o que já estava neles'
+                  : 'Sem projeção, os monitores ficam com a tela preta de espera',
+            ),
+          ),
+          const Divider(height: 8),
+          for (final m in monitors)
+            CheckboxListTile(
+              key: Key('shared-monitor-${m.id}'),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: m.active,
+              onChanged: session.busy
+                  ? null
+                  : (v) async {
+                      final error = await session.toggle(m.id, v ?? false);
+                      if (error != null && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              error == 'not_connected'
+                                  ? 'O computador desconectou. Conecte de novo.'
+                                  : error,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+              secondary: Icon(
+                m.mode == 'return' ? TablerIcons.deviceTv : TablerIcons.screenShare,
+                color: m.active
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              title: Text(m.label),
+              subtitle: Text(
+                m.mode == 'return' ? 'Retorno de palco' : 'Espelho do palco',
+              ),
+            ),
+        ],
+      ],
     );
   }
 }

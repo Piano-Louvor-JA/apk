@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 
 /// F3.3t: o receiver Palco na TV é CLIENTE WebSocket — não escuta porta
 /// nenhuma, logo um scan de rede nunca vai encontrá-lo. O fluxo correto é
-/// invertido: o CELULAR sobe o sender (HTTP :7080 + WS :7081) e mostra o
+/// invertido: o CELULAR sobe o sender (HTTP :4980 + WS :4981) e mostra o
 /// IP dele; a TV (app Palco instalado) conecta nesse IP.
 ///
 /// Este dialog substitui o antigo scan enganoso (:7080/status na sub-rede,

@@ -2,6 +2,8 @@
 // UI de Ferramentas -- galeria de cards clicaveis, cada ferramenta em view propria
 library;
 
+import 'desktop_monitors_page.dart';
+import 'transmission_page.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
@@ -66,6 +68,14 @@ class _ToolsPageState extends State<ToolsPage> {
     if (view == _ToolView.timer) {
       return TimerPage(onBack: () => setState(() => _activeView = null));
     }
+    if (view == _ToolView.desktopMonitors) {
+      return DesktopMonitorsPage(
+        onBack: () => setState(() => _activeView = null),
+      );
+    }
+    if (view == _ToolView.transmission) {
+      return TransmissionPage(onBack: () => setState(() => _activeView = null));
+    }
     if (view == _ToolView.remoteControl) {
       return RemoteControlToolPage(
         onBack: () => setState(() => _activeView = null),
@@ -87,6 +97,8 @@ class _ToolsPageState extends State<ToolsPage> {
         _ToolView.remoteControl => const RemoteControlToolPage(),
         _ToolView.bible => const BiblePage(),
         _ToolView.timer => const TimerPage(),
+        _ToolView.transmission => const TransmissionPage(),
+        _ToolView.desktopMonitors => const DesktopMonitorsPage(),
       },
     );
   }
@@ -96,13 +108,17 @@ enum _ToolView {
   liturgy,
   bible,
   timer,
-  remoteControl;
+  remoteControl,
+  transmission,
+  desktopMonitors;
 
   IconData get icon => switch (this) {
     liturgy => TablerIcons.clipboardText,
     bible => TablerIcons.book2,
     timer => TablerIcons.clock,
     remoteControl => TablerIcons.deviceGamepad2,
+    transmission => TablerIcons.broadcast,
+    desktopMonitors => TablerIcons.devicesPc,
   };
 
   String get label => switch (this) {
@@ -110,6 +126,8 @@ enum _ToolView {
     bible => 'tools.bible',
     timer => 'tools.timer',
     remoteControl => 'tools.remoteControl',
+    transmission => 'tools.transmission',
+    desktopMonitors => 'tools.desktopMonitors',
   };
 
   String get subtitle => switch (this) {
@@ -117,6 +135,8 @@ enum _ToolView {
     bible => 'tools.bibleSubtitle',
     timer => 'tools.timerSubtitle',
     remoteControl => 'tools.remoteControlSubtitle',
+    transmission => 'tools.transmissionSubtitle',
+    desktopMonitors => 'tools.desktopMonitorsSubtitle',
   };
 
   Color color(ColorScheme scheme) => switch (this) {
@@ -124,6 +144,8 @@ enum _ToolView {
     bible => scheme.tertiary,
     timer => scheme.secondary,
     remoteControl => scheme.error,
+    transmission => scheme.primary,
+    desktopMonitors => scheme.tertiary,
   };
 }
 

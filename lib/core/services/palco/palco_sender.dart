@@ -12,7 +12,8 @@ import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'palco_models.dart';
 import 'palco_proxy.dart';
 
-/// Sender do Palco: HTTP (:7080, proxy + mídia local) + WS (:7081) no celular.
+/// Sender do Palco: HTTP (:4980, proxy + mídia local) + WS (:4981) no celular.
+/// Faixa 4980+ para não colidir com o desktop (47080+) na mesma máquina/rede.
 ///
 /// Reimplementação Dart do sender.py validado no spike ~/palco-spike
 /// (LG UM7510, 2026-08-17). Mesmo protocolo — a TV (receiver webOS) conecta
@@ -57,8 +58,15 @@ class PalcoSender {
   /// Sub-rede da TV (hint para anunciar o IP certo — igual DLNA).
   String? rendererSubnetHint;
 
-  static const int httpPort = 7080;
-  static const int wsPort = 7081;
+  /// Arquivos extras do receiver do desktop servidos pelo celular.
+  static const _receiverAssetTypes = {
+    '/network-mirror.js': 'application/javascript; charset=utf-8',
+    '/splash.jpg': 'image/jpeg',
+    '/appinfo.json': 'application/json',
+  };
+
+  static const int httpPort = 4980;
+  static const int wsPort = 4981;
 
   PalcoSender({
     this.httpPortFixed = httpPort,
@@ -78,7 +86,7 @@ class PalcoSender {
   final int wsPortFixed;
 
   /// Teste: faz bind em porta efêmera (0) mesmo quando o sender tem porta
-  /// fixa configurada (ex.: slots do orchestrator, 7080+2n). `flutter test`
+  /// fixa configurada (ex.: slots do orchestrator, 4980+2n). `flutter test`
   /// roda arquivos em processos paralelos e portas fixas colidem
   /// (`Address already in use`). A porta configurada segue como identidade
   /// enquanto o sender está parado; a real fica em [effectiveHttpPort] /
@@ -93,7 +101,7 @@ class PalcoSender {
   int get effectiveHttpPort => _http?.port ?? httpPortFixed;
   int get effectiveWsPort => _ws?.port ?? wsPortFixed;
 
-  /// Sobe os servidores. Retorna a base HTTP (ex: http://192.168.1.5:7080)
+  /// Sobe os servidores. Retorna a base HTTP (ex: http://192.168.1.5:4980)
   /// ou null se falhou (sem IP LAN).
   Future<String?> start() async {
     final ip = await _localIp();
@@ -262,7 +270,13 @@ class PalcoSender {
     final res = req.response;
     try {
       final path = req.uri.path;
-      if (path == '/' || path == '/receiver.html' || path == '/index.html') {
+      // Paridade desktop: /espelho replica a TV; /retorno vira o retorno de
+      // palco (mesmo receiver, o modo vem do caminho).
+      if (path == '/' ||
+          path == '/receiver.html' ||
+          path == '/index.html' ||
+          path == '/espelho' ||
+          path == '/retorno') {
         _receiverPage ??= (await rootBundle.load(
           'assets/palco/receiver.html',
         )).buffer.asUint8List();
@@ -321,9 +335,41 @@ class PalcoSender {
           res.statusCode = 404;
         }
         await res.close();
+      } else if (_receiverAssetTypes.containsKey(path)) {
+        // Arquivos do receiver do desktop (mesma página servida aqui).
+        try {
+          final bytes = (await rootBundle.load(
+            'assets/palco${path}',
+          )).buffer.asUint8List();
+          res.headers.contentType = ContentType.parse(_receiverAssetTypes[path]!);
+          res.headers.set('Access-Control-Allow-Origin', '*');
+          res.add(bytes);
+        } catch (_) {
+          res.statusCode = 404;
+        }
+        await res.close();
+      } else if (path == '/legenda' || path == '/purify.min.js') {
+        // Transmissão (paridade desktop): legenda para a fonte de navegador
+        // do OBS. Mesmo overlay.html do app; conecta no WS deste slot
+        // (porta HTTP + 1) e recebe projection/timer/idle.
+        final asset = path == '/legenda'
+            ? 'assets/palco/overlay.html'
+            : 'assets/palco/purify.min.js';
+        try {
+          final bytes = (await rootBundle.load(asset)).buffer.asUint8List();
+          res.headers.contentType = path == '/legenda'
+              ? ContentType.html
+              : ContentType.parse('application/javascript; charset=utf-8');
+          res.headers.set('Cache-Control', 'no-store');
+          res.headers.set('Access-Control-Allow-Origin', '*');
+          res.add(bytes);
+        } catch (_) {
+          res.statusCode = 404;
+        }
+        await res.close();
       } else if (path == '/status') {
         res.headers.contentType = ContentType.json;
-        // CORS obrigatório: o receiver usa fetch(:7080/status) na
+        // CORS obrigatório: o receiver usa fetch(:4980/status) na
         // auto-descoberta — sem isso o scan é bloqueado (F3.3).
         res.headers.set('Access-Control-Allow-Origin', '*');
         res.write('{"unlocked":true,"clients":${_clients.length}}');
@@ -335,7 +381,7 @@ class PalcoSender {
       } else if (path.startsWith('/images/')) {
         // /images/... proxy para API (receiver pede covers/backgrounds).
         // Bug 2026-08-18: o receiver resolve covers relativos contra a
-        // origem (http://host:7080/images/generico_116.jpg) — sem query
+        // origem (http://host:4980/images/generico_116.jpg) — sem query
         // ?url=, o _serveProxy devolvia 400/404 e a capa ficava quebrada.
         // Monta a URL da API a partir do path e proxya.
         final rel = path.substring(1); // images/... ou covers/...

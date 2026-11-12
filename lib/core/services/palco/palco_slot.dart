@@ -36,9 +36,9 @@ class PalcoSlot extends ChangeNotifier {
   late final StageSettingsRepository _settingsRepo;
 
   /// Portas HTTP/WS calculadas a partir do índice do slot.
-  /// Slot 0: 7080/7081, Slot 1: 7082/7083, etc.
-  int get _baseHttpPort => 7080 + (_slotIndex * 2);
-  int get _baseWsPort => 7081 + (_slotIndex * 2);
+  /// Slot 0: 4980/4981, Slot 1: 4982/4983, etc.
+  int get _baseHttpPort => 4980 + (_slotIndex * 2);
+  int get _baseWsPort => 4981 + (_slotIndex * 2);
   int get slotIndex => _slotIndex;
   int get httpPort => _baseHttpPort;
   int get wsPort => _baseWsPort;

@@ -76,11 +76,20 @@ class StageSession extends ChangeNotifier {
       ? _palco!.sendRemoteCommand(command, role: role, value: value)
       : Future.value(null);
 
+  /// Retorno de palco: vai para TODAS as conexões no ar (a tela de retorno
+  /// pode estar aberta em qualquer uma; quem não está em /retorno ignora).
+  void sendStageReturn(Map<String, dynamic> fields) {
+    if (!isPalcoMode) return;
+    for (final s in PalcoOrchestrator.instance.slots) {
+      if (s.controller.isRunning) s.controller.sendStageReturn(fields);
+    }
+  }
+
   /// Liga o palco no modo Palco WS (receiver LouvorJA na TV).
   /// A TV conecta no sender do celular ao abrir o app dela.
   Future<bool> turnOnPalco(PalcoTarget tv) async {
     // Multi-palco: o slot "principal" do orchestrator É o transporte desta
-    // sessão — um sender só (portas 7080/7081), estado compartilhado com o
+    // sessão — um sender só (portas 4980/4981), estado compartilhado com o
     // gerenciador de telas. Antes: controller paralelo deixava o slot
     // "desconectado" no gerenciador (bug 2026-08-21).
     final orch = PalcoOrchestrator.instance;
@@ -595,6 +604,7 @@ class StageSession extends ChangeNotifier {
     String? footerVersion,
     bool isBible = false,
     String module = 'hymns',
+    bool? isCover,
   }) async {
     if (!isOn) return false;
     final content = _StageContent(
@@ -636,6 +646,8 @@ class StageSession extends ChangeNotifier {
           fSize: fSize,
           fWeight: fWeight,
           s: s,
+          scope: isBible ? 'bible' : module,
+          isCover: isCover,
         );
       }
       return targets.isNotEmpty;
@@ -680,6 +692,8 @@ class StageSession extends ChangeNotifier {
     required double fSize,
     required int fWeight,
     required StageSettings s,
+    String? scope,
+    bool? isCover,
   }) {
     p.project(
       text: text,
@@ -696,10 +710,13 @@ class StageSession extends ChangeNotifier {
       textBox: s.textBox,
       boxOpacity: s.boxOpacity,
       boxBorder: s.boxBorder
-          ? {'width': 0.4, 'color': 'rgba(255,255,255,.25)'}
+          ? {'width': 0.2, 'color': 'rgba(255,255,255,0.85)'}
           : null,
       fontSize: fSize,
       fontWeight: fWeight,
+      scope: scope,
+      margin: s.margin,
+      isCover: isCover,
     );
   }
 

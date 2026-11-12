@@ -421,12 +421,14 @@ class PalcoOrchestrator extends ChangeNotifier {
       textBox: settings.textBox,
       boxOpacity: settings.boxOpacity,
       boxBorder: settings.boxBorder
-          ? {'width': 0.4, 'color': 'rgba(255,255,255,.25)'}
+          ? {'width': 0.2, 'color': 'rgba(255,255,255,0.85)'}
           : null,
       textAlign: settings.textAlign,
       textVerticalAlign: settings.textVerticalAlign,
       fontSize: fSize,
       fontWeight: fWeight,
+      scope: isBible ? 'bible' : module,
+      margin: settings.margin,
     );
     return true;
   }

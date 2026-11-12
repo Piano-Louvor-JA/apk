@@ -63,6 +63,9 @@ class PalcoMessage {
     String? textVerticalAlign,
     double? fontSize,
     int? fontWeight,
+    String? scope,
+    double? margin,
+    bool? isCover,
   }) => PalcoMessage(
     type: 'projection',
     fields: {
@@ -82,6 +85,14 @@ class PalcoMessage {
       if (textAlign != null) 'textAlign': textAlign,
       if (textVerticalAlign != null) 'textVerticalAlign': textVerticalAlign,
       if (fontSize != null) 'fontSize': fontSize,
+      // Escala do fontSize: px@1920 (o app das TVs já lê assim; o receiver
+      // do desktop — monitores, espelho, OBS — converte por este campo).
+      if (fontSize != null) 'fontRef': 1920,
+      // Paridade desktop (palco-session.ts): escopo liga o layout de letra
+      // (music-lyrics), margem lateral e capa — sem eles a letra saía maior.
+      if (scope != null) 'scope': scope,
+      if (margin != null) 'margin': margin,
+      if (isCover != null) 'isCover': isCover,
       if (fontWeight != null) 'fontWeight': fontWeight,
     },
   );

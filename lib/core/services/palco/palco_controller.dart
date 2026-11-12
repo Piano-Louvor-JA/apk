@@ -10,7 +10,7 @@ import 'palco_sender.dart';
 
 /// Alvo Palco descoberto na rede (mDNS ou manual).
 class PalcoTarget {
-  const PalcoTarget({required this.name, required this.ip, this.wsPort = 7081});
+  const PalcoTarget({required this.name, required this.ip, this.wsPort = 4981});
   final String name;
   final String ip;
   final int wsPort;
@@ -109,6 +109,9 @@ class PalcoController extends ChangeNotifier {
     String? textVerticalAlign,
     double? fontSize,
     int? fontWeight,
+    String? scope,
+    double? margin,
+    bool? isCover,
   }) {
     _sender.send(
       PalcoMessage.projection(
@@ -129,6 +132,9 @@ class PalcoController extends ChangeNotifier {
         textVerticalAlign: textVerticalAlign,
         fontSize: fontSize,
         fontWeight: fontWeight,
+        scope: scope,
+        margin: margin,
+        isCover: isCover,
       ),
     );
   }
@@ -165,6 +171,11 @@ class PalcoController extends ChangeNotifier {
       ),
     );
   }
+
+  /// Retorno de palco (/retorno, paridade desktop): trecho atual, próximo
+  /// e andamento — o receiver em modo retorno mostra o próximo embaixo.
+  void sendStageReturn(Map<String, dynamic> fields) =>
+      _sender.send(PalcoMessage(type: 'stageReturn', version: 1, fields: fields));
 
   void pauseAudio() => _sender.send(
     const PalcoMessage(type: 'audio', fields: {'action': 'pause'}),
