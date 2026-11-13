@@ -29,7 +29,10 @@ class LiturgyVideoCache {
     final path = _path(url);
     final partial = File('$path.part');
     try {
-      await remote.download(url, partial.path, onProgress: onProgress);
+      // Nunca fica parado sem resposta: desiste e a barra avisa.
+      await remote
+          .download(url, partial.path, onProgress: onProgress)
+          .timeout(const Duration(minutes: 4));
       if (!await partial.exists() || await partial.length() == 0)
         throw StateError('empty-video');
       await partial.rename(path);

@@ -130,7 +130,7 @@ class LiturgyLinkRepositoryImpl implements LiturgyLinkRepository {
           }
         }
 
-        final videos =
+        final allVideos =
             manifest.videoOnly
                 .where(
                   (stream) =>
@@ -139,6 +139,11 @@ class LiturgyLinkRepositoryImpl implements LiturgyLinkRepository {
                 )
                 .toList()
               ..sort((a, b) => b.bitrate.compareTo(a.bitrate));
+        // Até 720p: basta para as TVs e baixa bem mais rápido que 1080p+.
+        final upTo720 = allVideos
+            .where((stream) => stream.videoResolution.height <= 720)
+            .toList();
+        final videos = upTo720.isNotEmpty ? upTo720 : allVideos;
         final audios =
             manifest.audioOnly
                 .where((stream) => stream.container.name == 'mp4')
