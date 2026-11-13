@@ -83,11 +83,18 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   final HymnAudioPlayer? _audioOverride;
   final Future<LiturgyMusicPlayback> Function(LiturgyItem, String)?
   _resolveMusic;
+
+  /// Passagem automática das imagens: 5 s e volta à primeira, o padrão do
+  /// "Automático" do controle de imagens do desktop.
+  final Duration _imageAutoplayInterval;
+  Timer? _imageAutoplay;
   LocalLiturgyMediaImpl({
     HymnAudioPlayer? audio,
     VideoPlayerController Function(String)? createVideo,
     Future<LiturgyMusicPlayback> Function(LiturgyItem, String)? resolveMusic,
-  }) : _audioOverride = audio,
+    Duration imageAutoplayInterval = const Duration(seconds: 5),
+  }) : _imageAutoplayInterval = imageAutoplayInterval,
+       _audioOverride = audio,
        _resolveMusic = resolveMusic,
        _createVideo = createVideo {
     nowPlaying.addListener(_legacyChanged);
@@ -335,6 +342,19 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     _emit();
   }
 
+  void _setImageAutoplay(bool on) {
+    _imageAutoplay?.cancel();
+    _imageAutoplay = null;
+    _playing = on && _count > 1;
+    if (!_playing) return;
+    _imageAutoplay = Timer.periodic(_imageAutoplayInterval, (_) {
+      if (_imageAutoplay == null) return;
+      _commandTail = _commandTail
+          .then((_) => _count > 1 ? _slideTo((_slide + 1) % _count) : null)
+          .catchError((Object _) {});
+    });
+  }
+
   Future<void> _slideTo(int index) async {
     if (_count == 0) return;
     final next = index.clamp(0, _count - 1);
@@ -560,6 +580,10 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
             command.action == RemoteAction.play ||
             (command.action == RemoteAction.toggle && !_playing);
         final wasPlaying = _playing;
+        if (_pdf == null && _paths.isNotEmpty) {
+          _setImageAutoplay(play);
+          break;
+        }
         // Vídeo parado no fim: o plugin não volta sozinho ao início (o
         // vídeo HTML do desktop volta). Tocar recomeça, também nas TVs.
         final restart = play && video != null && _videoAtEnd(video!.value);
@@ -772,6 +796,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       await sub.cancel();
     }
     _subscriptions.clear();
+    _imageAutoplay?.cancel();
+    _imageAutoplay = null;
     if (stopAudio && _audio?.currentUrl == _source) await _audio?.stop();
     _audio = null;
     final controller = video;

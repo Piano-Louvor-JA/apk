@@ -248,6 +248,69 @@ void main() {
     },
   );
   test(
+    'tocar imagens passa sozinho e volta à primeira, como o automático do desktop',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('local-autoplay');
+      addTearDown(() => dir.delete(recursive: true));
+      final files = <String>[];
+      for (var i = 0; i < 3; i++) {
+        files.add((await File('${dir.path}/$i.png').writeAsBytes([i])).path);
+      }
+      final local = LocalLiturgyMediaImpl(
+        imageAutoplayInterval: const Duration(milliseconds: 20),
+      );
+      addTearDown(local.dispose);
+      Future<void> waitSlide(int index) async {
+        for (var i = 0; i < 100 && local.snapshot.slideIndex != index; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        expect(local.snapshot.slideIndex, index);
+      }
+
+      await local.open(
+        LiturgyItem(
+          id: 'auto',
+          type: LiturgyItemType.images,
+          name: 'Fotos',
+          filePaths: files,
+        ),
+        'pt',
+        DateTime(2026),
+      );
+      await local.send(RemoteCommand(id: 'p', action: RemoteAction.play));
+      expect(local.snapshot.playing, isTrue);
+      await waitSlide(1);
+      await waitSlide(2);
+      await waitSlide(0);
+      expect(base64Decode(local.snapshot.slidePreview!), [0]);
+
+      await local.send(RemoteCommand(id: 'q', action: RemoteAction.pause));
+      expect(local.snapshot.playing, isFalse);
+      final paused = local.snapshot.slideIndex;
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(local.snapshot.slideIndex, paused);
+    },
+  );
+
+  test('uma imagem só não liga o automático, como o botão desabilitado', () async {
+    final dir = await Directory.systemTemp.createTemp('local-autoplay-one');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = await File('${dir.path}/a.png').writeAsBytes([1]);
+    await media.open(
+      LiturgyItem(
+        id: 'one',
+        type: LiturgyItemType.images,
+        name: 'Foto',
+        filePaths: [file.path],
+      ),
+      'pt',
+      DateTime(2026),
+    );
+    await media.send(RemoteCommand(id: 'p', action: RemoteAction.play));
+    expect(media.snapshot.playing, isFalse);
+  });
+
+  test(
     'toques rápidos nos slides mantêm a ordem de leitura dos arquivos',
     () async {
       final dir = await Directory.systemTemp.createTemp('local-slide-queue');
