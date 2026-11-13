@@ -77,6 +77,25 @@ const _fileTypes = {
   LiturgyItemType.otherFiles,
 };
 
+/// Tipos que o APK ainda não tem: avisa e não seleciona.
+bool _notAvailableYet(BuildContext ctx, LiturgyItemType t) {
+  if (t != LiturgyItemType.scheduled) return false;
+  showDialog<void>(
+    context: ctx,
+    builder: (context) => AlertDialog(
+      key: const Key('liturgy-type-coming-soon'),
+      content: Text('liturgy.parity.scheduledComingSoon'.tr()),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('common.close'.tr()),
+        ),
+      ],
+    ),
+  );
+  return true;
+}
+
 /// Builder helper para um chip de tipo.
 Widget _buildTypeChip(
   BuildContext ctx,
@@ -89,13 +108,15 @@ Widget _buildTypeChip(
   final meta = LiturgyTypeRegistry.metaFor(t);
   final selected = type.value == t;
   return GestureDetector(
-    onTap: () => setModalState(() {
-      type.value = t;
-      if (t != LiturgyItemType.music) {
-        selectedMusicId.value = null;
-        selectedMusicLabel.value = '';
-      }
-    }),
+    onTap: () => _notAvailableYet(ctx, t)
+        ? null
+        : setModalState(() {
+            type.value = t;
+            if (t != LiturgyItemType.music) {
+              selectedMusicId.value = null;
+              selectedMusicLabel.value = '';
+            }
+          }),
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -349,13 +370,15 @@ void showLiturgyItemDialog(
                                 final meta = LiturgyTypeRegistry.metaFor(t);
                                 final selected = type.value == t;
                                 return GestureDetector(
-                                  onTap: () => setModalState(() {
-                                    type.value = t;
-                                    if (t != LiturgyItemType.music) {
-                                      selectedMusicId.value = null;
-                                      selectedMusicLabel.value = '';
-                                    }
-                                  }),
+                                  onTap: () => _notAvailableYet(ctx, t)
+                                      ? null
+                                      : setModalState(() {
+                                          type.value = t;
+                                          if (t != LiturgyItemType.music) {
+                                            selectedMusicId.value = null;
+                                            selectedMusicLabel.value = '';
+                                          }
+                                        }),
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 150),
                                     padding: const EdgeInsets.symmetric(

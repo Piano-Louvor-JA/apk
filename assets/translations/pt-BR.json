@@ -243,7 +243,8 @@
       "externalPlayer": "Aplicativo associado",
       "slotMapping": "Vincular momento à rotação",
       "autoCreate": "Criar rotações não encontradas",
-      "resetProgress": "Reiniciar conclusão"
+      "resetProgress": "Reiniciar conclusão",
+      "scheduledComingSoon": "Itens agendados ainda serão implementados no APK."
     },
     "richNotes": {
       "toolbar": "Formatação do texto",

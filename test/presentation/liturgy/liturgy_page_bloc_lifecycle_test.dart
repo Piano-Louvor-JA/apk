@@ -28,6 +28,26 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('itens agendados avisam que ainda não existem no APK', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const MaterialApp(home: LiturgyPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('liturgy-add-moment')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('liturgy.types.scheduled'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liturgy-type-coming-soon')), findsOneWidget);
+    expect(find.text('liturgy.parity.scheduledComingSoon'), findsOneWidget);
+    await tester.tap(find.text('common.close'));
+    await tester.pumpAndSettle();
+    // Continua no tipo anterior, sem os campos de agendado.
+    expect(find.byKey(const Key('liturgy-type-coming-soon')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('reconstruir a página mantém o mesmo bloc e o item adicionado', (
     tester,
   ) async {

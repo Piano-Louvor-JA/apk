@@ -244,7 +244,8 @@
       "externalPlayer": "Associated application",
       "slotMapping": "Map slot to rotation",
       "autoCreate": "Create missing rotations",
-      "resetProgress": "Reset completion"
+      "resetProgress": "Reset completion",
+      "scheduledComingSoon": "Scheduled items are not available in the app yet."
     },
     "richNotes": {
       "toolbar": "Text formatting",

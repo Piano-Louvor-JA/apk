@@ -244,7 +244,8 @@
       "externalPlayer": "Aplicación asociada",
       "slotMapping": "Vincular momento a rotación",
       "autoCreate": "Crear rotaciones que faltan",
-      "resetProgress": "Reiniciar finalización"
+      "resetProgress": "Reiniciar finalización",
+      "scheduledComingSoon": "Los elementos programados aún se implementarán en la app."
     },
     "richNotes": {
       "toolbar": "Formato del texto",
