@@ -9,6 +9,7 @@ import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/rich_notes_editor_page.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/liturgy_text_control_page.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/liturgy_web_control_page.dart';
+import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 import '../../helpers/liturgy_webview_fake.dart';
 
 void main() {
@@ -41,6 +42,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.byType(StageCastButton), findsNothing);
       expect(find.text('1 / 2'), findsOneWidget);
       await tester.tap(find.byTooltip('remote.next'));
       await tester.pumpAndSettle();
@@ -65,6 +67,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.byType(StageCastButton), findsNothing);
     expect(find.text('1 / 2'), findsOneWidget);
     await tester.tap(find.byTooltip('remote.next'));
     await tester.pumpAndSettle();
@@ -141,6 +144,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.byType(StageCastButton), findsNothing);
       expect(platform.controllers.first.html, contains('#ff0000'));
       await tester.tap(find.byTooltip('liturgy.actions.edit'));
       await tester.pumpAndSettle();
@@ -169,6 +173,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       final web = platform.controllers.single;
+      expect(find.byType(StageCastButton), findsNothing);
       expect(web.url, '/video.mp4');
       await tester.tap(find.byTooltip('remote.pause'));
       await tester.pump();

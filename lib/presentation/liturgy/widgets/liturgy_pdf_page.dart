@@ -7,7 +7,6 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_pdf_document.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
-import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 
 class LiturgyPdfPage extends StatefulWidget {
   const LiturgyPdfPage({super.key, required this.path, required this.title});
@@ -64,7 +63,6 @@ class _LiturgyPdfPageState extends State<LiturgyPdfPage> {
     appBar: AppBar(
       title: Text(widget.title),
       actions: [
-        const StageCastButton(),
         if (_ios == null)
           IconButton(
             tooltip: 'liturgy.parity.project'.tr(),

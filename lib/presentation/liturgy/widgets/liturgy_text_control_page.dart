@@ -6,7 +6,6 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/rich_notes.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
-import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 import 'rich_notes_editor_page.dart';
 
 class LiturgyTextControlPage extends StatefulWidget {
@@ -73,7 +72,6 @@ class _LiturgyTextControlPageState extends State<LiturgyTextControlPage> {
     appBar: AppBar(
       title: Text(widget.item.name),
       actions: [
-        const StageCastButton(),
         IconButton(
           tooltip: 'liturgy.parity.project'.tr(),
           onPressed: _project,

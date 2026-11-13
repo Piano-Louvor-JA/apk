@@ -12,7 +12,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_target.dart';
-import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 
 class LiturgyWebControlPage extends StatefulWidget {
   const LiturgyWebControlPage({
@@ -191,7 +190,6 @@ class _LiturgyWebControlPageState extends State<LiturgyWebControlPage> {
     appBar: AppBar(
       title: Text(widget.title),
       actions: [
-        const StageCastButton(),
         IconButton(
           tooltip: 'liturgy.parity.project'.tr(),
           onPressed: _project,

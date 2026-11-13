@@ -3,7 +3,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
-import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 
 class LiturgyGalleryPage extends StatefulWidget {
   const LiturgyGalleryPage({
@@ -46,7 +45,6 @@ class _LiturgyGalleryPageState extends State<LiturgyGalleryPage> {
     appBar: AppBar(
       title: Text(widget.title),
       actions: [
-        const StageCastButton(),
         IconButton(
           tooltip: 'liturgy.parity.project'.tr(),
           onPressed: _project,
