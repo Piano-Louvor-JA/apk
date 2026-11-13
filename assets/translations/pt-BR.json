@@ -42,7 +42,8 @@
     "decrease": "Diminuir",
     "increase": "Aumentar",
     "clearSearch": "Limpar busca",
-    "back": "Voltar"
+    "back": "Voltar",
+    "expand": "Expandir"
   },
   "hymns": {
     "searchCriteria": "A busca considera o título, a coletânea e a letra da música. Alguns resultados podem corresponder apenas a um trecho da letra.",

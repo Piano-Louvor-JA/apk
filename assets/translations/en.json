@@ -42,7 +42,8 @@
     "decrease": "Decrease",
     "increase": "Increase",
     "clearSearch": "Clear search",
-    "back": "Back"
+    "back": "Back",
+    "expand": "Expand"
   },
   "hymns": {
     "searchCriteria": "Search looks at the title, the collection and the lyrics. Some results may match only part of the lyrics.",
