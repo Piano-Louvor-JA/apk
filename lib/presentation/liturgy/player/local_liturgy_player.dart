@@ -35,6 +35,12 @@ class LocalLiturgyPlayer extends Cubit<RemotePlayerState> {
   void Function(LiturgyItem)? onChanged;
   Future<void> Function()? _externalOpen;
 
+  /// Muda a cada escolha de item: a barra minimizada volta a aparecer.
+  int revealCount = 0;
+
+  /// Item tocando ou só escolhido: o player tem o que mostrar.
+  bool get hasContent => state.hasOpenMedia || pending != null;
+
   void choose(
     LiturgyItem item, {
     required String language,
@@ -44,6 +50,7 @@ class LocalLiturgyPlayer extends Cubit<RemotePlayerState> {
     Future<void> Function()? externalOpen,
   }) {
     if (state.hasOpenMedia || busy) return;
+    revealCount++;
     pending = item;
     _language = language;
     _date = date;

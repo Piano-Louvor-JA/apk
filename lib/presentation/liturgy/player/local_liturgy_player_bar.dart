@@ -125,6 +125,10 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
             }
           }
           return RemotePlayerBar(
+            // Escolher um item na lista reabre a barra minimizada.
+            key: widget.compact
+                ? null
+                : ValueKey('local-player-${player.revealCount}'),
             state: state,
             previewMaxHeight: MediaQuery.sizeOf(context).height * .16,
             showTransport: true,

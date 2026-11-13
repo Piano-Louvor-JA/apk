@@ -502,7 +502,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
               children: [
                 Expanded(
                   child: Text(
-                    _st.title ?? 'remote.title'.tr(),
+                    widget.displayTitle ?? _st.title ?? 'remote.title'.tr(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(

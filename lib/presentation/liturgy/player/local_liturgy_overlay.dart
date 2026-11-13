@@ -24,7 +24,7 @@ class _LocalLiturgyOverlayState extends State<LocalLiturgyOverlay> {
   ModalRoute<void>? sheet;
   late final StreamSubscription<RemotePlayerState> subscription =
       localLiturgyPlayer.stream.listen((state) {
-        if (!state.hasOpenMedia && sheet?.isCurrent == true) {
+        if (!localLiturgyPlayer.hasContent && sheet?.isCurrent == true) {
           sheet?.navigator?.pop();
         }
         if (mounted) setState(() {});
@@ -80,7 +80,8 @@ class _LocalLiturgyOverlayState extends State<LocalLiturgyOverlay> {
         visible:
             !expanded &&
             !localLiturgyPresence.value &&
-            localLiturgyPlayer.state.hasOpenMedia &&
+            // Também com o item só escolhido: minimizar não some com ele.
+            localLiturgyPlayer.hasContent &&
             MediaQuery.viewInsetsOf(context).bottom == 0,
         child: LocalLiturgyPlayerBar(
           compact: true,

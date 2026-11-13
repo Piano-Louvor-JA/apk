@@ -79,6 +79,24 @@ void main() {
       expect(player.active?.id, 'one');
     },
   );
+  test(
+    'escolher um item pede para reabrir a barra e o item só escolhido conta como conteúdo',
+    () async {
+      expect(player.hasContent, isFalse);
+      final before = player.revealCount;
+      player.choose(item, language: 'pt', date: DateTime(2026));
+      expect(player.revealCount, before + 1);
+      expect(player.hasContent, isTrue);
+      player.choose(
+        item.copyWith(id: 'two'),
+        language: 'pt',
+        date: DateTime(2026),
+      );
+      expect(player.revealCount, before + 2);
+      await player.send(RemoteCommand(id: 's', action: RemoteAction.stop));
+      expect(player.hasContent, isFalse);
+    },
+  );
   test('comandos atuam no executor local e stop libera nova seleção', () async {
     player.choose(item, language: 'pt', date: DateTime(2026));
     await player.openPending();
