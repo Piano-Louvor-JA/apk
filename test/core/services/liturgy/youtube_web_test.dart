@@ -35,6 +35,13 @@ void main() {
     expect(script, contains('setInterval'));
   });
 
+  test('a página nunca se vê oculta (o YouTube pausaria ao minimizar)', () {
+    final script = YoutubeWeb.adSkipScript;
+    expect(script, contains("'visibilityState'"));
+    expect(script, contains("'hidden'"));
+    expect(script, contains('stopImmediatePropagation'));
+  });
+
   test('comandos agem no vídeo da página', () {
     expect(YoutubeWeb.playScript, contains('.play()'));
     expect(YoutubeWeb.pauseScript, contains('.pause()'));

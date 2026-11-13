@@ -35,7 +35,8 @@ class YoutubeWeb {
 
   static const playScript =
       '(() => { const v = $_video; if (v) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } })()';
-  static const pauseScript = '(() => { const v = $_video; if (v) v.pause(); })()';
+  static const pauseScript =
+      '(() => { const v = $_video; if (v) v.pause(); })()';
 
   static String seekScript(Duration position) {
     final seconds = position.inMilliseconds / 1000;
@@ -88,6 +89,19 @@ class YoutubeWeb {
     '.ytp-ad-skip-button-slot button',
     '.videoAdUiSkipButton',
   ].join(', ');
+  // Ao minimizar a WebView sai da tela e o YouTube pausaria por estar
+  // "oculto": a página sempre se vê visível.
+  if (!window.__louvorjaAlwaysVisible) {
+    window.__louvorjaAlwaysVisible = true;
+    try {
+      Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
+      Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
+    } catch (e) {}
+    const block = (event) => event.stopImmediatePropagation();
+    document.addEventListener('visibilitychange', block, true);
+    window.addEventListener('pagehide', block, true);
+    window.addEventListener('blur', block, true);
+  }
   const state = window.__louvorjaYtAdSkip || (window.__louvorjaYtAdSkip = { saved: null, timer: null, observer: null, observed: null });
   const findPlayer = () => {
     const player = document.querySelector('#movie_player, .html5-video-player');
@@ -155,9 +169,8 @@ class YoutubeWebState {
       return null;
     }
     if (value is! Map) return null;
-    Duration seconds(Object? v) => Duration(
-      milliseconds: ((v is num ? v : 0) * 1000).round(),
-    );
+    Duration seconds(Object? v) =>
+        Duration(milliseconds: ((v is num ? v : 0) * 1000).round());
     return YoutubeWebState(
       playing: value['playing'] == true,
       position: seconds(value['position']),

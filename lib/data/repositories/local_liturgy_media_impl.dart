@@ -45,6 +45,10 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   LiturgyWebVideo? web;
   Timer? _webPoll;
   bool _webPolling = false, _webFallback = false, _webEnded = false;
+
+  /// Última ordem da barra: tocar. Pausa vinda de outro lugar (a WebView
+  /// saiu da tela ao minimizar) é desfeita.
+  bool _webWantsPlay = false;
   HymnAudioPlayer? _audio;
   String? _source;
   LyricSlides _lyrics = LyricSlides.empty;
@@ -362,7 +366,9 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   }
 
   Future<LiturgyVideoCache> _videoCache() async => LiturgyVideoCache(
-    Directory('${(await getApplicationSupportDirectory()).path}/liturgy-videos'),
+    Directory(
+      '${(await getApplicationSupportDirectory()).path}/liturgy-videos',
+    ),
     LiturgyLinkRepositoryImpl(),
   );
 
@@ -382,6 +388,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     }
     await page.setVolume(_volume / 100);
     _playing = true; // autoplay=1 do embed
+    _webWantsPlay = true;
     _webPoll?.cancel();
     _webPoll = Timer.periodic(
       _webPollInterval,
@@ -406,7 +413,12 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       }
       // Durante o anúncio a linha do tempo é a do anúncio: não mostra.
       if (state.ad) return;
-      _playing = state.playing;
+      if (state.ended) _webWantsPlay = false;
+      if (_webWantsPlay && !state.playing && !state.ended && state.hasData) {
+        await page.play();
+        if (web != page) return;
+      }
+      _playing = state.playing || _webWantsPlay;
       _webEnded = state.ended;
       _position = state.position;
       if (state.duration > Duration.zero) _duration = state.duration;
@@ -701,10 +713,12 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
           await _audio?.resume();
           await video?.play();
           await web?.play();
+          _webWantsPlay = web != null;
         } else {
           await _audio?.pause();
           await video?.pause();
           await web?.pause();
+          _webWantsPlay = false;
         }
         if (_projecting && wasPlaying != play) {
           if (_palco.anyConnected) {
@@ -911,6 +925,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     final page = web;
     web = null;
     _webEnded = false;
+    _webWantsPlay = false;
     await page?.dispose();
     item = null;
     _source = null;
