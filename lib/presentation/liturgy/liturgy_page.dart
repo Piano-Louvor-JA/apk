@@ -1041,7 +1041,13 @@ class _Timeline extends StatelessWidget {
     }
 
     return ReorderableListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.s3),
+      // Espaço no fim: o último item sobe acima do botão "+" (56 + margem).
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s3,
+        AppSpacing.s3,
+        AppSpacing.s3,
+        88,
+      ),
       buildDefaultDragHandles: false,
       itemCount: segments.length,
       onReorder: reorderSegments,
