@@ -584,6 +584,11 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
           _setImageAutoplay(play);
           break;
         }
+        // PDF e textos não têm o que tocar (o desktop não mostra play neles).
+        if (_audio == null && video == null) {
+          _playing = false;
+          break;
+        }
         // Vídeo parado no fim: o plugin não volta sozinho ao início (o
         // vídeo HTML do desktop volta). Tocar recomeça, também nas TVs.
         final restart = play && video != null && _videoAtEnd(video!.value);

@@ -292,6 +292,23 @@ void main() {
     },
   );
 
+  test('tocar anotação não finge reprodução: texto não tem o que tocar', () async {
+    await media.open(
+      const LiturgyItem(
+        id: 'nota',
+        type: LiturgyItemType.annotation,
+        name: 'Aviso',
+        subtitle: 'Texto',
+      ),
+      'pt',
+      DateTime(2026),
+    );
+    await media.send(RemoteCommand(id: 'p', action: RemoteAction.play));
+    expect(media.snapshot.playing, isFalse);
+    await media.send(RemoteCommand(id: 't', action: RemoteAction.toggle));
+    expect(media.snapshot.playing, isFalse);
+  });
+
   test('uma imagem só não liga o automático, como o botão desabilitado', () async {
     final dir = await Directory.systemTemp.createTemp('local-autoplay-one');
     addTearDown(() => dir.delete(recursive: true));
