@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_floating_panel.dart';
+import 'package:louvorja_piano_mobile/presentation/shared/widgets/player_sheet.dart';
 import 'local_liturgy_player_bar.dart';
 import 'local_liturgy_session.dart';
 
@@ -50,10 +51,8 @@ class _LocalLiturgyOverlayState extends State<LocalLiturgyOverlay> {
     final context = widget.navigatorKey.currentContext;
     if (context == null) return;
     setState(() => expanded = true);
-    await showModalBottomSheet<void>(
+    await showPlayerSheet(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (context) {
         sheet = ModalRoute.of<void>(context);
         return ConstrainedBox(

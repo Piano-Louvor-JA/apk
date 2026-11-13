@@ -13,6 +13,7 @@ import '../../../../core/services/palco/palco_orchestrator.dart';
 import '../../palco/remote_control_sheet.dart';
 import 'mini_player_bar.dart';
 import 'offline_status_scope.dart';
+import 'player_sheet.dart';
 import '../../hymns/now_playing_page.dart';
 
 /// MainNavigation — bottom navigation com 5 tabs.
@@ -78,64 +79,66 @@ class MainNavigation extends StatelessWidget {
     return Scaffold(
       // SPEC 7: banner "modo offline" global sobre o conteúdo de qualquer tab.
       body: OfflineStatusScope(child: navigationShell),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MiniPlayerBar(
-            notifier: nowPlaying,
-            player: _miniPlayerAdapter,
-            // Tap no mini = REABRIR o NowPlaying da faixa em execução
-            // (antes navegava pra aba Hinos — bug multi-palco 2026-08-21).
-            onOpenPlayer: () {
-              final track = nowPlaying.track;
-              final detail = track?.detail;
-              if (detail == null) {
-                _onTap(1); // sem detail (faixa antiga): fallback pra Hinos
-                return;
-              }
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => NowPlayingPage(
-                    detail: detail,
-                    instrumental: track?.instrumental ?? false,
-                    albumCoverUrl: track?.albumCoverUrl,
-                    player: _miniPlayerAdapter,
-                    filesUrl: ApiConfig.urlFiles,
-                    audioSource: track?.audioSource,
-                    audioIsLocal: track?.audioIsLocal ?? false,
+      bottomNavigationBar: MainNavigationInset(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MiniPlayerBar(
+              notifier: nowPlaying,
+              player: _miniPlayerAdapter,
+              // Tap no mini = REABRIR o NowPlaying da faixa em execução
+              // (antes navegava pra aba Hinos — bug multi-palco 2026-08-21).
+              onOpenPlayer: () {
+                final track = nowPlaying.track;
+                final detail = track?.detail;
+                if (detail == null) {
+                  _onTap(1); // sem detail (faixa antiga): fallback pra Hinos
+                  return;
+                }
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => NowPlayingPage(
+                      detail: detail,
+                      instrumental: track?.instrumental ?? false,
+                      albumCoverUrl: track?.albumCoverUrl,
+                      player: _miniPlayerAdapter,
+                      filesUrl: ApiConfig.urlFiles,
+                      audioSource: track?.audioSource,
+                      audioIsLocal: track?.audioIsLocal ?? false,
+                    ),
+                  ),
+                );
+              },
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainer,
+                border: Border(
+                  top: BorderSide(color: theme.colorScheme.outline, width: 1),
+                ),
+              ),
+              child: SafeArea(
+                child: SizedBox(
+                  height: 60,
+                  child: Row(
+                    children: [
+                      // Início, Hinos, Ferramentas, Telas, Mais.
+                      for (var i = 0; i < 3; i++) navTab(i),
+                      // Telas: painel de conexões (monitores, transmissões,
+                      // TVs do Palco) de qualquer aba, não só do player.
+                      Expanded(
+                        child: _ScreensButton(
+                          onTap: () => showConnectionsSheet(context),
+                        ),
+                      ),
+                      navTab(3),
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainer,
-              border: Border(
-                top: BorderSide(color: theme.colorScheme.outline, width: 1),
               ),
             ),
-            child: SafeArea(
-              child: SizedBox(
-                height: 60,
-                child: Row(
-                  children: [
-                    // Início, Hinos, Ferramentas, Telas, Mais.
-                    for (var i = 0; i < 3; i++) navTab(i),
-                    // Telas: painel de conexões (monitores, transmissões,
-                    // TVs do Palco) de qualquer aba, não só do player.
-                    Expanded(
-                      child: _ScreensButton(
-                        onTap: () => showConnectionsSheet(context),
-                      ),
-                    ),
-                    navTab(3),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
