@@ -318,4 +318,36 @@ void main() {
       expect(media.snapshot.slidePreview, isNull);
     },
   );
+  test(
+    'vídeo parado no fim recomeça do início ao tocar, como no desktop',
+    () async {
+      final video = Video();
+      final local = LocalLiturgyMediaImpl(createVideo: (_) => video);
+      addTearDown(local.dispose);
+      await local.open(
+        const LiturgyItem(
+          id: 'v',
+          type: LiturgyItemType.video,
+          name: 'Vídeo',
+          filePath: '/clip.mp4',
+        ),
+        'pt',
+        DateTime(2026),
+      );
+      // Terminou: o plugin para na última posição, sem voltar ao início.
+      await video.pause();
+      await video.seekTo(const Duration(minutes: 2));
+      await local.send(RemoteCommand(id: 'p', action: RemoteAction.play));
+
+      expect(video.value.position, Duration.zero);
+      expect(video.value.isPlaying, true);
+      expect(local.snapshot.playing, true);
+
+      // No meio do vídeo, tocar continua de onde parou.
+      await video.pause();
+      await video.seekTo(const Duration(seconds: 30));
+      await local.send(RemoteCommand(id: 'p2', action: RemoteAction.play));
+      expect(video.value.position, const Duration(seconds: 30));
+    },
+  );
 }

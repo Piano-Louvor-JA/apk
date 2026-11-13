@@ -322,6 +322,10 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     if (generation == _generation) _emit();
   }
 
+  static bool _videoAtEnd(VideoPlayerValue value) =>
+      value.duration > Duration.zero &&
+      value.position >= value.duration - const Duration(milliseconds: 250);
+
   void _videoChanged() {
     final value = video?.value;
     if (value == null) return;
@@ -556,6 +560,21 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
             command.action == RemoteAction.play ||
             (command.action == RemoteAction.toggle && !_playing);
         final wasPlaying = _playing;
+        // Vídeo parado no fim: o plugin não volta sozinho ao início (o
+        // vídeo HTML do desktop volta). Tocar recomeça, também nas TVs.
+        final restart = play && video != null && _videoAtEnd(video!.value);
+        if (restart) {
+          await video?.seekTo(Duration.zero);
+          _position = Duration.zero;
+          if (_projecting && _palco.anyConnected) {
+            _sendLive(
+              const PalcoMessage(
+                type: 'video',
+                fields: {'action': 'seek', 'positionMs': 0},
+              ),
+            );
+          }
+        }
         if (play) {
           await _audio?.resume();
           await video?.play();
