@@ -43,10 +43,44 @@ class WebVideoSlots extends ChangeNotifier {
 
 final webVideoSlots = WebVideoSlots();
 
+/// Rota do topo do navigator raiz. A barra da Liturgia vive no navigator da
+/// aba, onde continua "atual" com um diálogo aberto no raiz; sem isto o
+/// vídeo ficava por cima da janela de fechar mídia.
+class TopRouteObserver extends NavigatorObserver {
+  final List<Route<dynamic>> _stack = [];
+  Route<dynamic>? get top => _stack.lastOrNull;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _stack.add(route);
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _stack.remove(route);
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _stack.remove(route);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final index = oldRoute == null ? -1 : _stack.indexOf(oldRoute);
+    if (newRoute == null) return;
+    if (index < 0) {
+      _stack.add(newRoute);
+    } else {
+      _stack[index] = newRoute;
+    }
+  }
+}
+
+final webVideoRoutes = TopRouteObserver();
+
 /// Espaço do vídeo na barra; a WebView é desenhada por cima dele.
 class WebVideoSlot extends StatefulWidget {
-  const WebVideoSlot({super.key, this.slots});
+  const WebVideoSlot({super.key, this.slots, this.routes});
   final WebVideoSlots? slots;
+  final TopRouteObserver? routes;
   @override
   State<WebVideoSlot> createState() => _WebVideoSlotState();
 }
@@ -79,6 +113,9 @@ class _WebVideoSlotState extends State<WebVideoSlot> {
   Rect? _measure() {
     if (!TickerMode.valuesOf(context).enabled) return null;
     if (ModalRoute.isCurrentOf(context) == false) return null;
+    // Diálogo/sheet no topo do app: só aparece se o vídeo estiver nele.
+    final top = (widget.routes ?? webVideoRoutes).top;
+    if (top is PopupRoute && ModalRoute.of(context) != top) return null;
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.hasSize || !box.attached) return null;
     final rect = box.localToGlobal(Offset.zero) & box.size;

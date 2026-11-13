@@ -99,4 +99,46 @@ void main() {
     expect(tester.element(find.byKey(const Key('page'))), same(element));
     expect(web.views, 1);
   });
+
+  testWidgets('diálogo por cima esconde o vídeo; fechar devolve', (
+    tester,
+  ) async {
+    final slots = WebVideoSlots();
+    final observer = TopRouteObserver();
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        navigatorObservers: [observer],
+        builder: (context, child) => Stack(
+          children: [
+            child!,
+            WebVideoLayer(video: _Web(), slots: slots),
+          ],
+        ),
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 160,
+            height: 90,
+            child: WebVideoSlot(slots: slots, routes: observer),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    Rect layer() => tester.getRect(find.byKey(const Key('web-video-layer')));
+    expect(layer(), const Rect.fromLTWH(0, 0, 160, 90));
+
+    showDialog<void>(
+      context: navigator.currentContext!,
+      builder: (_) => const AlertDialog(title: Text('Fechar a mídia?')),
+    );
+    await tester.pumpAndSettle();
+    expect(layer(), const Rect.fromLTWH(0, 0, 1, 1));
+
+    navigator.currentState!.pop();
+    await tester.pumpAndSettle();
+    expect(layer(), const Rect.fromLTWH(0, 0, 160, 90));
+  });
 }

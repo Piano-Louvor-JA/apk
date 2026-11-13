@@ -23,6 +23,7 @@ import '../presentation/playlists/playlists_page.dart';
 import '../presentation/search/global_search_page.dart';
 import '../presentation/settings/settings_page.dart';
 import '../presentation/settings/terms_page.dart';
+import '../presentation/liturgy/player/web_video_host.dart';
 import '../presentation/shared/widgets/main_navigation.dart';
 import '../presentation/tools/tools_page.dart';
 
@@ -31,6 +32,7 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/',
+  observers: [webVideoRoutes],
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
