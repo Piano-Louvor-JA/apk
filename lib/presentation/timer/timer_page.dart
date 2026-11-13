@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/countdown_alert_service.dart';
 import '../../core/services/dlna/stage_session.dart';
+import '../shared/phone_projection.dart';
 import '../../data/repositories/countdown_preset_repository.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
@@ -92,6 +93,19 @@ class _TimerPageState extends State<TimerPage> {
     final stage = StageSession.instance;
     stage.stopTimerStage();
     await stage.clearContent();
+    await PhoneProjection.end();
+  }
+
+  /// Como Hinos e Bíblia: liga o palco do celular e os monitores
+  /// compartilhados ativos antes de projetar.
+  Future<bool> _beginProjection() async {
+    if (await PhoneProjection.begin()) return true;
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('liturgy.parity.noStage'.tr())),
+      );
+    }
+    return false;
   }
 
   Future<void> _toggleProjectStopwatch() async {
@@ -100,6 +114,7 @@ class _TimerPageState extends State<TimerPage> {
       await _stopProjection();
       return;
     }
+    if (!await _beginProjection() || !mounted) return;
     setState(() {
       _projectStopwatch = true;
       _projectCountdown = false;
@@ -113,6 +128,7 @@ class _TimerPageState extends State<TimerPage> {
       await _stopProjection();
       return;
     }
+    if (!await _beginProjection() || !mounted) return;
     setState(() {
       _projectCountdown = true;
       _projectStopwatch = false;
@@ -442,9 +458,7 @@ class _TimerPageState extends State<TimerPage> {
                   _ProjectButton(
                     key: const Key('stopwatch-project'),
                     projecting: _projectStopwatch,
-                    onPressed: StageSession.instance.isOn
-                        ? _toggleProjectStopwatch
-                        : null,
+                    onPressed: _toggleProjectStopwatch,
                   ),
                   _SavedTimesList(
                     keyPrefix: 'stopwatch-saved',
@@ -562,9 +576,7 @@ class _TimerPageState extends State<TimerPage> {
                   _ProjectButton(
                     key: const Key('countdown-project'),
                     projecting: _projectCountdown,
-                    onPressed: StageSession.instance.isOn
-                        ? _toggleProjectCountdown
-                        : null,
+                    onPressed: _toggleProjectCountdown,
                   ),
                   _SavedTimesList(
                     keyPrefix: 'countdown-saved',
@@ -706,20 +718,28 @@ class _LocalClockCardState extends State<_LocalClockCard> {
           onChanged: (value) => setState(() => _showSeconds = value),
         ),
         OutlinedButton.icon(
-          onPressed: StageSession.instance.isOn
-              ? () async {
-                  if (_projecting) {
-                    await StageSession.instance.clearContent();
-                    if (mounted) setState(() => _projecting = false);
-                  } else {
-                    final ok = await StageSession.instance.project(
-                      title: _time,
-                      module: 'timer',
-                    );
-                    if (mounted) setState(() => _projecting = ok);
-                  }
-                }
-              : null,
+          onPressed: () async {
+            if (_projecting) {
+              await StageSession.instance.clearContent();
+              await PhoneProjection.end();
+              if (mounted) setState(() => _projecting = false);
+              return;
+            }
+            // Liga o palco do celular e os monitores compartilhados ativos.
+            if (!await PhoneProjection.begin()) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('liturgy.parity.noStage'.tr())),
+                );
+              }
+              return;
+            }
+            final ok = await StageSession.instance.project(
+              title: _time,
+              module: 'timer',
+            );
+            if (mounted) setState(() => _projecting = ok);
+          },
           icon: Icon(_projecting ? TablerIcons.square : TablerIcons.deviceTv),
           label: Text(
             (_projecting ? 'remote.stopProjection' : 'remote.project').tr(),
@@ -791,7 +811,7 @@ class _SavedTimesList extends StatelessWidget {
   }
 }
 
-/// Projetar/Parar projeção (desabilitado com o palco desligado).
+/// Projetar/Parar projeção (liga o palco e os monitores ao projetar).
 class _ProjectButton extends StatelessWidget {
   final bool projecting;
   final VoidCallback? onPressed;
