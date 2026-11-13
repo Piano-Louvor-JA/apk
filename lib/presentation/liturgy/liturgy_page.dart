@@ -786,6 +786,10 @@ class _MirrorItemCard extends StatelessWidget {
   }
 }
 
+/// Resumo do culto (relógio, horários, duração e término) e notas do culto:
+/// fora do APK por enquanto. Os dados continuam salvos e sincronizados.
+const _showSessionExtras = false;
+
 Color _parseHexStatic(String hex, ThemeData theme) {
   final cleaned = hex.replaceAll('#', '');
   if (cleaned.length == 6) {
@@ -841,7 +845,7 @@ class _BodyState extends State<_Body> {
               absorbing: mediaOpen,
               child: LiturgyContextBar(state: widget.state),
             ),
-            if (!showPlayer)
+            if (_showSessionExtras && !showPlayer)
               LiturgySessionSummary(
                 key: ValueKey('summary-${widget.state.contextKey}'),
                 state: widget.state,
@@ -854,7 +858,7 @@ class _BodyState extends State<_Body> {
                     : _timeline(),
               ),
             ),
-            if (!showPlayer)
+            if (_showSessionExtras && !showPlayer)
               _NotesBar(
                 key: ValueKey('notes-${widget.state.contextKey}'),
                 notes: widget.state.notes,
