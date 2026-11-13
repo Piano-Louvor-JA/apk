@@ -434,7 +434,7 @@ class _LiturgyViewState extends State<_LiturgyView> {
                 return FloatingActionButton(
                   key: const Key('liturgy-add-moment'),
                   tooltip: 'liturgy.actions.add'.tr(),
-                  onPressed: () => showLiturgyItemDialog(context),
+                  onPressed: () => _addMoment(context, state),
                   child: const Icon(TablerIcons.plus, size: 24),
                 );
               }
@@ -452,6 +452,68 @@ class _LiturgyViewState extends State<_LiturgyView> {
         },
       ),
     );
+  }
+}
+
+/// "+" flutuante: com categorias na liturgia, primeiro a categoria do novo
+/// momento (senão ele ficava solto, fora delas); sem categorias, como antes.
+Future<void> _addMoment(BuildContext context, LiturgyLoaded state) async {
+  final categories = state.items
+      .where((item) => item.type == LiturgyItemType.category)
+      .toList();
+  if (categories.isEmpty) {
+    showLiturgyItemDialog(context);
+    return;
+  }
+  const newCategory = '\u0000new';
+  final chosen = await showModalBottomSheet<String>(
+    context: context,
+    builder: (sheet) {
+      final theme = Theme.of(sheet);
+      return SafeArea(
+        child: Column(
+          key: const Key('liturgy-choose-category'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'liturgy.parity.chooseCategory'.tr(),
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final category in categories)
+                    ListTile(
+                      leading: Icon(
+                        TablerIcons.tag,
+                        color: theme.colorScheme.primary,
+                      ),
+                      title: Text(category.name),
+                      onTap: () => Navigator.pop(sheet, category.id),
+                    ),
+                  ListTile(
+                    key: const Key('liturgy-choose-new-category'),
+                    leading: const Icon(TablerIcons.plus),
+                    title: Text('liturgy.parity.newCategory'.tr()),
+                    onTap: () => Navigator.pop(sheet, newCategory),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+  if (chosen == null || !context.mounted) return;
+  if (chosen == newCategory) {
+    showLiturgyItemDialog(context, isCategory: true);
+  } else {
+    showLiturgyItemDialog(context, parentCategoryId: chosen);
   }
 }
 

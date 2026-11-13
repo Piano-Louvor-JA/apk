@@ -245,7 +245,9 @@
       "slotMapping": "Vincular momento a rotación",
       "autoCreate": "Crear rotaciones que faltan",
       "resetProgress": "Reiniciar finalización",
-      "scheduledComingSoon": "Los elementos programados aún se implementarán en la app."
+      "scheduledComingSoon": "Los elementos programados aún se implementarán en la app.",
+      "chooseCategory": "¿En qué categoría va el nuevo momento?",
+      "newCategory": "Nueva categoría"
     },
     "richNotes": {
       "toolbar": "Formato del texto",

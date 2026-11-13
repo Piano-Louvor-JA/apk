@@ -28,6 +28,82 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('com categorias, o + pede a categoria antes do novo momento', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const MaterialApp(home: LiturgyPage()));
+    await tester.pumpAndSettle();
+    final bloc = BlocProvider.of<LiturgyBloc>(
+      tester.element(find.byType(Scaffold).last),
+    );
+    bloc.add(
+      LiturgyAddItem(
+        const LiturgyItem(
+          id: 'c1',
+          type: LiturgyItemType.category,
+          name: 'Início de culto',
+          subtitle: '',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('liturgy-add-moment')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liturgy-choose-category')), findsOneWidget);
+    expect(find.text('liturgy.parity.chooseCategory'), findsOneWidget);
+    // Escolher a categoria abre o momento já dentro dela (sem o campo).
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('liturgy-choose-category')),
+        matching: find.text('Início de culto'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('liturgy.types.music'), findsOneWidget);
+    expect(find.byKey(const Key('liturgy-item-category')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('nova categoria pelo + abre o diálogo de categoria', (
+    tester,
+  ) async {
+    // Chaves de tradução cruas (sem bundle no teste) esticam os botões do
+    // diálogo: overflow é ruído aqui, como em liturgy_item_dialog_title_test.
+    final original = FlutterError.onError;
+    FlutterError.onError = (details) {
+      if (details.exceptionAsString().contains('RenderFlex overflowed')) return;
+      original?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = original);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const MaterialApp(home: LiturgyPage()));
+    await tester.pumpAndSettle();
+    BlocProvider.of<LiturgyBloc>(
+      tester.element(find.byType(Scaffold).last),
+    ).add(
+      LiturgyAddItem(
+        const LiturgyItem(
+          id: 'c1',
+          type: LiturgyItemType.category,
+          name: 'Início de culto',
+          subtitle: '',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('liturgy-add-moment')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('liturgy-choose-new-category')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liturgy-choose-category')), findsNothing);
+    expect(find.text('liturgy.types.music'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('itens agendados avisam que ainda não existem no APK', (
     tester,
   ) async {

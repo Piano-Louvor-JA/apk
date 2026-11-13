@@ -244,7 +244,9 @@
       "slotMapping": "Vincular momento à rotação",
       "autoCreate": "Criar rotações não encontradas",
       "resetProgress": "Reiniciar conclusão",
-      "scheduledComingSoon": "Itens agendados ainda serão implementados no APK."
+      "scheduledComingSoon": "Itens agendados ainda serão implementados no APK.",
+      "chooseCategory": "Em qual categoria vai o novo momento?",
+      "newCategory": "Nova categoria"
     },
     "richNotes": {
       "toolbar": "Formatação do texto",

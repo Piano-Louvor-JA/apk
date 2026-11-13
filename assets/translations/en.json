@@ -245,7 +245,9 @@
       "slotMapping": "Map slot to rotation",
       "autoCreate": "Create missing rotations",
       "resetProgress": "Reset completion",
-      "scheduledComingSoon": "Scheduled items are not available in the app yet."
+      "scheduledComingSoon": "Scheduled items are not available in the app yet.",
+      "chooseCategory": "Which category is the new moment in?",
+      "newCategory": "New category"
     },
     "richNotes": {
       "toolbar": "Text formatting",
