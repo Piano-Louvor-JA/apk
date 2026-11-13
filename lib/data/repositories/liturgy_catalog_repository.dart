@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.dart';
@@ -70,18 +71,24 @@ class LiturgyCatalogRepository implements BibleRepository {
     );
   }
 
+  /// Índice já atualizado nesta sessão, por idioma.
+  static final Map<String, List<Hymn>> _sessionIndex = {};
+
+  @visibleForTesting
+  static void resetSessionIndex() => _sessionIndex.clear();
+
+  /// Como a aba Hinos: a 1ª busca da sessão vem da rede (o disco gravado
+  /// antes podia ser de outro catálogo e nunca se atualizava); o disco é
+  /// só o fallback offline. Depois, a memória da sessão.
   Future<List<Hymn>> musicIndex({bool refresh = false}) async {
+    final session = _sessionIndex[locale];
+    if (!refresh && session != null) return session;
     final cached = _read('music_index');
-    if (!refresh && cached is List)
-      return cached
-          .whereType<Map>()
-          .map((e) => _decodeHymn(e.cast<String, dynamic>()))
-          .toList();
     try {
       var hymns = await api.fetchMusicIndex();
       if (hymns.isEmpty) hymns = await api.fetchHymnal();
       await _write('music_index', hymns.map(_hymn).toList());
-      return hymns;
+      return _sessionIndex[locale] = hymns;
     } catch (_) {
       if (cached is List)
         return cached
