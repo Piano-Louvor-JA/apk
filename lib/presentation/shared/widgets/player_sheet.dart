@@ -40,42 +40,63 @@ class _MainNavigationInsetState extends State<MainNavigationInset> {
 }
 
 /// Player expandido (Controle Remoto e Liturgia local): sobe da base, mas
-/// fica acima do menu do rodapé em vez de cobri-lo.
+/// fica acima do menu do rodapé, que continua livre (sem película e tocável).
 Future<void> showPlayerSheet({
   required BuildContext context,
   required WidgetBuilder builder,
 }) {
-  final inset = MainNavigationInset.visibleHeight;
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
-    elevation: 0,
-    builder: (sheetContext) {
-      final theme = Theme.of(sheetContext);
-      final sheet = theme.bottomSheetTheme;
-      return Padding(
-        padding: EdgeInsets.only(bottom: inset),
-        child: Material(
-          color:
-              sheet.modalBackgroundColor ??
-              sheet.backgroundColor ??
-              theme.colorScheme.surfaceContainerLow,
-          elevation: sheet.modalElevation ?? sheet.elevation ?? 1,
-          shape:
-              sheet.shape ??
-              const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-          clipBehavior: Clip.antiAlias,
-          child: MediaQuery.removePadding(
-            context: sheetContext,
-            removeBottom: inset > 0,
-            child: Builder(builder: builder),
-          ),
-        ),
-      );
-    },
+  final navigator = Navigator.of(context);
+  return navigator.push(
+    _PlayerSheetRoute(
+      inset: MainNavigationInset.visibleHeight,
+      builder: builder,
+      capturedThemes: InheritedTheme.capture(
+        from: context,
+        to: navigator.context,
+      ),
+      barrierLabel: MaterialLocalizations.of(context).scrimLabel,
+      isScrollControlled: true,
+      useSafeArea: true,
+    ),
   );
+}
+
+class _PlayerSheetRoute extends ModalBottomSheetRoute<void> {
+  _PlayerSheetRoute({
+    required this.inset,
+    required super.builder,
+    required super.isScrollControlled,
+    super.capturedThemes,
+    super.barrierLabel,
+    super.useSafeArea,
+  });
+
+  /// Altura do rodapé: nem a película nem o sheet passam dela.
+  final double inset;
+
+  @override
+  Widget buildModalBarrier() => Padding(
+    padding: EdgeInsets.only(bottom: inset),
+    child: super.buildModalBarrier(),
+  );
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    final page = super.buildPage(context, animation, secondaryAnimation);
+    if (inset <= 0) return page;
+    return Padding(
+      padding: EdgeInsets.only(bottom: inset),
+      child: ClipRect(
+        child: MediaQuery.removePadding(
+          context: context,
+          removeBottom: true,
+          child: page,
+        ),
+      ),
+    );
+  }
 }
