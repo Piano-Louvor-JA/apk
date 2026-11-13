@@ -16,63 +16,66 @@ void main() {
     await SyncTimestamps.init();
   });
 
-  test('saveItems enfileira scheduled::items (helper OperatorOutboxHook)',
-      () async {
-    final prefs = await SharedPreferences.getInstance();
-    final repo = ScheduledRepository(prefs);
-    final client = OperatorStateClient(prefs, sessionToken: () async => null);
+  test(
+    'saveItems enfileira scheduled::items (helper OperatorOutboxHook)',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repo = ScheduledRepository(prefs);
+      final client = OperatorStateClient(prefs, sessionToken: () async => null);
 
-    await repo.saveItems(
-      [
-        ScheduledItem(
-          id: 'a',
-          categoryId: 'c1',
-          date: DateTime(2026, 10, 5),
-          name: 'Culto',
+      await repo.saveItems(
+        [
+          ScheduledItem(
+            id: 'a',
+            categoryId: 'c1',
+            date: DateTime(2026, 10, 5),
+            name: 'Culto',
+          ),
+        ],
+        outbox: (categories, items) => client.enqueueScheduled(
+          ScheduledStatePayload(categories: categories, items: items),
         ),
-      ],
-      outbox: (categories, items) => client.enqueueScheduled(
-        ScheduledStatePayload(categories: categories, items: items),
-      ),
-    );
+      );
 
-    expect(client.outboxCount(), 1);
-    final box = jsonDecode(
-      prefs.getString(OperatorStateClient.outboxStorageKey)!,
-    ) as Map<String, dynamic>;
-    expect(box.keys.single, 'scheduled::items');
-  });
+      expect(client.outboxCount(), 1);
+      final box =
+          jsonDecode(prefs.getString(OperatorStateClient.outboxStorageKey)!)
+              as Map<String, dynamic>;
+      expect(box.keys.single, 'scheduled::items');
+    },
+  );
 
-  test('sem hook injetado: save segue funcionando (outbox é opcional)',
-      () async {
-    final prefs = await SharedPreferences.getInstance();
-    final repo = ScheduledRepository(prefs);
-    await repo.saveItems(const []);
-    expect(
-      prefs.getString(OperatorStateClient.outboxStorageKey),
-      isNull,
-    );
-  });
+  test(
+    'aplicação remota pode salvar sem reenfileirar explicitamente',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repo = ScheduledRepository(prefs);
+      await repo.saveItems(const [], enqueue: false);
+      expect(prefs.getString(OperatorStateClient.outboxStorageKey), isNull);
+    },
+  );
 
-  test('saveCategories enfileira o estado completo (categories+items)',
-      () async {
-    final prefs = await SharedPreferences.getInstance();
-    final repo = ScheduledRepository(prefs);
-    final client = OperatorStateClient(prefs, sessionToken: () async => null);
+  test(
+    'saveCategories enfileira o estado completo (categories+items)',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repo = ScheduledRepository(prefs);
+      final client = OperatorStateClient(prefs, sessionToken: () async => null);
 
-    await repo.saveCategories(
-      [ScheduledCategory(id: 'c1', name: 'Cultos')],
-      outbox: (categories, items) => client.enqueueScheduled(
-        ScheduledStatePayload(categories: categories, items: items),
-      ),
-    );
+      await repo.saveCategories(
+        [ScheduledCategory(id: 'c1', name: 'Cultos')],
+        outbox: (categories, items) => client.enqueueScheduled(
+          ScheduledStatePayload(categories: categories, items: items),
+        ),
+      );
 
-    final box = jsonDecode(
-      prefs.getString(OperatorStateClient.outboxStorageKey)!,
-    ) as Map<String, dynamic>;
-    final payload =
-        jsonDecode((box['scheduled::items'] as Map)['value_json'] as String)
-            as Map<String, dynamic>;
-    expect((payload['categories'] as List).single['id'], 'c1');
-  });
+      final box =
+          jsonDecode(prefs.getString(OperatorStateClient.outboxStorageKey)!)
+              as Map<String, dynamic>;
+      final payload =
+          jsonDecode((box['scheduled::items'] as Map)['value_json'] as String)
+              as Map<String, dynamic>;
+      expect((payload['categories'] as List).single['id'], 'c1');
+    },
+  );
 }

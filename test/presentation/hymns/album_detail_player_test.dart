@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
 import 'package:louvorja_piano_mobile/core/services/offline_music_port.dart';
+import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/catalog_cache.dart';
 import 'package:louvorja_piano_mobile/data/repositories/hymn_repository_impl.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
@@ -147,6 +148,9 @@ class _FakePlayer extends HymnAudioPlayer {
 }
 
 void main() {
+  setUp(() => nowPlaying.stop());
+  tearDown(() => nowPlaying.stop());
+
   Widget wrapWithRouter(Widget child, HymnsBloc bloc) {
     final router = GoRouter(
       initialLocation: '/detail',
@@ -191,23 +195,91 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // "Tocar tudo": botão/ícone na AppBar ou header
-        final playAll = find.widgetWithText(FilledButton, 'albums.playAll');
+        final playAll = find.byKey(const Key('album-play-all'));
         expect(playAll, findsOneWidget);
         await tester.tap(playAll);
         await tester.pumpAndSettle();
 
         // 1ª faixa tocando (offline vazio → busca detail e monta URL)
-        expect(player.playedUrls, isNotEmpty);
+        expect(player.playedUrls.length, 1);
+        expect(nowPlaying.track?.hymnId, 1);
 
-        // completa → avança pra próxima da fila
-        final before = player.playedUrls.length;
+        // completa → avança pra 2ª (última da fila)
         player.completeTrack();
         await tester.pumpAndSettle();
-        // fila tinha 1 item restante: toca mais um
-        expect(player.playedUrls.length, greaterThanOrEqualTo(before));
+        expect(player.playedUrls.length, 2);
+        expect(nowPlaying.track?.hymnId, 2);
+
+        // fim da fila: nova conclusão não toca mais nada
+        player.completeTrack();
+        await tester.pumpAndSettle();
+        expect(player.playedUrls.length, 2);
       },
     );
+
+    testWidgets('aleatório toca uma faixa do álbum e segue a fila', (
+      tester,
+    ) async {
+      final player = _FakePlayer();
+      final bloc = blocWith([
+        const Hymn(id: 1, title: 'Hino 1'),
+        const Hymn(id: 2, title: 'Hino 2'),
+      ]);
+      await tester.pumpWidget(
+        wrapWithRouter(
+          AlbumDetailPage(
+            albumId: 100,
+            offlineService: _FakeOfflinePort(),
+            audioPlayer: player,
+          ),
+          bloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('album-shuffle')));
+      await tester.pumpAndSettle();
+      expect(player.playedUrls.length, 1);
+      final first = nowPlaying.track!.hymnId;
+
+      player.completeTrack();
+      await tester.pumpAndSettle();
+      expect(player.playedUrls.length, 2);
+      expect(nowPlaying.track!.hymnId, isNot(first));
+    });
+
+    testWidgets('adicionar à fila: sem fila toca; com fila avisa', (
+      tester,
+    ) async {
+      final player = _FakePlayer();
+      final bloc = blocWith([
+        const Hymn(id: 1, title: 'Hino 1'),
+        const Hymn(id: 2, title: 'Hino 2'),
+      ]);
+      await tester.pumpWidget(
+        wrapWithRouter(
+          AlbumDetailPage(
+            albumId: 100,
+            offlineService: _FakeOfflinePort(),
+            audioPlayer: player,
+          ),
+          bloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Sem fila ativa: começa a tocar o álbum.
+      await tester.tap(find.byKey(const Key('album-append-queue')));
+      await tester.pumpAndSettle();
+      expect(player.playedUrls.length, 1);
+      expect(find.byType(SnackBar), findsNothing);
+
+      // Com fila ativa: soma ao fim e avisa, sem tocar outra.
+      await tester.tap(find.byKey(const Key('album-append-queue')));
+      await tester.pumpAndSettle();
+      expect(player.playedUrls.length, 1);
+      expect(find.byType(SnackBar), findsOneWidget);
+    });
 
     testWidgets('filtro aceita entrada sem filtrar localmente (TODO atual)', (
       tester,
@@ -239,7 +311,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('expandir faixa mostra ações (cantado/playback/download)', (
+    testWidgets('selecionar faixa mostra ações (playback/download) e letra', (
       tester,
     ) async {
       final player = _FakePlayer();
@@ -249,6 +321,8 @@ void main() {
           title: 'Hino Expansível',
           urlMusic: '/m/1.mp3',
           urlInstrumental: '/m/1p.mp3',
+          hasInstrumental: true,
+          lyric: 'Letra do hino',
         ),
       ]);
 
@@ -264,15 +338,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // 1º toque: seleciona pausado, sem tocar.
       await tester.tap(find.text('Hino Expansível'));
       await tester.pumpAndSettle();
+      expect(player.playedUrls, isEmpty);
+      expect(nowPlaying.track?.hymnId, 1);
+      expect(nowPlaying.isPlaying, isFalse);
+      expect(find.text('Letra do hino'), findsNothing);
 
-      // ações da faixa expandida (play/instrumental/download)
-      expect(
-        find.byIcon(TablerIcons.playerPlay).evaluate().isNotEmpty ||
-            find.byIcon(TablerIcons.download).evaluate().isNotEmpty,
-        isTrue,
-      );
+      // ações da linha: playback instrumental e modo vídeo
+      expect(find.byIcon(TablerIcons.piano), findsOneWidget);
+      expect(find.byTooltip('Modo vídeo'), findsOneWidget);
+
+      // 2º toque: letra.
+      await tester.tap(find.text('Hino Expansível'));
+      await tester.pump();
+      expect(find.text('Letra do hino'), findsOneWidget);
     });
   });
 }

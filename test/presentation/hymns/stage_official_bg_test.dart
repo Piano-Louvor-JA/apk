@@ -84,7 +84,8 @@ void main() {
     await tester.tap(find.byType(Image).first, warnIfMissed: false);
     for (var i = 0; i < 10; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 50)));
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
       await tester.pump(const Duration(milliseconds: 50));
     }
 

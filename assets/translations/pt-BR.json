@@ -3,6 +3,7 @@
     "name": "LouvorJA PIANO"
   },
   "nav": {
+    "screens": "Telas",
     "home": "Início",
     "hymns": "Hinos",
     "liturgy": "Liturgia",
@@ -41,9 +42,11 @@
     "decrease": "Diminuir",
     "increase": "Aumentar",
     "clearSearch": "Limpar busca",
-    "back": "Voltar"
+    "back": "Voltar",
+    "expand": "Expandir"
   },
   "hymns": {
+    "searchCriteria": "A busca considera o título, a coletânea e a letra da música. Alguns resultados podem corresponder apenas a um trecho da letra.",
     "title": "Hinos",
     "searchPlaceholder": "Buscar por número, título ou trecho",
     "availableOffline": "Disponível offline",
@@ -61,6 +64,7 @@
       "action": "Clonar Liturgia"
     },
     "types": {
+      "audio": "Áudio",
       "category": "Categoria/Separador",
       "music": "Musica",
       "annotation": "Anotacoes",
@@ -91,6 +95,7 @@
       "cancel": "Cancelar",
       "edit": "Editar",
       "delete": "Remover",
+      "add": "Novo momento",
       "addSubItem": "Adicionar sub item",
       "addToService": "Adicionar ao culto",
       "expand": "Expandir",
@@ -117,6 +122,12 @@
     },
     "durationMin": "min",
     "fields": {
+      "invalidTime": "Informe o início em HH:MM e um término válido ou vazio.",
+      "endTime": "Hora do término (opcional)",
+      "startTime": "Hora de início",
+      "instrumental": "Instrumental",
+      "vocal": "Vocal",
+      "musicMode": "Modo de reprodução",
       "url": "URL",
       "selectMusic": "Musica selecionada",
       "searchMusic": "Selecionar musica",
@@ -169,6 +180,94 @@
       "disconnected": "Desconectado",
       "scannerUnavailable": "Scanner indisponível nesta plataforma",
       "copyFallback": "Se o QR não couber/ler, copie e cole no web:"
+    },
+    "parity": {
+      "closeLocalMessage": "O conteúdo aberto no APK será encerrado.",
+      "applyQuarter": "Aplicar trimestre",
+      "audioUnavailable": "Áudio indisponível. Confira o arquivo ou a conexão.",
+      "book": "Livro",
+      "calendar": "Agenda",
+      "catalogUnavailable": "Catálogo indisponível. Faça o primeiro download online.",
+      "category": "Categoria",
+      "chapter": "Capítulo",
+      "chooseContent": "Escolher conteúdo",
+      "clearTime": "Limpar horário",
+      "cloneFrom": "Clonar de",
+      "connectScreens": "Conecte uma tela para projetar.",
+      "defaultColor": "Cor padrão",
+      "deleteCategoryConfirm": "Excluir esta categoria e seus itens?",
+      "deleteCustom": "Excluir liturgia avulsa?",
+      "downloadSchedule": "Baixar e agendar",
+      "downloadUpcoming": "Baixar e agendar próximos episódios",
+      "duplicateQuarter": "Duplicar trimestre",
+      "duplicateWeeks": "Deslocamento em semanas",
+      "estimated": "estimado",
+      "estimatedEnd": "Término estimado",
+      "fileUnavailable": "Arquivo indisponível ou sem aplicativo compatível.",
+      "formattedText": "Texto formatado",
+      "incompleteItem": "Preencha o conteúdo obrigatório do momento.",
+      "loadEpisodes": "Carregar episódios",
+      "manageScheduled": "Gerenciar agendados",
+      "musicMissing": "Selecione uma música do catálogo.",
+      "newCustom": "Nova liturgia avulsa",
+      "newRotation": "Nova rotação",
+      "newScheduled": "Novo conteúdo agendado",
+      "noCategory": "Sem categoria",
+      "openExternal": "Abrir em aplicativo externo",
+      "pasteHint": "Cole as datas, momentos e conteúdos do trimestre.",
+      "pasteQuarter": "Colar trimestre",
+      "pasteReport": "Criados: {created}. Não mapeados: {unmapped}. Erros: {errors}.",
+      "plannedEnd": "Término planejado",
+      "project": "Projetar",
+      "realStart": "Início real",
+      "reload": "Recarregar",
+      "renameCustom": "Renomear liturgia avulsa",
+      "renameRotation": "Renomear rotação",
+      "rotation": "Rotação",
+      "rotations": "Rotações",
+      "saveFailed": "Não foi possível salvar. Tente novamente.",
+      "scheduledEmpty": "Não há conteúdo agendado para esta data e rotação.",
+      "scheduledEmptyForDate": "Sem conteúdo para {date}",
+      "startCountdown": "Iniciar contagem regressiva",
+      "stopCountdown": "Parar contagem regressiva",
+      "stopProjection": "Parar projeção",
+      "titleColor": "Cor do título",
+      "verses": "Versículos (ex.: 1-3, 5)",
+      "description": "Descrição",
+      "fetchMetadata": "Obter título e descrição do link",
+      "downloadVideo": "Baixar vídeo para uso offline",
+      "downloadFailed": "Não foi possível baixar este vídeo.",
+      "downloaded": "Disponível offline",
+      "player": "Reprodução",
+      "internalPlayer": "Player interno",
+      "externalPlayer": "Aplicativo associado",
+      "slotMapping": "Vincular momento à rotação",
+      "autoCreate": "Criar rotações não encontradas",
+      "resetProgress": "Reiniciar conclusão",
+      "scheduledComingSoon": "Itens agendados ainda serão implementados no APK.",
+      "chooseCategory": "Em qual categoria vai o novo momento?",
+      "newCategory": "Nova categoria",
+      "noStage": "Não deu para ligar o palco: sem rede Wi-Fi?"
+    },
+    "richNotes": {
+      "toolbar": "Formatação do texto",
+      "bold": "Negrito",
+      "italic": "Itálico",
+      "underline": "Sublinhado",
+      "size": "Tamanho do texto",
+      "sizeSmall": "Pequeno",
+      "sizeNormal": "Normal",
+      "sizeLarge": "Grande",
+      "sizeTitle": "Título",
+      "color": "Cor do texto",
+      "highlight": "Marca-texto",
+      "noHighlight": "Sem marca-texto",
+      "bulletList": "Lista com marcadores",
+      "numberedList": "Lista numerada",
+      "alignLeft": "Alinhar à esquerda",
+      "alignCenter": "Centralizar",
+      "alignRight": "Alinhar à direita",
+      "clear": "Limpar formatação"
     }
   },
   "bible": {
@@ -213,8 +312,20 @@
     "filterVersesHint": "Filtrar texto ou versos: amor, 3, 1-3, 1,3-5",
     "globalResults": "Resultados na Bíblia",
     "globalSearching": "Buscando na Bíblia…",
-    "quickSearchHint": "Referência (gn 1:1-3) ou texto...",
-    "goToReference": "Ir para referência"
+    "quickSearchHint": "Livro, capítulo ou palavra — ex.: jo 3:16",
+    "goToReference": "Ir para referência",
+    "search": {
+      "recent": "Recentes",
+      "clearRecent": "Limpar",
+      "examples": "Experimente",
+      "tip": "Escreva do seu jeito: jo 3:16, jo 3.16, 1 co 13, i coríntios 13, salmo 23 — ou uma palavra para achar no texto.",
+      "noResults": "Nada encontrado. Tente o nome do livro ou uma palavra.",
+      "chapterCount": "{} capítulos — toque num número ou digite",
+      "wholeChapter": "Capítulo inteiro",
+      "verseCount": "{} versículo(s)",
+      "searchText": "Buscar “{}” no texto",
+      "textSubtitle": "Nos capítulos já baixados"
+    }
   },
   "settings": {
     "title": "Configurações",
@@ -240,6 +351,9 @@
     "privacyPolicy": "Política de Privacidade"
   },
   "timer": {
+    "save": "Salvar",
+    "savedTimes": "Tempos salvos",
+    "clearAll": "Limpar tudo",
     "clock": "Relógio",
     "format24h": "Formato de 24 horas",
     "showSeconds": "Mostrar segundos",
@@ -261,6 +375,14 @@
     "unknown": "Ocorreu um erro inesperado. Tente novamente."
   },
   "tools": {
+    "desktopMonitors": "Conectar monitor",
+    "desktopMonitorsSubtitle": "TVs, monitores e projetores ligados por cabo ao computador",
+    "palco": "Palco",
+    "connections": "Conexões",
+    "connectionsSubtitle": "Transmissão, monitores e Palco",
+    "palcoSubtitle": "TVs com o app Palco detectadas na rede",
+    "transmission": "Transmissão",
+    "transmissionSubtitle": "TVs e OBS conectados ao celular",
     "title": "Ferramentas",
     "liturgy": "Liturgia",
     "liturgySubtitle": "Organize o culto do dia",
@@ -269,7 +391,8 @@
     "timer": "Tempo",
     "timerSubtitle": "Cronômetro, contagem regressiva e relógio",
     "remoteControl": "Controle Remoto",
-    "remoteControlSubtitle": "Comande a liturgia e o player do desktop"
+    "remoteControlSubtitle": "Comande a liturgia e o player do desktop",
+    "liturgyComingSoon": "A Liturgia está em desenvolvimento. Em breve será liberada.\n\nUse a Liturgia do Controle Remoto."
   },
   "search": {
     "title": "Busca",
@@ -553,11 +676,23 @@
     }
   },
   "albums": {
+    "shuffle": "Tocar aleatório",
+    "appendQueue": "Adicionar à fila",
+    "appendedQueue": "Adicionado à fila: {} música(s)",
     "playAll": "Tocar tudo"
   },
   "offline": {
     "sectionTitle": "Modo offline",
     "mode": "Modo offline — usando conteúdo baixado",
     "restored": "Conexão restaurada — sincronizando…"
+  },
+  "myEdits": {
+    "loadError": "Não foi possível carregar suas edições.",
+    "title": "Minhas Edições",
+    "empty": "Nenhuma edição publicada ainda.",
+    "musicLabel": "Música #{id}",
+    "statusApproved": "Aprovada",
+    "statusRejected": "Rejeitada",
+    "statusPublished": "Publicada"
   }
 }

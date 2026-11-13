@@ -49,6 +49,39 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   }
 
+  testWidgets('editar permite apagar observações sem perder o item', (tester) async {
+    LiturgyItem? saved;
+    const existing = LiturgyItem(id: 'nota', type: LiturgyItemType.annotation, name: 'Aviso', notes: 'Lembrete anterior');
+    await pumpDialog(tester, existing: existing, onSubmit: (i) => saved = i);
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.controller?.text == 'Lembrete anterior'), '');
+    tester.testTextInput.hide();
+    await tester.ensureVisible(find.byType(FilledButton).last);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byType(FilledButton).last);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(saved, isNotNull);
+    expect(saved!.notes ?? '', isEmpty);
+  });
+
+  testWidgets('editar preserva dados e segundos do contrato desktop', (tester) async {
+    LiturgyItem? saved;
+    const existing = LiturgyItem(
+      id: 'desktop', type: LiturgyItemType.music, name: 'Hino', musicId: 42,
+      done: true, durationMs: 183000, musicMode: 'instrumental',
+      filePaths: ['a.png', 'b.png'], startTime: '09:00', endTime: '10:00',
+    );
+    await pumpDialog(tester, existing: existing, onSubmit: (i) => saved = i);
+    await tester.ensureVisible(find.byType(FilledButton).last);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byType(FilledButton).last);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(saved?.done, isTrue);
+    expect(saved?.durationMs, 183000);
+    expect(saved?.musicMode, 'instrumental');
+    expect(saved?.filePaths, ['a.png', 'b.png']);
+    expect(saved?.startTime, '09:00');
+  });
+
   testWidgets(
     'edição de música importada: subtitle vazio + name preenchido → save usa name',
     (tester) async {

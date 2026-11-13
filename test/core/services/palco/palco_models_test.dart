@@ -250,4 +250,26 @@ void main() {
       );
     });
   });
+
+  test('capa da música leva a caixinha das outras projeções', () {
+    final cover = PalcoMessage.projection(
+      text: 'Maranata',
+      textBox: true,
+      isCover: true,
+    ).fields;
+    expect(cover['titleTextBox'], isTrue);
+    final noBox = PalcoMessage.projection(
+      text: 'Maranata',
+      textBox: false,
+      isCover: true,
+    ).fields;
+    expect(noBox['titleTextBox'], isFalse);
+    final lyric = PalcoMessage.projection(
+      text: 'Letra',
+      textBox: true,
+      isCover: false,
+    ).fields;
+    expect(lyric.containsKey('titleTextBox'), isFalse);
+  });
 }
+

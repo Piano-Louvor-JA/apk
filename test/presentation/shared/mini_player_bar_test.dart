@@ -1,6 +1,8 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
@@ -32,6 +34,31 @@ class _FakePlayer extends HymnPlayerLike {
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
+  testWidgets('prévia mantém fundo absoluto do catálogo', (tester) async {
+    final notifier = NowPlayingNotifier();
+    final player = _FakePlayer();
+    notifier.start(
+      title: 'Tu És Digno',
+      album: 'Hinário',
+      hymnId: 2318,
+      detail: const Hymn(
+        id: 2318,
+        title: 'Tu És Digno',
+        imageUrl: 'https://files.louvorja.com.br/images/hasd_599.jpg',
+      ),
+    );
+    await tester.pumpWidget(
+      _wrap(MiniPlayerBar(notifier: notifier, player: player)),
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<CachedNetworkImage>(find.byType(CachedNetworkImage).first)
+          .imageUrl,
+      'https://files.louvorja.com.br/images/hasd_599.jpg',
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('oculto quando nada tocando', (tester) async {
     final notifier = NowPlayingNotifier();
     final player = _FakePlayer();

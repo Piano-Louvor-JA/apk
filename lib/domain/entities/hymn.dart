@@ -24,6 +24,14 @@ class Hymn {
   /// Imagem de capa da música (url_image do detail).
   final String? imageUrl;
 
+  /// Coletâneas da música no índice (`albums_names`/`albums`), para a
+  /// busca considerar a coletânea e mostrar o nome dela no resultado.
+  final String? albumNames;
+  final List<int> albumIds;
+
+  /// Números da música nos hinários (atual primeiro, depois 1996).
+  final List<int> hymnalTracks;
+
   const Hymn({
     required this.id,
     this.title,
@@ -35,6 +43,9 @@ class Hymn {
     this.lyric,
     this.lyricRaw,
     this.imageUrl,
+    this.albumNames,
+    this.albumIds = const [],
+    this.hymnalTracks = const [],
   });
 
   factory Hymn.fromJson(Map<String, dynamic> json) {
@@ -54,7 +65,71 @@ class Hymn {
                 .toList()
           : null,
       imageUrl: json['url_image'] as String?,
+      albumNames: _albumNames(json),
+      albumIds: [
+        for (final a in _albums(json))
+          if (_parseInt(a['id_album']) > 0) _parseInt(a['id_album']),
+      ],
+      hymnalTracks: _hymnalTracks(json),
     );
+  }
+
+  /// Cópia com outro número exibido (busca mostra o nº do hinário).
+  Hymn withNumber(int? value) => Hymn(
+    id: id,
+    title: title,
+    number: value,
+    durationMs: durationMs,
+    hasInstrumental: hasInstrumental,
+    urlMusic: urlMusic,
+    urlInstrumental: urlInstrumental,
+    lyric: lyric,
+    lyricRaw: lyricRaw,
+    imageUrl: imageUrl,
+    albumNames: albumNames,
+    albumIds: albumIds,
+    hymnalTracks: hymnalTracks,
+  );
+
+  static List<Map> _albums(Map<String, dynamic> json) {
+    final raw = json['albums'];
+    return raw is List ? raw.whereType<Map>().toList() : const [];
+  }
+
+  static String? _albumNames(Map<String, dynamic> json) {
+    final field = (json['albums_names'] ?? '').toString().trim();
+    if (field.isNotEmpty) return field;
+    final names = [
+      for (final a in _albums(json))
+        if ((a['name'] ?? '').toString().trim().isNotEmpty)
+          (a['name'] as Object).toString().trim(),
+    ];
+    return names.isEmpty ? null : names.join(', ');
+  }
+
+  /// Hinário atual primeiro, depois o de 1996 (mesma preferência do desktop).
+  static List<int> _hymnalTracks(Map<String, dynamic> json) {
+    final current = <int>[];
+    final old = <int>[];
+    for (final a in _albums(json)) {
+      final type = (a['type'] ?? '').toString().toLowerCase();
+      final name = (a['name'] ?? '').toString();
+      final isHymnal =
+          type == 'hymnal' ||
+          type == 'hymnal_1996' ||
+          name.contains('Hinário Adventista') ||
+          name.contains('Hinario Adventista');
+      if (!isHymnal) continue;
+      final pivot = a['pivot'];
+      final track = _parseNullableInt(
+        pivot is Map ? pivot['track'] : a['track'],
+      );
+      if (track == null || track <= 0) continue;
+      (type == 'hymnal_1996' || name.contains('1996') ? old : current).add(
+        track,
+      );
+    }
+    return [...current, ...old];
   }
 
   Map<String, dynamic> toJson() => {

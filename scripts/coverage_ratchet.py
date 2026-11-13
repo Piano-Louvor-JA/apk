@@ -3,7 +3,7 @@
 
 - coverage < baseline  → exit 1 (trava regressão no CI)
 - coverage > baseline  → atualiza .coverage-baseline e exit 0
-- COVERAGE_MIN definido → usa esse piso fixo (PR para staging) e não
+- COVERAGE_MIN definido → usa esse piso fixo (PR ou push para staging) e não
   altera o baseline
 """
 import os

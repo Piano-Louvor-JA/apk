@@ -3,6 +3,7 @@
     "name": "LouvorJA PIANO"
   },
   "nav": {
+    "screens": "Pantallas",
     "home": "Inicio",
     "hymns": "Himnos",
     "liturgy": "Liturgia",
@@ -41,9 +42,11 @@
     "decrease": "Diminuir",
     "increase": "Aumentar",
     "clearSearch": "Borrar búsqueda",
-    "back": "Volver"
+    "back": "Volver",
+    "expand": "Expandir"
   },
   "hymns": {
+    "searchCriteria": "La búsqueda considera el título, la colección y la letra. Algunos resultados pueden coincidir solo con un fragmento de la letra.",
     "title": "Himnos",
     "searchPlaceholder": "Buscar por número, título o letra",
     "availableOffline": "Disponible sin conexión",
@@ -69,6 +72,7 @@
     },
     "categoryPlaceholder": "Ej: Apertura, Escuela Sabatica, Culto Divino...",
     "types": {
+      "audio": "Audio",
       "category": "Categoria",
       "music": "Musica",
       "annotation": "Notas",
@@ -89,6 +93,7 @@
       "cancel": "Cancelar",
       "edit": "Editar",
       "delete": "Eliminar",
+      "add": "Nuevo momento",
       "addSubItem": "Anadir sub-item",
       "addToService": "Anadir al culto",
       "expand": "Expandir",
@@ -111,6 +116,12 @@
     },
     "durationMin": "min",
     "fields": {
+      "invalidTime": "Ingrese el inicio en HH:MM y un fin válido o vacío.",
+      "endTime": "Hora de fin (opcional)",
+      "startTime": "Hora de inicio",
+      "instrumental": "Instrumental",
+      "vocal": "Vocal",
+      "musicMode": "Modo de reproducción",
       "url": "URL",
       "selectMusic": "Musica seleccionada",
       "searchMusic": "Seleccionar musica",
@@ -170,6 +181,94 @@
       "disconnected": "Desconectado",
       "scannerUnavailable": "Escáner no disponible",
       "copyFallback": "Si el QR no cabe/lee, copia y pega en el web:"
+    },
+    "parity": {
+      "closeLocalMessage": "El contenido abierto en este dispositivo se cerrará.",
+      "applyQuarter": "Aplicar trimestre",
+      "audioUnavailable": "Audio no disponible. Compruebe el archivo o la conexión.",
+      "book": "Libro",
+      "calendar": "Agenda",
+      "catalogUnavailable": "Catálogo no disponible. Descárguelo primero en línea.",
+      "category": "Categoría",
+      "chapter": "Capítulo",
+      "chooseContent": "Elegir contenido",
+      "clearTime": "Borrar horario",
+      "cloneFrom": "Clonar de",
+      "connectScreens": "Conecte una pantalla para proyectar.",
+      "defaultColor": "Color predeterminado",
+      "deleteCategoryConfirm": "¿Eliminar esta categoría y sus elementos?",
+      "deleteCustom": "¿Eliminar liturgia especial?",
+      "downloadSchedule": "Descargar y programar",
+      "downloadUpcoming": "Descargar y programar próximos episodios",
+      "duplicateQuarter": "Duplicar trimestre",
+      "duplicateWeeks": "Desplazamiento en semanas",
+      "estimated": "estimado",
+      "estimatedEnd": "Finalización estimada",
+      "fileUnavailable": "Archivo no disponible o sin aplicación compatible.",
+      "formattedText": "Texto con formato",
+      "incompleteItem": "Complete el contenido obligatorio.",
+      "loadEpisodes": "Cargar episodios",
+      "manageScheduled": "Gestionar programados",
+      "musicMissing": "Seleccione una canción del catálogo.",
+      "newCustom": "Nueva liturgia especial",
+      "newRotation": "Nueva rotación",
+      "newScheduled": "Nuevo contenido programado",
+      "noCategory": "Sin categoría",
+      "openExternal": "Abrir en aplicación externa",
+      "pasteHint": "Pegue las fechas, momentos y contenidos del trimestre.",
+      "pasteQuarter": "Pegar trimestre",
+      "pasteReport": "Creados: {created}. Sin asignar: {unmapped}. Errores: {errors}.",
+      "plannedEnd": "Finalización prevista",
+      "project": "Proyectar",
+      "realStart": "Inicio real",
+      "reload": "Recargar",
+      "renameCustom": "Renombrar liturgia especial",
+      "renameRotation": "Renombrar rotación",
+      "rotation": "Rotación",
+      "rotations": "Rotaciones",
+      "saveFailed": "No se pudo guardar. Inténtelo de nuevo.",
+      "scheduledEmpty": "No hay contenido programado para esta fecha y rotación.",
+      "scheduledEmptyForDate": "Sin contenido para {date}",
+      "startCountdown": "Iniciar cuenta regresiva",
+      "stopCountdown": "Detener cuenta regresiva",
+      "stopProjection": "Detener proyección",
+      "titleColor": "Color del título",
+      "verses": "Versículos (ej.: 1-3, 5)",
+      "description": "Descripción",
+      "fetchMetadata": "Obtener título y descripción del enlace",
+      "downloadVideo": "Descargar video para uso sin conexión",
+      "downloadFailed": "No se pudo descargar este video.",
+      "downloaded": "Disponible sin conexión",
+      "player": "Reproducción",
+      "internalPlayer": "Reproductor interno",
+      "externalPlayer": "Aplicación asociada",
+      "slotMapping": "Vincular momento a rotación",
+      "autoCreate": "Crear rotaciones que faltan",
+      "resetProgress": "Reiniciar finalización",
+      "scheduledComingSoon": "Los elementos programados aún se implementarán en la app.",
+      "chooseCategory": "¿En qué categoría va el nuevo momento?",
+      "newCategory": "Nueva categoría",
+      "noStage": "No se pudo encender el escenario: ¿sin Wi-Fi?"
+    },
+    "richNotes": {
+      "toolbar": "Formato del texto",
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "underline": "Subrayado",
+      "size": "Tamaño del texto",
+      "sizeSmall": "Pequeño",
+      "sizeNormal": "Normal",
+      "sizeLarge": "Grande",
+      "sizeTitle": "Título",
+      "color": "Color del texto",
+      "highlight": "Resaltador",
+      "noHighlight": "Sin resaltado",
+      "bulletList": "Lista con viñetas",
+      "numberedList": "Lista numerada",
+      "alignLeft": "Alinear a la izquierda",
+      "alignCenter": "Centrar",
+      "alignRight": "Alinear a la derecha",
+      "clear": "Borrar formato"
     }
   },
   "bible": {
@@ -214,8 +313,20 @@
     "filterVersesHint": "Filtrar texto o versículos: amor, 3, 1-3, 1,3-5",
     "globalResults": "Resultados en la Biblia",
     "globalSearching": "Buscando en la Biblia…",
-    "quickSearchHint": "Referencia (gn 1:1-3) o texto...",
-    "goToReference": "Ir a la referencia"
+    "quickSearchHint": "Libro, capítulo o palabra — ej.: jn 3:16",
+    "goToReference": "Ir a la referencia",
+    "search": {
+      "recent": "Recientes",
+      "clearRecent": "Borrar",
+      "examples": "Prueba",
+      "tip": "Escribe como quieras: jn 3:16, jn 3.16, 1 co 13, salmo 23 — o una palabra para encontrarla en el texto.",
+      "noResults": "Nada encontrado. Prueba con el nombre del libro o una palabra.",
+      "chapterCount": "{} capítulos — toca un número o escribe",
+      "wholeChapter": "Capítulo completo",
+      "verseCount": "{} versículo(s)",
+      "searchText": "Buscar “{}” en el texto",
+      "textSubtitle": "En los capítulos ya descargados"
+    }
   },
   "settings": {
     "title": "Configuración",
@@ -241,6 +352,9 @@
     "privacyPolicy": "Política de Privacidad"
   },
   "timer": {
+    "save": "Guardar",
+    "savedTimes": "Tiempos guardados",
+    "clearAll": "Borrar todo",
     "clock": "Reloj",
     "format24h": "Formato de 24 horas",
     "showSeconds": "Mostrar segundos",
@@ -262,6 +376,14 @@
     "unknown": "Ocurrió un error inesperado. Intente nuevamente."
   },
   "tools": {
+    "desktopMonitors": "Conectar monitor",
+    "desktopMonitorsSubtitle": "TVs, monitores y proyectores conectados por cable al computador",
+    "palco": "Escenario",
+    "connections": "Conexiones",
+    "connectionsSubtitle": "Transmisión, monitores y Escenario",
+    "palcoSubtitle": "TVs con la app Palco detectadas en la red",
+    "transmission": "Transmisión",
+    "transmissionSubtitle": "TVs y OBS conectados al celular",
     "title": "Herramientas",
     "liturgy": "Liturgia",
     "liturgySubtitle": "Organiza el culto del dia",
@@ -270,7 +392,8 @@
     "timer": "Tiempo",
     "timerSubtitle": "Cronómetro, cuenta regresiva y reloj",
     "remoteControl": "Control Remoto",
-    "remoteControlSubtitle": "Controla la liturgia y el reproductor del desktop"
+    "remoteControlSubtitle": "Controla la liturgia y el reproductor del desktop",
+    "liturgyComingSoon": "La Liturgia está en desarrollo. Pronto estará disponible.\n\nUse la Liturgia del Control Remoto."
   },
   "search": {
     "title": "Búsqueda",
@@ -554,11 +677,23 @@
     }
   },
   "albums": {
+    "shuffle": "Reproducir aleatorio",
+    "appendQueue": "Agregar a la cola",
+    "appendedQueue": "Agregado a la cola: {} canción(es)",
     "playAll": "Reproducir todo"
   },
   "offline": {
     "sectionTitle": "Modo sin conexión",
     "mode": "Modo sin conexión — usando contenido descargado",
     "restored": "Conexión restaurada — sincronizando…"
+  },
+  "myEdits": {
+    "loadError": "No se pudieron cargar tus ediciones.",
+    "title": "Mis ediciones",
+    "empty": "Ninguna edición publicada aún.",
+    "musicLabel": "Canción #{id}",
+    "statusApproved": "Aprobada",
+    "statusRejected": "Rechazada",
+    "statusPublished": "Publicada"
   }
 }

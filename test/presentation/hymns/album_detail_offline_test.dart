@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
 import 'package:louvorja_piano_mobile/core/services/offline_music_port.dart';
+import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/catalog_cache.dart';
 import 'package:louvorja_piano_mobile/data/repositories/hymn_repository_impl.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
@@ -174,6 +175,9 @@ class _FakePlayer extends HymnAudioPlayer {
 }
 
 void main() {
+  setUp(() => nowPlaying.stop());
+  tearDown(() => nowPlaying.stop());
+
   Widget wrapWithRouter(Widget child, HymnsBloc bloc) {
     final router = GoRouter(
       initialLocation: '/detail',
@@ -208,16 +212,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    // Toque na linha só seleciona (pausado); o botão Baixar fica na linha.
     await tester.tap(find.text('Hino DL'));
     await tester.pumpAndSettle();
+    expect(nowPlaying.isPlaying, isFalse);
 
     final dl = find.byTooltip('Baixar');
-    if (dl.evaluate().isNotEmpty) {
-      await tester.tap(dl.first);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(find.textContaining('Downloads disponíveis'), findsOneWidget);
-    }
+    expect(dl, findsOneWidget);
+    await tester.tap(dl);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.textContaining('Downloads disponíveis'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -242,12 +247,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final dl = find.byTooltip('Baixar');
-    if (dl.evaluate().isNotEmpty) {
-      await tester.tap(dl.first);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(offline.downloaded, contains(2));
-    }
+    expect(dl, findsOneWidget);
+    await tester.tap(dl);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(offline.downloaded, contains(2));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Remover download'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -273,12 +279,11 @@ void main() {
     await tester.pumpAndSettle();
 
     final removeIcon = find.byTooltip('Remover download');
-    if (removeIcon.evaluate().isNotEmpty) {
-      await tester.tap(removeIcon.first);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(offline.removed, contains(3));
-    }
+    expect(removeIcon, findsOneWidget);
+    await tester.tap(removeIcon);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(offline.removed, contains(3));
     expect(tester.takeException(), isNull);
   });
 }

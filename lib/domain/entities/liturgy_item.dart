@@ -101,7 +101,7 @@ class LiturgyTypeRegistry {
     ),
     LiturgyItemType.scheduled: LiturgyItemTypeMeta(
       value: LiturgyItemType.scheduled,
-      colorValue: 0xFF00BCD4,
+      colorValue: 0xFF7C4DFF,
       icon: TablerIcons.calendarTime,
     ),
     LiturgyItemType.prayer: LiturgyItemTypeMeta(
@@ -178,6 +178,12 @@ class LiturgyItem {
   final int durationMs;
   final String accentColor;
   final String? categoryId;
+  final String? complementaryTitle;
+  final String? notesHtml;
+  final String? titleColor;
+  final String? presentationEngine;
+  final String? playerId;
+  final String? scheduledRotationId;
   final String? notes;
   final int? musicId;
   final String? musicMode;
@@ -202,6 +208,12 @@ class LiturgyItem {
     this.durationMs = 0,
     this.accentColor = '',
     this.categoryId,
+    this.complementaryTitle,
+    this.notesHtml,
+    this.titleColor,
+    this.presentationEngine,
+    this.playerId,
+    this.scheduledRotationId,
     this.notes,
     this.musicId,
     this.musicMode,
@@ -225,6 +237,12 @@ class LiturgyItem {
     int? durationMs,
     String? accentColor,
     String? categoryId,
+    String? complementaryTitle,
+    String? notesHtml,
+    String? titleColor,
+    String? presentationEngine,
+    String? playerId,
+    String? scheduledRotationId,
     String? notes,
     int? musicId,
     String? musicMode,
@@ -247,6 +265,12 @@ class LiturgyItem {
       durationMs: durationMs ?? this.durationMs,
       accentColor: accentColor ?? this.accentColor,
       categoryId: categoryId ?? this.categoryId,
+      complementaryTitle: complementaryTitle ?? this.complementaryTitle,
+      notesHtml: notesHtml ?? this.notesHtml,
+      titleColor: titleColor ?? this.titleColor,
+      presentationEngine: presentationEngine ?? this.presentationEngine,
+      playerId: playerId ?? this.playerId,
+      scheduledRotationId: scheduledRotationId ?? this.scheduledRotationId,
       notes: notes ?? this.notes,
       musicId: musicId ?? this.musicId,
       musicMode: musicMode ?? this.musicMode,
@@ -271,6 +295,12 @@ class LiturgyItem {
     'durationMs': durationMs,
     'accentColor': accentColor,
     if (categoryId != null) 'categoryId': categoryId,
+    if (complementaryTitle != null) 'complementaryTitle': complementaryTitle,
+    if (notesHtml != null) 'notesHtml': notesHtml,
+    if (titleColor != null) 'titleColor': titleColor,
+    if (presentationEngine != null) 'presentationEngine': presentationEngine,
+    if (playerId != null) 'playerId': playerId,
+    if (scheduledRotationId != null) 'scheduledRotationId': scheduledRotationId,
     if (notes != null) 'notes': notes,
     if (musicId != null) 'musicId': musicId,
     if (musicMode != null) 'musicMode': musicMode,
@@ -295,6 +325,12 @@ class LiturgyItem {
       durationMs: (json['durationMs'] as num?)?.toInt() ?? 0,
       accentColor: json['accentColor'] as String? ?? '',
       categoryId: json['categoryId'] as String?,
+      complementaryTitle: json['complementaryTitle'] as String?,
+      notesHtml: json['notesHtml'] as String?,
+      titleColor: json['titleColor'] as String?,
+      presentationEngine: json['presentationEngine'] as String?,
+      playerId: json['playerId'] as String?,
+      scheduledRotationId: json['scheduledRotationId'] as String?,
       notes: json['notes'] as String?,
       musicId: (json['musicId'] as num?)?.toInt(),
       musicMode: json['musicMode'] as String?,

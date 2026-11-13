@@ -6,6 +6,7 @@ import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart'
 import 'remote_player_bar.dart';
 import 'remote_floating_panel.dart';
 import 'remote_bible_floating_panel.dart';
+import '../../shared/widgets/player_sheet.dart';
 
 class RemoteMiniPlayerOverlay extends StatefulWidget {
   const RemoteMiniPlayerOverlay({
@@ -65,10 +66,8 @@ class _RemoteMiniPlayerOverlayState extends State<RemoteMiniPlayerOverlay> {
     final context = widget.navigatorKey.currentContext;
     if (context == null) return;
     setState(() => _expanded = true);
-    await showModalBottomSheet<void>(
+    await showPlayerSheet(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (context) {
         _sheet = ModalRoute.of<void>(context);
         return StreamBuilder<RemotePlayerState>(

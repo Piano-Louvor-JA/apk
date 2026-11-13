@@ -8,7 +8,7 @@ import 'remote_playlist_panel.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
-import 'package:louvorja_piano_mobile/presentation/liturgy/liturgy_page.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/remote_liturgy_page.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/remote_module_panels.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_liturgy_days.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_bar.dart';
@@ -130,10 +130,11 @@ class _RemoteControlToolPageState extends State<RemoteControlToolPage>
   }
 
   void _openLiturgy(BuildContext context) {
-    // Liturgia espelhada: módulo de Liturgia, não o controle remoto.
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const LiturgyPage()));
+    // Liturgia do desktop: página própria do Controle Remoto. A Liturgia
+    // nativa do apk (Ferramentas) segue local, sem relação com esta.
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const RemoteLiturgyPage()),
+    );
   }
 
   @override
