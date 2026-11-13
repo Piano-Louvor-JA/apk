@@ -1,7 +1,9 @@
 library;
 
 import 'dart:async';
+import '../core/services/sync/operator_state_boot.dart';
 import '../core/services/remote/remote_session.dart';
+import '../presentation/bible/bible_download_controller.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +15,7 @@ import '../core/services/pip_controller.dart';
 import '../core/services/settings_controller.dart';
 import '../presentation/shared/widgets/pip_minimal_overlay.dart';
 import '../presentation/remote/widgets/remote_mini_player_overlay.dart';
+import '../presentation/liturgy/player/local_liturgy_overlay.dart';
 import '../presentation/splash/splash_screen.dart';
 import 'router.dart';
 import 'theme/app_accents.dart';
@@ -44,7 +47,10 @@ class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(RemoteSession.instance.restoreLastDesktopConnection());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(RemoteSession.instance.restoreLastDesktopConnection());
+      unawaited(OperatorStateBoot.flushOnResume());
+    }
   }
 
   @override
@@ -69,6 +75,7 @@ class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
 
     return MaterialApp.router(
       title: 'LouvorJA PIANO',
+      scaffoldMessengerKey: appScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(accent: accent),
       darkTheme: AppTheme.dark(accent: accent),
@@ -90,7 +97,10 @@ class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
             if (!isPip) {
               return RemoteMiniPlayerOverlay(
                 navigatorKey: rootNavigatorKey,
-                child: child ?? const SizedBox.shrink(),
+                child: LocalLiturgyOverlay(
+                  navigatorKey: rootNavigatorKey,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               );
             }
             return const PipMinimalOverlay();

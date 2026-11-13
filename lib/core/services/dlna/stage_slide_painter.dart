@@ -241,7 +241,7 @@ class StageSettings {
     this.textShadow = true,
     this.shadowBlur = 2.2,
     this.shadowIntensity = 0.8,
-    this.textBox = false,
+    this.textBox = true, // paridade desktop (stage-settings.ts)
     this.boxOpacity = 0.45,
     this.boxBorder = true,
     this.textAlign = 'center',

@@ -41,6 +41,9 @@ class AppliedEditModel {
         lyric: parsed.lyric,
         lyricRaw: parsed.lyricRaw,
         imageUrl: official.imageUrl,
+        albumNames: official.albumNames,
+        albumIds: official.albumIds,
+        hymnalTracks: official.hymnalTracks,
       );
     } catch (_) {
       return official;

@@ -16,8 +16,7 @@ class RemoteSlideGallery {
   static List<Uint8List?> _thumbs = const [];
 
   // Fundos dos slides do hino: bytes (miniatura) ou endereço para baixar.
-  static String? _backgroundKey;
-  static List<Object?> _backgrounds = const [];
+  static final _backgroundSets = <String, List<Object?>>{};
 
   /// Guarda as miniaturas que vierem no estado.
   static void remember(RemotePlayerState state) {
@@ -41,9 +40,11 @@ class RemoteSlideGallery {
     final key = state.slideBackgroundKey;
     final sources = state.slideBackgroundSources;
     if (key == null || sources == null) return;
-    if (key == _backgroundKey && sources.length == _backgrounds.length) return;
-    _backgroundKey = key;
-    _backgrounds = [
+    if (_backgroundSets[key]?.length == sources.length) return;
+    // Limite de memória: conjuntos recentes dos players local e remoto.
+    if (_backgroundSets.length >= 4)
+      _backgroundSets.remove(_backgroundSets.keys.first);
+    _backgroundSets[key] = [
       for (final source in sources)
         if (source.startsWith('data:'))
           decode(source.substring(source.indexOf(',') + 1))
@@ -57,16 +58,16 @@ class RemoteSlideGallery {
   /// Fundo do slide [index]: `Uint8List`, endereço (`String`) ou null.
   static Object? background(RemotePlayerState state, int index) {
     final positions = state.slideBackgroundIndex;
-    if (state.slideBackgroundKey == null ||
-        state.slideBackgroundKey != _backgroundKey ||
+    final backgrounds = _backgroundSets[state.slideBackgroundKey];
+    if (backgrounds == null ||
         positions == null ||
         index < 0 ||
         index >= positions.length) {
       return null;
     }
     final at = positions[index];
-    if (at < 0 || at >= _backgrounds.length) return null;
-    return _backgrounds[at];
+    if (at < 0 || at >= backgrounds.length) return null;
+    return backgrounds[at];
   }
 
   static Uint8List? decode(String source) {
@@ -82,7 +83,6 @@ class RemoteSlideGallery {
   static void reset() {
     _key = null;
     _thumbs = const [];
-    _backgroundKey = null;
-    _backgrounds = const [];
+    _backgroundSets.clear();
   }
 }

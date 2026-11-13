@@ -1,5 +1,6 @@
 library;
 
+import '../net/local_ipv4.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -94,20 +95,9 @@ class SsdpDiscovery {
 
   /// Prefixo /24 da interface Wi-Fi (primeiro IPv4 privado não-loopback).
   static Future<String?> _localSubnetPrefix() async {
-    try {
-      final interfaces = await NetworkInterface.list();
-      for (final it in interfaces) {
-        for (final addr in it.addresses) {
-          if (addr.type == InternetAddressType.IPv4 &&
-              !addr.isLoopback &&
-              (addr.address.startsWith('192.168.') ||
-                  addr.address.startsWith('10.') ||
-                  addr.address.startsWith('172.'))) {
-            return addr.address.split('.').take(3).join('.');
-          }
-        }
-      }
-    } catch (_) {}
+    // Qualquer faixa de IP (ver net/local_ipv4.dart).
+    final prefix = await localSubnetPrefix();
+    if (prefix != null) return prefix;
     return null;
   }
 

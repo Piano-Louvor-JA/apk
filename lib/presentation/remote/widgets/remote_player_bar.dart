@@ -27,16 +27,36 @@ class RemotePlayerBar extends StatefulWidget {
     this.send,
     this.videoFrame,
     this.compact = false,
+    this.showScreenTargets = true,
     this.onExpand,
     this.onMinimize,
     this.navigatorKey,
+    this.presence,
+    this.states,
+    this.preview,
+    this.busy = false,
+    this.closeMessageKey = 'remote.video.closeConfirmMessage',
+    this.displayTitle,
+    this.onEdit,
+    this.previewMaxHeight,
   });
 
   /// Quadros da prévia do vídeo; default = sessão global. Injetável em teste.
   final ValueListenable<Uint8List?>? videoFrame;
 
   final RemotePlayerState state;
+  final RemotePlayerPresence? presence;
+  final Stream<RemotePlayerState>? states;
+  final Widget? preview;
+  final bool busy;
+  final String closeMessageKey;
+  final String? displayTitle;
+  final VoidCallback? onEdit;
+  final double? previewMaxHeight;
   final bool compact;
+
+  /// Telas e projeção independente; a Liturgia local usa o botão Telas.
+  final bool showScreenTargets;
   final VoidCallback? onExpand;
   final VoidCallback? onMinimize;
   final GlobalKey<NavigatorState>? navigatorKey;
@@ -98,9 +118,11 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   @override
   void didUpdateWidget(RemotePlayerBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_minimized && (
-        (widget.pendingOpen != null && oldWidget.pendingOpen != widget.pendingOpen) ||
-        oldWidget.state.hymnId != _st.hymnId || oldWidget.state.title != _st.title)) {
+    if (_minimized &&
+        ((widget.pendingOpen != null &&
+                oldWidget.pendingOpen != widget.pendingOpen) ||
+            oldWidget.state.hymnId != _st.hymnId ||
+            oldWidget.state.title != _st.title)) {
       _minimized = false;
     }
     if (_volumeEntry != null) {
@@ -124,7 +146,9 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => remotePlayerPresence.update(this, false));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => (widget.presence ?? remotePlayerPresence).update(this, false),
+    );
     _closeVolume();
     _seekEchoTimeout?.cancel();
     _slideEchoTimeout?.cancel();
@@ -281,6 +305,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
 
   /// Item pendente tem prioridade; sem ele, o play só age sobre mídia aberta.
   VoidCallback? get _playAction {
+    if (widget.busy) return null;
     if (widget.pendingOpen != null) return widget.pendingOpen;
     if (!_mediaOpen) return null;
     return () => _send(_st.playing ? RemoteAction.pause : RemoteAction.play);
@@ -296,9 +321,16 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final visible = !widget.compact && !_minimized && TickerMode.valuesOf(context).enabled && (ModalRoute.isCurrentOf(context) ?? true);
+    final visible =
+        !widget.compact &&
+        !_minimized &&
+        TickerMode.valuesOf(context).enabled &&
+        (ModalRoute.isCurrentOf(context) ?? true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      remotePlayerPresence.update(this, mounted && visible);
+      (widget.presence ?? remotePlayerPresence).update(
+        this,
+        mounted && visible,
+      );
     });
     if (widget.compact) return _compact(theme);
     if (_minimized) return const SizedBox.shrink();
@@ -307,10 +339,12 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
     final durationMs = _st.duration.inMilliseconds;
     // Com playlist ativa, anterior/próxima navegam na fila do desktop.
     final playlist = _st.playlistModule;
-    final canNavigate = playlist != null &&
+    final canNavigate =
+        playlist != null &&
         playlist.queueIndex >= 0 &&
         playlist.queueIndex < playlist.queue.length &&
-        _mediaOpen && widget.pendingOpen == null;
+        _mediaOpen &&
+        widget.pendingOpen == null;
 
     return Container(
       key: const Key('remote-player-bar'),
@@ -327,26 +361,52 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (widget.showTransport || widget.onMinimize != null)
-              Row(children: [
-                Expanded(child: Text(_st.title ?? '', maxLines: 1,
-                  overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                  style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary))),
-                IconButton(
-                  key: const Key('remote-player-minimize'),
-                  color: theme.colorScheme.primary,
-                  tooltip: 'common.minimize'.tr(),
-                  onPressed: widget.onMinimize ?? () => setState(() => _minimized = true),
-                  icon: const Icon(TablerIcons.minus),
-                ),
-              ])
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.displayTitle ?? _st.title ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  if (widget.onEdit != null)
+                    IconButton(
+                      key: const Key('remote-player-edit'),
+                      tooltip: 'liturgy.actions.edit'.tr(),
+                      onPressed: widget.onEdit,
+                      icon: const Icon(TablerIcons.edit),
+                    ),
+                  IconButton(
+                    key: const Key('remote-player-minimize'),
+                    color: theme.colorScheme.primary,
+                    tooltip: 'common.minimize'.tr(),
+                    onPressed:
+                        widget.onMinimize ??
+                        () => setState(() => _minimized = true),
+                    icon: const Icon(TablerIcons.minus),
+                  ),
+                ],
+              )
             else if (_st.title != null)
               Text(
                 _st.title!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
               ),
-            if (_previewBytes case final bytes?)
+            if (widget.preview != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                child: _previewFrame(child: widget.preview!),
+              )
+            else if (_previewBytes case final bytes?)
               _preview(bytes)
             else if (_currentLyric case final lyric?)
               _lyricPreview(theme, lyric)
@@ -390,11 +450,17 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
                         ? 'remote.pause'.tr()
                         : 'remote.play'.tr(),
                     onPressed: _playAction,
-                    icon: Icon(
-                      showPause
-                          ? TablerIcons.playerPause
-                          : TablerIcons.playerPlay,
-                    ),
+                    icon: widget.busy
+                        ? const SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            showPause
+                                ? TablerIcons.playerPause
+                                : TablerIcons.playerPlay,
+                          ),
                   ),
                 ),
                 IconButton(
@@ -436,10 +502,12 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
               children: [
                 Expanded(
                   child: Text(
-                    _st.title ?? 'remote.title'.tr(),
+                    widget.displayTitle ?? _st.title ?? 'remote.title'.tr(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -455,7 +523,9 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
                 SizedBox(
                   width: 112,
                   height: 72,
-                  child: _previewBytes != null
+                  child: widget.preview != null
+                      ? widget.preview!
+                      : _previewBytes != null
                       ? _preview(_previewBytes!)
                       : _currentLyric != null
                       ? _lyricPreview(theme, _currentLyric!)
@@ -500,7 +570,9 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   /// Com barra de vídeo o último botão projeta; hino aberto mantém o stop.
   Widget _lastAction(ThemeData theme, {bool includeClose = true}) {
     final video = _st.videoControls;
-    final keepStop = (!widget.showTransport && !widget.compact) || (video == null && _mediaOpen);
+    final keepStop =
+        (!widget.showTransport && !widget.compact) ||
+        (video == null && _mediaOpen);
     if (keepStop) {
       return IconButton(
         tooltip: 'remote.stop'.tr(),
@@ -613,7 +685,8 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   /// Moldura 16:9 da prévia, limitada a 30% da altura da tela para a barra
   /// caber em celular baixo ou deitado.
   Widget _previewFrame({Key? key, required Widget child}) {
-    final maxHeight = MediaQuery.sizeOf(context).height * 0.3;
+    final maxHeight =
+        widget.previewMaxHeight ?? MediaQuery.sizeOf(context).height * 0.3;
     return ConstrainedBox(
       key: key,
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -706,7 +779,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
       builder: (context) => AlertDialog(
         key: const Key('remote-close-confirm'),
         title: Text('remote.video.closeConfirmTitle'.tr()),
-        content: Text('remote.video.closeConfirmMessage'.tr()),
+        content: Text(widget.closeMessageKey.tr()),
         actions: [
           TextButton(
             key: const Key('remote-close-cancel'),
@@ -784,23 +857,25 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
             ),
           ),
         ),
-        IconButton(
-          key: const Key('remote-video-targets'),
-          tooltip: 'remote.video.selectScreens'.tr(),
-          onPressed: _openTargets,
-          icon: Badge(
-            label: Text('$selectedMonitors'),
-            isLabelVisible: selectedMonitors > 0,
-            child: const Icon(TablerIcons.deviceDesktop),
+        if (widget.showScreenTargets) ...[
+          IconButton(
+            key: const Key('remote-video-targets'),
+            tooltip: 'remote.video.selectScreens'.tr(),
+            onPressed: _openTargets,
+            icon: Badge(
+              label: Text('$selectedMonitors'),
+              isLabelVisible: selectedMonitors > 0,
+              child: const Icon(TablerIcons.deviceDesktop),
+            ),
           ),
-        ),
-        IconButton(
-          key: const Key('remote-independent'),
-          tooltip: 'remote.video.independent'.tr(),
-          color: independentHot ? theme.colorScheme.primary : null,
-          onPressed: _openIndependent,
-          icon: const Icon(TablerIcons.devices),
-        ),
+          IconButton(
+            key: const Key('remote-independent'),
+            tooltip: 'remote.video.independent'.tr(),
+            color: independentHot ? theme.colorScheme.primary : null,
+            onPressed: _openIndependent,
+            icon: const Icon(TablerIcons.devices),
+          ),
+        ],
         if (video != null && video.canControlCaptions)
           IconButton(
             key: const Key('remote-video-captions'),
@@ -828,6 +903,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
       context: context,
       builder: (_) => _VideoTargetsSheet(
         initial: _st,
+        states: widget.states,
         onChanged: (id, enabled) =>
             _send(RemoteAction.videoSetTarget, targetId: id, enabled: enabled),
       ),
@@ -840,6 +916,7 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
       isScrollControlled: true,
       builder: (_) => _IndependentSheet(
         initial: _st,
+        states: widget.states,
         onMode: (mode) =>
             _send(RemoteAction.videoSetIndependentMode, mode: mode),
         onTarget: (id, enabled) => _send(
@@ -905,9 +982,14 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
 
 /// Telas e TVs de destino; acompanha o estado que chega do desktop.
 class _VideoTargetsSheet extends StatelessWidget {
-  const _VideoTargetsSheet({required this.initial, required this.onChanged});
+  const _VideoTargetsSheet({
+    required this.initial,
+    required this.onChanged,
+    this.states,
+  });
 
   final RemotePlayerState initial;
+  final Stream<RemotePlayerState>? states;
   final void Function(String id, bool enabled) onChanged;
 
   Widget _tile(RemoteVideoTarget target, IconData icon) => CheckboxListTile(
@@ -923,7 +1005,7 @@ class _VideoTargetsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: StreamBuilder<RemotePlayerState>(
-        stream: RemoteSession.instance.states,
+        stream: states ?? RemoteSession.instance.states,
         builder: (context, snapshot) {
           final state = snapshot.data ?? initial;
           final monitors = _RemotePlayerBarState._targetMonitors(state);
@@ -966,9 +1048,11 @@ class _IndependentSheet extends StatelessWidget {
     required this.initial,
     required this.onMode,
     required this.onTarget,
+    this.states,
   });
 
   final RemotePlayerState initial;
+  final Stream<RemotePlayerState>? states;
   final ValueChanged<String> onMode;
   final void Function(String id, bool enabled) onTarget;
 
@@ -1009,7 +1093,7 @@ class _IndependentSheet extends StatelessWidget {
     final theme = Theme.of(context);
     return SafeArea(
       child: StreamBuilder<RemotePlayerState>(
-        stream: RemoteSession.instance.states,
+        stream: states ?? RemoteSession.instance.states,
         builder: (context, snapshot) {
           final state = snapshot.data ?? initial;
           final independent =

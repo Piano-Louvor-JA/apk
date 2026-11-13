@@ -157,6 +157,9 @@ void main() {
       title: 'Oficial',
       durationMs: 120000,
       urlMusic: '/42.mp3',
+      albumNames: 'Coletânea',
+      albumIds: [7],
+      hymnalTracks: [42],
       imageUrl: '/42.jpg',
       lyricRaw: [
         {'text': 'original', 'time': '00:00:01'},
@@ -171,6 +174,9 @@ void main() {
     expect(result.durationMs, 120000);
     expect(result.imageUrl, '/42.jpg');
     expect(result.urlMusic, '/42.mp3');
+    expect(result.albumNames, 'Coletânea');
+    expect(result.albumIds, [7]);
+    expect(result.hymnalTracks, [42]);
     expect(official.lyricRaw!.single['text'], 'original');
   });
 

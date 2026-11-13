@@ -302,16 +302,31 @@ void main() {
     expect(result[0].title, 'Gracas Dou');
   });
 
-  test('searchHymns filtra por numero', () async {
+  test('searchHymns filtra por numero do hinario (pivot.track)', () async {
+    Map<String, dynamic> entry(int id, String name, int track, String type) => {
+      'id_music': id,
+      'name': name,
+      'albums': [
+        {
+          'id_album': 9,
+          'name': 'Hinário',
+          'type': type,
+          'pivot': {'track': track},
+        },
+      ],
+    };
     api.musicIndex = [
-      const Hymn(id: 1, title: 'Hino A', number: 42),
-      const Hymn(id: 2, title: 'Hino B', number: 100),
+      Hymn.fromJson(entry(1, 'Hino A', 42, 'hymnal')),
+      Hymn.fromJson(entry(2, 'Hino B', 100, 'hymnal')),
+      // id 42 mas nº de hinário 7: número NÃO casa por id.
+      Hymn.fromJson(entry(42, 'Hino C', 7, 'hymnal')),
     ];
 
     final repo = HymnRepositoryImpl(api, cache);
     final result = await repo.searchHymns('42');
 
     expect(result.length, 1);
+    expect(result[0].id, 1);
     expect(result[0].number, 42);
   });
 

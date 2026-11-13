@@ -122,3 +122,25 @@ class NowPlayingNotifier extends ChangeNotifier {
 
 /// Singleton global — o miniplayer na shell consome.
 final nowPlaying = NowPlayingNotifier();
+
+/// Chama [onStart] uma vez quando a faixa [hymnId] (preparada, sem tocar)
+/// começa a tocar. Outra faixa no lugar (ou parar) cancela o aviso.
+void whenTrackStarts(
+  NowPlayingNotifier notifier,
+  int hymnId,
+  void Function() onStart,
+) {
+  late void Function() listener;
+  listener = () {
+    final track = notifier.track;
+    if (track == null || track.hymnId != hymnId) {
+      notifier.removeListener(listener);
+      return;
+    }
+    if (notifier.isPlaying) {
+      notifier.removeListener(listener);
+      onStart();
+    }
+  };
+  notifier.addListener(listener);
+}
