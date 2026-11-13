@@ -181,6 +181,7 @@
       "copyFallback": "Si el QR no cabe/lee, copia y pega en el web:"
     },
     "parity": {
+      "closeLocalMessage": "El contenido abierto en este dispositivo se cerrará.",
       "applyQuarter": "Aplicar trimestre",
       "audioUnavailable": "Audio no disponible. Compruebe el archivo o la conexión.",
       "book": "Libro",

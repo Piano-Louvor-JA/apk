@@ -4,6 +4,10 @@
 library;
 
 import 'dart:async';
+import 'player/local_liturgy_session.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/scheduled_resolver.dart';
+import 'package:louvorja_piano_mobile/data/repositories/scheduled_repository.dart';
+import 'player/local_liturgy_player_bar.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/scheduled_item_preview.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_timing.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/scheduled/scheduled_page.dart';
@@ -413,17 +417,27 @@ class _LiturgyViewState extends State<_LiturgyView> {
           const StageClearButton(),
         ],
       ),
-      floatingActionButton: BlocBuilder<LiturgyBloc, LiturgyState>(
-        builder: (context, state) {
-          if (state is LiturgyLoaded) {
-            return FloatingActionButton(
-              key: const Key('liturgy-add-moment'),
-              tooltip: 'liturgy.actions.add'.tr(),
-              onPressed: () => showLiturgyItemDialog(context),
-              child: const Icon(TablerIcons.plus, size: 24),
-            );
-          }
-          return const SizedBox.shrink();
+      floatingActionButton: StreamBuilder<RemotePlayerState>(
+        stream: localLiturgyPlayer.stream,
+        initialData: localLiturgyPlayer.state,
+        builder: (context, snapshot) {
+          if (localLiturgyPlayer.pending != null ||
+              localLiturgyPlayer.busy ||
+              snapshot.data?.hasOpenMedia == true)
+            return const SizedBox.shrink();
+          return BlocBuilder<LiturgyBloc, LiturgyState>(
+            builder: (context, state) {
+              if (state is LiturgyLoaded) {
+                return FloatingActionButton(
+                  key: const Key('liturgy-add-moment'),
+                  tooltip: 'liturgy.actions.add'.tr(),
+                  onPressed: () => showLiturgyItemDialog(context),
+                  child: const Icon(TablerIcons.plus, size: 24),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          );
         },
       ),
       body: BlocBuilder<LiturgyBloc, LiturgyState>(
@@ -792,37 +806,70 @@ class _Body extends StatefulWidget {
 
 class _BodyState extends State<_Body> {
   final Set<String> _collapsedCategories = {};
+  Widget _timeline() => widget.state.items.isEmpty
+      ? _EmptyState()
+      : _Timeline(
+          items: widget.state.items,
+          collapsedCategories: _collapsedCategories,
+          onToggleCollapse: (id) => setState(() {
+            if (!_collapsedCategories.add(id)) _collapsedCategories.remove(id);
+          }),
+          locked: widget.state.locked,
+        );
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      _DayTabs(
-        selectedDay: widget.state.customId == null
-            ? widget.state.selectedDay
-            : null,
-      ),
-      LiturgyContextBar(state: widget.state),
-      LiturgySessionSummary(
-        key: ValueKey('summary-${widget.state.contextKey}'),
-        state: widget.state,
-      ),
-      Expanded(
-        child: widget.state.items.isEmpty
-            ? _EmptyState()
-            : _Timeline(
-                items: widget.state.items,
-                collapsedCategories: _collapsedCategories,
-                onToggleCollapse: (id) => setState(() {
-                  if (!_collapsedCategories.add(id))
-                    _collapsedCategories.remove(id);
-                }),
-                locked: widget.state.locked,
+  Widget build(BuildContext context) => StreamBuilder<RemotePlayerState>(
+    stream: localLiturgyPlayer.stream,
+    initialData: localLiturgyPlayer.state,
+    builder: (context, snapshot) {
+      final mediaOpen =
+          snapshot.data?.hasOpenMedia == true || localLiturgyPlayer.busy;
+      final showPlayer = mediaOpen || localLiturgyPlayer.pending != null;
+      return LayoutBuilder(
+        builder: (context, constraints) => Column(
+          children: [
+            AbsorbPointer(
+              absorbing: mediaOpen,
+              child: _DayTabs(
+                selectedDay: widget.state.customId == null
+                    ? widget.state.selectedDay
+                    : null,
               ),
-      ),
-      _NotesBar(
-        key: ValueKey('notes-${widget.state.contextKey}'),
-        notes: widget.state.notes,
-      ),
-    ],
+            ),
+            AbsorbPointer(
+              absorbing: mediaOpen,
+              child: LiturgyContextBar(state: widget.state),
+            ),
+            if (!showPlayer)
+              LiturgySessionSummary(
+                key: ValueKey('summary-${widget.state.contextKey}'),
+                state: widget.state,
+              ),
+            Expanded(
+              child: AbsorbPointer(
+                absorbing: mediaOpen,
+                child: mediaOpen
+                    ? Opacity(opacity: .45, child: _timeline())
+                    : _timeline(),
+              ),
+            ),
+            if (!showPlayer)
+              _NotesBar(
+                key: ValueKey('notes-${widget.state.contextKey}'),
+                notes: widget.state.notes,
+              ),
+            if (showPlayer)
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * .65,
+                ),
+                child: const SingleChildScrollView(
+                  child: LocalLiturgyPlayerBar(),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
   );
 }
 
@@ -1101,7 +1148,9 @@ class _ItemCard extends StatelessWidget {
     final currentState = context.watch<LiturgyBloc>().state;
     final deletionLocked = currentState is LiturgyLoaded && currentState.locked;
     final selected =
-        currentState is LiturgyLoaded && currentState.selectedItemId == item.id;
+        localLiturgyPlayer.pending?.id == item.id ||
+        (currentState is LiturgyLoaded &&
+            currentState.selectedItemId == item.id);
     final date = currentState is LiturgyLoaded
         ? LiturgyTiming.activeDate(
             currentState.customId == null ? currentState.selectedDay : null,
@@ -1137,40 +1186,93 @@ class _ItemCard extends StatelessWidget {
         onTap:
             !isCategory &&
                 (!item.done || LiturgyItemRules.keepsControls(item)) &&
-                LiturgyItemExecutor.isExecutable(item.type)
+                (LiturgyItemExecutor.isExecutable(item.type) ||
+                    item.type == LiturgyItemType.notice ||
+                    item.type == LiturgyItemType.prayer)
             ? () async {
                 final bloc = context.read<LiturgyBloc>();
                 final state = bloc.state;
-                bloc.add(LiturgySelectItem(item.id));
+                final language =
+                    EasyLocalization.of(context)?.locale.languageCode ?? 'pt';
                 final date = state is LiturgyLoaded
                     ? LiturgyTiming.activeDate(
                         state.customId == null ? state.selectedDay : null,
                       )
                     : DateTime.now();
-                final msg = await LiturgyItemExecutor.execute(
-                  context,
-                  item,
+                var selected = item;
+                if (item.type == LiturgyItemType.scheduled) {
+                  final repo = ScheduledRepository(
+                    await SharedPreferences.getInstance(),
+                  );
+                  final resolved = ScheduledResolver.resolve(
+                    item,
+                    date,
+                    repo.loadCategories(),
+                    repo.loadItems(),
+                  );
+                  if (!context.mounted) return;
+                  if (resolved == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('liturgy.parity.scheduledEmpty'.tr()),
+                      ),
+                    );
+                    return;
+                  }
+                  selected = resolved;
+                }
+                final internal =
+                    {
+                      LiturgyItemType.music,
+                      LiturgyItemType.video,
+                      LiturgyItemType.onlineVideo,
+                      LiturgyItemType.audio,
+                      LiturgyItemType.pdf,
+                      LiturgyItemType.images,
+                      LiturgyItemType.annotation,
+                      LiturgyItemType.notice,
+                      LiturgyItemType.prayer,
+                    }.contains(selected.type) &&
+                    (selected.playerId == null ||
+                        selected.playerId!.isEmpty ||
+                        selected.playerId == 'default');
+                void started(LiturgyItem _) {
+                  if (!bloc.isClosed) {
+                    bloc.add(LiturgySelectItem(item.id));
+                    bloc.add(LiturgyMarkDone(item.id));
+                  }
+                }
+
+                void changed(LiturgyItem value) {
+                  if (!bloc.isClosed) bloc.add(LiturgyUpdateItem(value));
+                }
+
+                localLiturgyPlayer.choose(
+                  selected,
+                  language: language,
                   date: date,
-                  onStarted: () {
-                    if (!bloc.isClosed) bloc.add(LiturgyMarkDone(item.id));
-                  },
-                  onAnnotationChanged:
-                      (bloc.state is LiturgyLoaded &&
-                          (bloc.state as LiturgyLoaded).locked)
+                  onStarted: internal ? started : null,
+                  onChanged: state is LiturgyLoaded && state.locked
                       ? null
-                      : (changed) {
-                          if (!bloc.isClosed)
-                            bloc.add(LiturgyUpdateItem(changed));
+                      : changed,
+                  externalOpen: internal
+                      ? null
+                      : () async {
+                          if (!context.mounted) return;
+                          final message = await LiturgyItemExecutor.execute(
+                            context,
+                            selected,
+                            date: date,
+                            onStarted: () => started(selected),
+                            onAnnotationChanged: changed,
+                          );
+                          if (message.isNotEmpty && context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text(message)));
+                          }
                         },
                 );
-                if (msg.isNotEmpty && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(msg),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
               }
             : null,
         contentPadding: const EdgeInsets.symmetric(

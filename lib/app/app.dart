@@ -15,6 +15,7 @@ import '../core/services/pip_controller.dart';
 import '../core/services/settings_controller.dart';
 import '../presentation/shared/widgets/pip_minimal_overlay.dart';
 import '../presentation/remote/widgets/remote_mini_player_overlay.dart';
+import '../presentation/liturgy/player/local_liturgy_overlay.dart';
 import '../presentation/splash/splash_screen.dart';
 import 'router.dart';
 import 'theme/app_accents.dart';
@@ -96,7 +97,10 @@ class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
             if (!isPip) {
               return RemoteMiniPlayerOverlay(
                 navigatorKey: rootNavigatorKey,
-                child: child ?? const SizedBox.shrink(),
+                child: LocalLiturgyOverlay(
+                  navigatorKey: rootNavigatorKey,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               );
             }
             return const PipMinimalOverlay();

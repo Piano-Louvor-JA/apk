@@ -115,6 +115,19 @@ class PalcoController extends ChangeNotifier {
     return '$_httpBase/media/$name';
   }
 
+  /// Canal independente já suportado pelo receiver (metade da tela em share).
+  void sendLiturgyMessage(PalcoMessage message, {bool share = false}) =>
+      _sender.send(
+        PalcoMessage(
+          type: message.type,
+          fields: {...message.fields, 'obsPane': share},
+        ),
+      );
+
+  void setLiturgyShare(bool enabled) => _sender.send(
+    PalcoMessage(type: 'obsShare', fields: {'enabled': enabled}),
+  );
+
   void clearMedia() => _sender.clearMedia();
 
   // ---- Envios (espelham o protocolo v2) ----

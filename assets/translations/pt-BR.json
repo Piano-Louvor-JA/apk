@@ -180,6 +180,7 @@
       "copyFallback": "Se o QR não couber/ler, copie e cole no web:"
     },
     "parity": {
+      "closeLocalMessage": "O conteúdo aberto no APK será encerrado.",
       "applyQuarter": "Aplicar trimestre",
       "audioUnavailable": "Áudio indisponível. Confira o arquivo ou a conexão.",
       "book": "Livro",
