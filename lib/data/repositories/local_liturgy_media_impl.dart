@@ -285,10 +285,13 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       LiturgyItemType.onlineVideo,
       LiturgyItemType.audio,
     }.contains(selected.type)) {
+      // Itens vindos do desktop gravam filePath vazio ("") em vídeo online.
+      String? filled(String? value) =>
+          value == null || value.trim().isEmpty ? null : value;
       var source =
-          selected.filePath ??
-          selected.filePaths.firstOrNull ??
-          selected.url ??
+          filled(selected.filePath) ??
+          filled(selected.filePaths.firstOrNull) ??
+          filled(selected.url) ??
           '';
       LiturgyWebTarget? youtube;
       if (selected.type == LiturgyItemType.onlineVideo) {

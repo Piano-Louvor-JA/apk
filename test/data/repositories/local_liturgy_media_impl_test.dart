@@ -337,6 +337,21 @@ void main() {
       expect(state.videoControls!.canProject, isFalse);
     });
 
+    test('filePath vazio (item do desktop) usa a url do vídeo', () async {
+      await local.open(
+        const LiturgyItem(
+          id: 'yt2',
+          type: LiturgyItemType.onlineVideo,
+          name: 'Tudo Novo',
+          filePath: '',
+          url: 'https://www.youtube.com/watch?v=Q6V92PzabX8',
+        ),
+        'pt',
+        DateTime(2026),
+      );
+      expect(web.loads.single.$1, YoutubeWeb.embedUrl('Q6V92PzabX8'));
+    });
+
     test('a barra controla o vídeo da página', () async {
       web.state = const YoutubeWebState(
         playing: true,
