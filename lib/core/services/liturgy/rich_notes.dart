@@ -157,6 +157,19 @@ abstract final class RichNotes {
       .join('\n')
       .replaceAll(RegExp(r'\n{3,}'), '\n\n')
       .trim();
+
+  /// Corpo de uma anotação/aviso como o desktop: texto formatado; sem ele,
+  /// o subtítulo; sem subtítulo, as notas.
+  static String bodyOf({
+    required String? notesHtml,
+    required String subtitle,
+    required String? notes,
+  }) {
+    final rich = sanitize(notesHtml);
+    if (rich.isNotEmpty) return rich;
+    return fromPlainText(subtitle.trim().isNotEmpty ? subtitle : (notes ?? ''));
+  }
+
   static String fromPlainText(String text) => text.trim().isEmpty
       ? ''
       : text

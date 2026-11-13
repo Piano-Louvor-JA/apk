@@ -32,4 +32,21 @@ void main() {
     expect(RichNotes.titleColor('red'), isEmpty);
     expect(RichNotes.sanitize('<div><br></div>'), isEmpty);
   });
+
+  test('corpo da anotação: html, depois subtítulo, depois notas', () {
+    expect(
+      RichNotes.bodyOf(notesHtml: '<b>Oi</b>', subtitle: 'x', notes: 'y'),
+      '<b>Oi</b>',
+    );
+    expect(
+      RichNotes.bodyOf(notesHtml: '', subtitle: 'Avisos', notes: 'y'),
+      RichNotes.fromPlainText('Avisos'),
+    );
+    // Anotação com o texto só em notes (o editor abria vazio).
+    expect(
+      RichNotes.bodyOf(notesHtml: null, subtitle: '', notes: 'lembrete'),
+      RichNotes.fromPlainText('lembrete'),
+    );
+    expect(RichNotes.bodyOf(notesHtml: null, subtitle: '', notes: null), '');
+  });
 }

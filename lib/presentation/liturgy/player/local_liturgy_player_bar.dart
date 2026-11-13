@@ -75,17 +75,28 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
   Future<void> _edit() async {
     final item = player.active;
     if (item == null) return;
-    final html = RichNotes.sanitize(item.notesHtml);
+    final title = TextEditingController(text: item.name);
     final value = await Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) => RichNotesEditorPage(
-          html: html.isNotEmpty ? html : RichNotes.fromPlainText(item.subtitle),
+          html: RichNotes.bodyOf(
+            notesHtml: item.notesHtml,
+            subtitle: item.subtitle,
+            notes: item.notes,
+          ),
+          titleController: title,
         ),
       ),
     );
+    final name = title.text.trim();
+    title.dispose();
     if (value != null) {
       await player.updateText(
-        item.copyWith(notesHtml: value, subtitle: RichNotes.plainText(value)),
+        item.copyWith(
+          name: name.isEmpty ? item.name : name,
+          notesHtml: value,
+          subtitle: RichNotes.plainText(value),
+        ),
       );
     }
   }
@@ -178,14 +189,11 @@ class _RichPreviewState extends State<_RichPreview> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final rich = RichNotes.sanitize(widget.item.notesHtml);
-    final body = rich.isNotEmpty
-        ? rich
-        : RichNotes.fromPlainText(
-            widget.item.subtitle.isNotEmpty
-                ? widget.item.subtitle
-                : (widget.item.notes ?? ''),
-          );
+    final body = RichNotes.bodyOf(
+      notesHtml: widget.item.notesHtml,
+      subtitle: widget.item.subtitle,
+      notes: widget.item.notes,
+    );
     final title = RichNotes.fromPlainText(widget.item.name);
     final colors = Theme.of(context).colorScheme;
     String hex(Color c) => '#${c.toARGB32().toRadixString(16).substring(2)}';

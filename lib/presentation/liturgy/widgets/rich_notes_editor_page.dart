@@ -7,8 +7,15 @@ import 'package:louvorja_piano_mobile/core/services/liturgy/rich_notes.dart';
 
 /// Editor offline com o mesmo HTML e comandos do editor de Liturgia desktop.
 class RichNotesEditorPage extends StatefulWidget {
-  const RichNotesEditorPage({super.key, required this.html});
+  const RichNotesEditorPage({
+    super.key,
+    required this.html,
+    this.titleController,
+  });
   final String html;
+
+  /// Com ele, o título também é editável (lido pelo chamador ao salvar).
+  final TextEditingController? titleController;
   @override
   State<RichNotesEditorPage> createState() => _RichNotesEditorPageState();
 }
@@ -141,6 +148,18 @@ class _RichNotesEditorPageState extends State<RichNotesEditorPage> {
     ),
     body: Column(
       children: [
+        if (widget.titleController case final title?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextField(
+              key: const Key('rich-notes-title'),
+              controller: title,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'liturgy.dialog.momentName'.tr(),
+              ),
+            ),
+          ),
         Wrap(
           alignment: WrapAlignment.center,
           children: [
