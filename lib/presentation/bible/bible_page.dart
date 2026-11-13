@@ -1206,7 +1206,10 @@ class _VerseListState extends State<_VerseList> {
         ],
         // Versiculos
         Expanded(
+          // Ocupa toda a área: sem isto o Stack encolhia à largura do
+          // botão (zero sem seleção) e os versículos sumiam.
           child: Stack(
+            fit: StackFit.expand,
             children: [
               Positioned.fill(child: entries.isEmpty
               ? Center(
