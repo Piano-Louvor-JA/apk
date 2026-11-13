@@ -13,6 +13,7 @@ import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_
 import 'local_liturgy_player.dart';
 import '../widgets/rich_notes_editor_page.dart';
 import 'local_liturgy_session.dart';
+import 'web_video_host.dart';
 
 /// Mesmo player visual do remoto, com comandos exclusivamente locais.
 class LocalLiturgyPlayerBar extends StatefulWidget {
@@ -112,7 +113,10 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
               preview = ColoredBox(
                 color: Theme.of(context).colorScheme.scrim,
                 child: Center(
-                  child: AspectRatio(aspectRatio: 16 / 9, child: page.view()),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: WebVideoSlot(key: ObjectKey(page)),
+                  ),
                 ),
               );
             } else if (item != null &&

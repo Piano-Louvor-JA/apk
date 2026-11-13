@@ -5,6 +5,7 @@ import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_floatin
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/player_sheet.dart';
 import 'local_liturgy_player_bar.dart';
 import 'local_liturgy_session.dart';
+import 'web_video_host.dart';
 
 /// Mantém o mesmo áudio/vídeo ao trocar de aba ou expandir o painel.
 class LocalLiturgyOverlay extends StatefulWidget {
@@ -89,6 +90,8 @@ class _LocalLiturgyOverlayState extends State<LocalLiturgyOverlay> {
           navigatorKey: widget.navigatorKey,
         ),
       ),
+      // Por último: a WebView do YouTube fica sempre montada aqui.
+      WebVideoLayer(video: localLiturgyMedia.web),
     ],
   );
   @override
