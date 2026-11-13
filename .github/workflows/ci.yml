@@ -152,9 +152,11 @@ jobs:
       - name: Baseline (staging)
         run: |
           cp scripts/test-regression.dart /tmp/test-regression.dart
+          git restore --worktree .
           git checkout staging
           flutter pub get
           dart run /tmp/test-regression.dart --baseline
+          git restore --worktree .
           git checkout "${{ github.head_ref }}"
 
       - name: Compare (PR branch)
