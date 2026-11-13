@@ -93,6 +93,9 @@ class PalcoMessage {
       if (scope != null) 'scope': scope,
       if (margin != null) 'margin': margin,
       if (isCover != null) 'isCover': isCover,
+      // Capa da música (amarela) com a mesma caixinha de cantos folha das
+      // outras projeções; o receiver desenha via titleTextBox (desktop).
+      if (isCover == true && textBox != null) 'titleTextBox': textBox,
       if (fontWeight != null) 'fontWeight': fontWeight,
     },
   );
