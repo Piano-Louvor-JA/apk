@@ -67,6 +67,53 @@ class YoutubeWeb {
   return true;
 })()''';
 
+  /// Espelho limpo (mesmo network-mirror.js do desktop): o `<video>` da
+  /// página vira um fluxo WebRTC para as telas, que só exibem o que o
+  /// aparelho toca (sem player próprio, sem segundo áudio). O Dart só
+  /// repassa a negociação pelo WebSocket do Palco (canal LouvorjaMirror).
+  static const mirrorGlueScript = r'''(() => {
+  if (window.__louvorjaMirror || !window.PianoNetworkMirror) return;
+  window.__louvorjaMirrorMuted = false;
+  const report = (payload) => {
+    try { LouvorjaMirror.postMessage(JSON.stringify(payload)); } catch (e) {}
+  };
+  window.__louvorjaMirror = PianoNetworkMirror.createSender({
+    capture: function () {
+      const v = document.querySelector('#movie_player video, .html5-video-player video') || document.querySelector('video');
+      if (!v) return Promise.reject(new Error('sem vídeo'));
+      const stream = v.captureStream ? v.captureStream() : (v.mozCaptureStream && v.mozCaptureStream());
+      return stream ? Promise.resolve(stream) : Promise.reject(new Error('sem captureStream'));
+    },
+    send: function (message, slotId) {
+      report({ slotId: slotId, message: message });
+      return Promise.resolve();
+    },
+    connectionsMuted: function () { return window.__louvorjaMirrorMuted === true; },
+  });
+  window.__louvorjaMirrorError = (e) => report({ error: String((e && e.message) || e) });
+})()''';
+
+  static String _js(String value) => jsonEncode(value);
+
+  static String mirrorStartScript(String slotId, {required bool muted}) =>
+      '(() => { if (!window.__louvorjaMirror) return; '
+      'window.__louvorjaMirrorMuted=${muted ? 'true' : 'false'}; '
+      'window.__louvorjaMirror.start(${_js(slotId)})'
+      '.catch(window.__louvorjaMirrorError); })()';
+
+  static String mirrorRemoveScript(String slotId) =>
+      '(() => { if (window.__louvorjaMirror) '
+      'window.__louvorjaMirror.remove(${_js(slotId)}).catch(() => {}); })()';
+
+  static const mirrorStopScript =
+      '(() => { if (window.__louvorjaMirror) '
+      'window.__louvorjaMirror.stop().catch(() => {}); })()';
+
+  static String mirrorHandleScript(Map<String, dynamic> message) =>
+      '(() => { if (window.__louvorjaMirror) '
+      'window.__louvorjaMirror.handle(${jsonEncode(message)})'
+      '.catch(window.__louvorjaMirrorError); })()';
+
   /// Estado lido a cada meio segundo. `ad` = anúncio na tela.
   static const probeScript =
       '''(() => {

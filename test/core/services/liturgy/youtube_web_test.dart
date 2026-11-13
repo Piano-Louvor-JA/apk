@@ -49,6 +49,33 @@ void main() {
     expect(YoutubeWeb.captionsScript(false), contains('const hidden = false'));
   });
 
+  test('espelho: captura o vídeo da página e só repassa a negociação', () {
+    final glue = YoutubeWeb.mirrorGlueScript;
+    expect(glue, contains('PianoNetworkMirror.createSender'));
+    expect(glue, contains('captureStream'));
+    expect(glue, contains('LouvorjaMirror.postMessage'));
+    expect(
+      YoutubeWeb.mirrorStartScript('principal', muted: true),
+      contains('start("principal")'),
+    );
+    expect(
+      YoutubeWeb.mirrorStartScript('principal', muted: true),
+      contains('__louvorjaMirrorMuted=true'),
+    );
+    expect(
+      YoutubeWeb.mirrorRemoveScript('tv-sala'),
+      contains('remove("tv-sala")'),
+    );
+    expect(YoutubeWeb.mirrorStopScript, contains('.stop()'));
+    expect(
+      YoutubeWeb.mirrorHandleScript({
+        'type': 'mirror-signal',
+        'action': 'answer',
+      }),
+      contains('"action":"answer"'),
+    );
+  });
+
   test('comandos agem no vídeo da página', () {
     expect(YoutubeWeb.playScript, contains('.play()'));
     expect(YoutubeWeb.pauseScript, contains('.pause()'));

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_video.dart';
@@ -5,6 +6,22 @@ import 'package:louvorja_piano_mobile/core/services/liturgy/youtube_web.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/player/web_video_host.dart';
 
 class _Web implements LiturgyWebVideo {
+  final mirror = <String>[];
+  final mirrorOutController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  @override
+  Stream<Map<String, dynamic>> get mirrorOut => mirrorOutController.stream;
+  @override
+  Future<void> mirrorStart(String slotId, {required bool muted}) async =>
+      mirror.add('start $slotId muted=$muted');
+  @override
+  Future<void> mirrorRemove(String slotId) async =>
+      mirror.add('remove $slotId');
+  @override
+  Future<void> mirrorStop() async => mirror.add('stop');
+  @override
+  Future<void> mirrorHandle(Map<String, dynamic> message) async =>
+      mirror.add('handle ${message['action']}');
   int views = 0;
   @override
   Widget view() {

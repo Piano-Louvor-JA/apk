@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
@@ -16,12 +20,33 @@ abstract class LiturgyWebVideo {
   Future<YoutubeWebState?> probe();
   Widget view();
   Future<void> dispose();
+
+  /// Espelho limpo para as telas (ver [YoutubeWeb.mirrorGlueScript]): saem
+  /// `{slotId, message}` para repassar ao slot, ou `{error}`.
+  Stream<Map<String, dynamic>> get mirrorOut;
+  Future<void> mirrorStart(String slotId, {required bool muted});
+  Future<void> mirrorRemove(String slotId);
+  Future<void> mirrorStop();
+  Future<void> mirrorHandle(Map<String, dynamic> message);
 }
 
 class WebViewLiturgyVideo implements LiturgyWebVideo {
   WebViewLiturgyVideo() {
     controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(
+        'LouvorjaMirror',
+        onMessageReceived: (message) {
+          try {
+            final decoded = jsonDecode(message.message);
+            if (decoded is Map && !_mirrorOut.isClosed) {
+              _mirrorOut.add(decoded.cast<String, dynamic>());
+            }
+          } catch (_) {
+            /* mensagem inválida da página não chega às telas */
+          }
+        },
+      )
       ..setBackgroundColor(const Color(0xFF000000))
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -41,6 +66,38 @@ class WebViewLiturgyVideo implements LiturgyWebVideo {
 
   final controller = WebViewController();
   bool _disposed = false, _captionsHidden = false;
+  final _mirrorOut = StreamController<Map<String, dynamic>>.broadcast();
+  static String? _mirrorLibrary;
+
+  /// network-mirror.js (o mesmo do desktop) + ligação; a página pode ter
+  /// recarregado (fallback), então garante a cada início.
+  Future<void> _ensureMirror() async {
+    final library = _mirrorLibrary ??= await rootBundle.loadString(
+      'assets/palco/network-mirror.js',
+    );
+    await _run('if (!window.PianoNetworkMirror) {\n$library\n}');
+    await _run(YoutubeWeb.mirrorGlueScript);
+  }
+
+  @override
+  Stream<Map<String, dynamic>> get mirrorOut => _mirrorOut.stream;
+
+  @override
+  Future<void> mirrorStart(String slotId, {required bool muted}) async {
+    await _ensureMirror();
+    await _run(YoutubeWeb.mirrorStartScript(slotId, muted: muted));
+  }
+
+  @override
+  Future<void> mirrorRemove(String slotId) =>
+      _run(YoutubeWeb.mirrorRemoveScript(slotId));
+
+  @override
+  Future<void> mirrorStop() => _run(YoutubeWeb.mirrorStopScript);
+
+  @override
+  Future<void> mirrorHandle(Map<String, dynamic> message) =>
+      _run(YoutubeWeb.mirrorHandleScript(message));
 
   Future<void> _run(String script) async {
     if (_disposed) return;
@@ -102,7 +159,9 @@ class WebViewLiturgyVideo implements LiturgyWebVideo {
   @override
   Future<void> dispose() async {
     if (_disposed) return;
+    await _run(YoutubeWeb.mirrorStopScript);
     await controller.loadRequest(Uri.parse('about:blank')).catchError((_) {});
     _disposed = true;
+    await _mirrorOut.close();
   }
 }

@@ -46,8 +46,6 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   Timer? _webPoll;
   bool _webPolling = false, _webFallback = false, _webEnded = false;
 
-  /// YouTube em reprodução: as telas tocam o mesmo vídeo, sincronizado.
-  LiturgyWebTarget? _youtube;
 
   /// Última ordem da barra: tocar. Pausa vinda de outro lugar (a WebView
   /// saiu da tela ao minimizar) é desfeita.
@@ -381,7 +379,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   Future<void> _openYoutube(LiturgyWebTarget target, int generation) async {
     final page = (_createWebVideo ?? WebViewLiturgyVideo.new)();
     web = page;
-    _youtube = target;
+    _routeMirror(page);
     _webFallback = false;
     _webEnded = false;
     await page.load(
@@ -435,25 +433,43 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     }
   }
 
-  /// Telas tocam o próprio player do YouTube, já no ponto e no estado do
-  /// aparelho (como o desktop): projetar é na hora, sem baixar nada. Os
-  /// comandos seguintes (play/pause/seek) seguem como mensagens de vídeo.
-  static PalcoMessage youtubeMessage({
-    required String videoId,
-    required Duration position,
-    required bool playing,
-    required bool captionsHidden,
-    required bool connectionsMuted,
-  }) => PalcoMessage(
-    type: 'video',
-    fields: {
-      'youtubeId': videoId,
-      'positionMs': position.inMilliseconds,
-      'paused': !playing,
-      'captionsHidden': captionsHidden,
-      'connectionsMuted': connectionsMuted,
-    },
-  );
+  /// YouTube nas telas: espelho limpo do vídeo do aparelho (WebRTC, como o
+  /// desktop). As telas só exibem; pausa, play, posição e fechar acontecem
+  /// aqui e chegam iguais e na hora, sem player nem áudio próprio nelas.
+  final _mirrorSubs = <String, StreamSubscription<PalcoMessage>>{};
+  StreamSubscription<Map<String, dynamic>>? _mirrorOutSub;
+
+  void _routeMirror(LiturgyWebVideo page) {
+    _mirrorOutSub?.cancel();
+    _mirrorOutSub = page.mirrorOut.listen((out) {
+      final slotId = out['slotId'];
+      final message = out['message'];
+      if (slotId is! String || message is! Map) return;
+      final slot = _palco.slot(slotId);
+      if (slot == null) return;
+      slot.controller.sendLiturgyMessage(
+        PalcoMessage.fromJson(message.cast<String, dynamic>()),
+      );
+    });
+  }
+
+  /// Respostas das telas (answer/candidate/leave) voltam à página.
+  void _listenMirror(PalcoSlot slot) {
+    if (_mirrorSubs.containsKey(slot.id)) return;
+    _mirrorSubs[slot.id] = slot.controller.events.listen((message) {
+      if (message.type != 'mirror-signal') return;
+      unawaited(web?.mirrorHandle({...message.toJson(), 'slotId': slot.id}));
+    });
+  }
+
+  void _stopMirrorRouting() {
+    for (final sub in _mirrorSubs.values) {
+      unawaited(sub.cancel());
+    }
+    _mirrorSubs.clear();
+    unawaited(_mirrorOutSub?.cancel());
+    _mirrorOutSub = null;
+  }
 
   /// Vídeo local ou YouTube: as TVs recebem mensagens de vídeo.
   bool get _isVideo => video != null || web != null;
@@ -548,6 +564,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       for (final id in _projected.difference(current)) {
         final slot = _palco.slot(id);
         if (slot != null) {
+          if (web != null) await web!.mirrorRemove(id);
           _sendToSlot(slot, const PalcoMessage(type: 'idle'));
           slot.controller.setLiturgyShare(false);
         }
@@ -562,17 +579,12 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         final share =
             _independent.contains(slot.id) && _independentMode == 'share';
         controller.setLiturgyShare(share);
-        if (web != null && _youtube != null) {
-          _sendToSlot(
-            slot,
-            youtubeMessage(
-              videoId: _youtube!.videoId,
-              position: _position,
-              playing: _playing,
-              captionsHidden: _captionsHidden,
-              connectionsMuted: _output == 'player',
-            ),
-          );
+        if (web != null) {
+          if (_mirrorOutSub == null) _routeMirror(web!);
+          _listenMirror(slot);
+          if (!_projected.contains(slot.id)) {
+            await web!.mirrorStart(slot.id, muted: _output == 'player');
+          }
         } else if (_isVideo && _source != null) {
           _sendToSlot(
             slot,
@@ -744,7 +756,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
           await web?.seekTo(Duration.zero);
           _webEnded = false;
           _position = Duration.zero;
-          if (_projecting && _palco.anyConnected) {
+          if (_projecting && _palco.anyConnected && web == null) {
             _sendLive(
               const PalcoMessage(
                 type: 'video',
@@ -764,7 +776,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
           await web?.pause();
           _webWantsPlay = false;
         }
-        if (_projecting && wasPlaying != play) {
+        // YouTube: as telas espelham o vídeo daqui, não recebem comandos.
+        if (_projecting && wasPlaying != play && web == null) {
           if (_palco.anyConnected) {
             _sendLive(
               PalcoMessage(
@@ -791,7 +804,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         await video?.seekTo(position);
         await web?.seekTo(position);
         _webEnded = false;
-        if (_projecting) {
+        if (_projecting && web == null) {
           if (_palco.anyConnected) {
             _sendLive(
               PalcoMessage(
@@ -854,15 +867,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       case RemoteAction.videoToggleCaptions:
         _captionsHidden = !_captionsHidden;
         await web?.setCaptionsHidden(_captionsHidden);
-        if (web != null && _projecting) {
-          _sendLive(
-            PalcoMessage(
-              type: 'video',
-              fields: {'action': 'captions', 'captionsHidden': _captionsHidden},
-            ),
-          );
-          break;
-        }
+        // Legenda do YouTube é camada da página: não vai no espelho.
+        if (web != null) break;
         if (_projecting) await _project();
         break;
       case RemoteAction.videoSetTarget:
@@ -933,6 +939,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   }
 
   Future<void> _stopProjection() async {
+    if (web != null) await web!.mirrorStop();
+    _stopMirrorRouting();
     if (_projected.isNotEmpty) {
       _sendLive(const PalcoMessage(type: 'video', fields: {'action': 'stop'}));
       _sendLive(const PalcoMessage(type: 'audio', fields: {'action': 'stop'}));
@@ -978,7 +986,6 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     _webPoll = null;
     final page = web;
     web = null;
-    _youtube = null;
     _webEnded = false;
     _webWantsPlay = false;
     await page?.dispose();

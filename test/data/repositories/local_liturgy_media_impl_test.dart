@@ -58,6 +58,22 @@ class Video extends VideoPlayerController {
 }
 
 class WebVideo implements LiturgyWebVideo {
+  final mirror = <String>[];
+  final mirrorOutController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  @override
+  Stream<Map<String, dynamic>> get mirrorOut => mirrorOutController.stream;
+  @override
+  Future<void> mirrorStart(String slotId, {required bool muted}) async =>
+      mirror.add('start $slotId muted=$muted');
+  @override
+  Future<void> mirrorRemove(String slotId) async =>
+      mirror.add('remove $slotId');
+  @override
+  Future<void> mirrorStop() async => mirror.add('stop');
+  @override
+  Future<void> mirrorHandle(Map<String, dynamic> message) async =>
+      mirror.add('handle ${message['action']}');
   final loads = <(String, Map<String, String>)>[];
   final calls = <String>[];
   YoutubeWebState? state;
@@ -383,22 +399,10 @@ void main() {
       expect(web.loads, hasLength(1));
     });
 
-    test('mensagem às telas: o player do YouTube no ponto e estado atuais', () {
-      final message = LocalLiturgyMediaImpl.youtubeMessage(
-        videoId: 'abcDEF12345',
-        position: const Duration(seconds: 31),
-        playing: true,
-        captionsHidden: true,
-        connectionsMuted: true,
-      );
-      expect(message.type, 'video');
-      expect(message.fields, {
-        'youtubeId': 'abcDEF12345',
-        'positionMs': 31000,
-        'paused': false,
-        'captionsHidden': true,
-        'connectionsMuted': true,
-      });
+    test('fechar o YouTube encerra o espelho nas telas', () async {
+      await local.open(item, 'pt', DateTime(2026));
+      await local.send(RemoteCommand(id: 'x', action: RemoteAction.stop));
+      expect(web.mirror, contains('stop'));
     });
 
     test('a barra controla o vídeo da página', () async {
