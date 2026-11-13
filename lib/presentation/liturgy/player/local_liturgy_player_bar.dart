@@ -108,6 +108,13 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
                   ),
                 ),
               );
+            } else if (media.web case final page?) {
+              preview = ColoredBox(
+                color: Theme.of(context).colorScheme.scrim,
+                child: Center(
+                  child: AspectRatio(aspectRatio: 16 / 9, child: page.view()),
+                ),
+              );
             } else if (item != null &&
                 {
                   LiturgyItemType.annotation,

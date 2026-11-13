@@ -92,6 +92,8 @@ dependencies:
   # 10.x exige Android API 26 (o app usa 24), remove CocoaPods e liga logs/métricas sempre.
   sentry_flutter: ^9.30.0
   webview_flutter: ^4.14.1
+  # Android: autoplay do embed do YouTube sem exigir toque (Liturgia local).
+  webview_flutter_android: ^4.14.1
   youtube_explode_dart: ^3.1.0
   video_player: ^2.14.1
 dev_dependencies:

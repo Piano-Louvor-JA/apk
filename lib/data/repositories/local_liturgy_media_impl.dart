@@ -14,6 +14,8 @@ import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_pdf_document
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_playback.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_video_cache.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_target.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_video.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/youtube_web.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/rich_notes.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/scheduled_resolver.dart';
 import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart';
@@ -38,6 +40,11 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   LiturgyItem? item;
   VideoPlayerController? video;
+
+  /// YouTube sem cópia baixada: embed oficial numa página web, como o desktop.
+  LiturgyWebVideo? web;
+  Timer? _webPoll;
+  bool _webPolling = false, _webFallback = false, _webEnded = false;
   HymnAudioPlayer? _audio;
   String? _source;
   LyricSlides _lyrics = LyricSlides.empty;
@@ -88,12 +95,21 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   /// "Automático" do controle de imagens do desktop.
   final Duration _imageAutoplayInterval;
   Timer? _imageAutoplay;
+  final LiturgyWebVideo Function()? _createWebVideo;
+  final Future<String?> Function(String url)? _cachedVideo;
+  final Duration _webPollInterval;
   LocalLiturgyMediaImpl({
     HymnAudioPlayer? audio,
     VideoPlayerController Function(String)? createVideo,
     Future<LiturgyMusicPlayback> Function(LiturgyItem, String)? resolveMusic,
     Duration imageAutoplayInterval = const Duration(seconds: 5),
+    LiturgyWebVideo Function()? createWebVideo,
+    Future<String?> Function(String url)? cachedVideo,
+    Duration webPollInterval = const Duration(milliseconds: 500),
   }) : _imageAutoplayInterval = imageAutoplayInterval,
+       _createWebVideo = createWebVideo,
+       _cachedVideo = cachedVideo,
+       _webPollInterval = webPollInterval,
        _audioOverride = audio,
        _resolveMusic = resolveMusic,
        _createVideo = createVideo {
@@ -124,7 +140,9 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     slidePreview: _preview == null ? null : base64Encode(_preview!),
     slideLyrics: _lyrics.slides.isNotEmpty
         ? _lyrics.slides.map((s) => s.text).toList()
-        : (item == null || video != null || _count > 0 ? null : [item!.name]),
+        : (item == null || video != null || web != null || _count > 0
+              ? null
+              : [item!.name]),
     slideBackgroundKey: _lyrics.slides.isEmpty
         ? null
         : 'local-${item?.id}-${item?.musicMode}',
@@ -134,7 +152,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         ? null
         : RemoteVideoControls(
             audioOutput: _output,
-            canProject: _stage.isOn || _palco.anyConnected,
+            // O embed do YouTube toca só no aparelho; as TVs recebem a cópia.
+            canProject: web == null && (_stage.isOn || _palco.anyConnected),
             projecting: _projecting,
             canControlCaptions: _lyrics.slides.isNotEmpty,
             captionsHidden: _captionsHidden,
@@ -271,19 +290,29 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
           selected.filePaths.firstOrNull ??
           selected.url ??
           '';
+      LiturgyWebTarget? youtube;
       if (selected.type == LiturgyItemType.onlineVideo) {
         final target = LiturgyWebTarget.parse(source);
         if (target == null) throw StateError('liturgy.parity.incompleteItem');
-        final cache = LiturgyVideoCache(
-          Directory(
-            '${(await getApplicationSupportDirectory()).path}/liturgy-videos',
-          ),
-          LiturgyLinkRepositoryImpl(),
-        );
-        source =
-            await cache.find(target.url) ?? await cache.download(target.url);
+        final copy = _cachedVideo != null
+            ? await _cachedVideo(target.url)
+            : await (await _videoCache()).find(target.url);
+        if (generation != _generation) return;
+        if (copy != null) {
+          source = copy;
+        } else if (target.kind == 'youtube') {
+          // Como o desktop: sem a cópia baixada, o player embutido do YouTube.
+          youtube = target;
+        } else {
+          source = await (await _videoCache()).download(target.url);
+        }
       }
       if (generation != _generation) return;
+      if (youtube != null) {
+        await _openYoutube(youtube, generation);
+        if (generation == _generation) _emit();
+        return;
+      }
       _source = source;
       final uri = Uri.tryParse(source);
       final controller = video = _createVideo != null
@@ -327,6 +356,61 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       throw StateError('liturgy.parity.fileUnavailable');
     }
     if (generation == _generation) _emit();
+  }
+
+  Future<LiturgyVideoCache> _videoCache() async => LiturgyVideoCache(
+    Directory('${(await getApplicationSupportDirectory()).path}/liturgy-videos'),
+    LiturgyLinkRepositoryImpl(),
+  );
+
+  Future<void> _openYoutube(LiturgyWebTarget target, int generation) async {
+    final page = (_createWebVideo ?? WebViewLiturgyVideo.new)();
+    web = page;
+    _webFallback = false;
+    _webEnded = false;
+    await page.load(
+      YoutubeWeb.embedUrl(target.videoId),
+      headers: YoutubeWeb.headers,
+    );
+    if (generation != _generation || web != page) {
+      if (web == page) web = null;
+      await page.dispose();
+      return;
+    }
+    await page.setVolume(_volume / 100);
+    _playing = true; // autoplay=1 do embed
+    _webPoll?.cancel();
+    _webPoll = Timer.periodic(
+      _webPollInterval,
+      (_) => unawaited(_pollWeb(page, target.videoId)),
+    );
+  }
+
+  Future<void> _pollWeb(LiturgyWebVideo page, String videoId) async {
+    if (_webPolling || web != page) return;
+    _webPolling = true;
+    try {
+      final state = await page.probe();
+      if (web != page || state == null) return;
+      if (state.error && !_webFallback) {
+        // Vídeo que não aceita embed ou erro do player: a página do vídeo.
+        _webFallback = true;
+        await page.load(
+          YoutubeWeb.watchUrl(videoId),
+          headers: YoutubeWeb.headers,
+        );
+        return;
+      }
+      // Durante o anúncio a linha do tempo é a do anúncio: não mostra.
+      if (state.ad) return;
+      _playing = state.playing;
+      _webEnded = state.ended;
+      _position = state.position;
+      if (state.duration > Duration.zero) _duration = state.duration;
+      _emit();
+    } finally {
+      _webPolling = false;
+    }
   }
 
   static bool _videoAtEnd(VideoPlayerValue value) =>
@@ -548,6 +632,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         : _volume / 100;
     await _audio?.setVolume(volume);
     await video?.setVolume(volume);
+    await web?.setVolume(volume);
     if (_palco.anyConnected) {
       _sendLive(PalcoMessage(type: 'audioOutput', fields: {'mode': _output}));
     } else {
@@ -585,15 +670,20 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
           break;
         }
         // PDF e textos não têm o que tocar (o desktop não mostra play neles).
-        if (_audio == null && video == null) {
+        if (_audio == null && video == null && web == null) {
           _playing = false;
           break;
         }
         // Vídeo parado no fim: o plugin não volta sozinho ao início (o
         // vídeo HTML do desktop volta). Tocar recomeça, também nas TVs.
-        final restart = play && video != null && _videoAtEnd(video!.value);
+        final restart =
+            play &&
+            ((video != null && _videoAtEnd(video!.value)) ||
+                (web != null && _webEnded));
         if (restart) {
           await video?.seekTo(Duration.zero);
+          await web?.seekTo(Duration.zero);
+          _webEnded = false;
           _position = Duration.zero;
           if (_projecting && _palco.anyConnected) {
             _sendLive(
@@ -607,9 +697,11 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         if (play) {
           await _audio?.resume();
           await video?.play();
+          await web?.play();
         } else {
           await _audio?.pause();
           await video?.pause();
+          await web?.pause();
         }
         if (_projecting && wasPlaying != play) {
           if (_palco.anyConnected) {
@@ -636,6 +728,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         final position = command.position ?? Duration.zero;
         await _audio?.seek(position);
         await video?.seekTo(position);
+        await web?.seekTo(position);
+        _webEnded = false;
         if (_projecting) {
           if (_palco.anyConnected) {
             _sendLive(
@@ -809,6 +903,12 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     video = null;
     controller?.removeListener(_videoChanged);
     await controller?.dispose();
+    _webPoll?.cancel();
+    _webPoll = null;
+    final page = web;
+    web = null;
+    _webEnded = false;
+    await page?.dispose();
     item = null;
     _source = null;
     _lyrics = LyricSlides.empty;

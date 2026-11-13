@@ -4,7 +4,10 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart' show SizedBox, Widget;
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_video.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/youtube_web.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_playback.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/data/repositories/local_liturgy_media_impl.dart';
@@ -52,6 +55,48 @@ class Video extends VideoPlayerController {
   Future<void> dispose() async {
     released = true;
   }
+}
+
+class WebVideo implements LiturgyWebVideo {
+  final loads = <(String, Map<String, String>)>[];
+  final calls = <String>[];
+  YoutubeWebState? state;
+  bool disposed = false;
+  @override
+  Future<void> load(String url, {Map<String, String> headers = const {}}) async =>
+      loads.add((url, headers));
+  @override
+  Future<void> play() async {
+    calls.add('play');
+    state = YoutubeWebState(
+      playing: true,
+      position: state?.ended == true ? Duration.zero : state?.position ?? Duration.zero,
+      duration: state?.duration ?? Duration.zero,
+      hasData: true,
+    );
+  }
+
+  @override
+  Future<void> pause() async {
+    calls.add('pause');
+    state = YoutubeWebState(
+      position: state?.position ?? Duration.zero,
+      duration: state?.duration ?? Duration.zero,
+      hasData: true,
+    );
+  }
+
+  @override
+  Future<void> seekTo(Duration position) async =>
+      calls.add('seek ${position.inSeconds}');
+  @override
+  Future<void> setVolume(double volume) async => calls.add('volume $volume');
+  @override
+  Future<YoutubeWebState?> probe() async => state;
+  @override
+  Widget view() => const SizedBox();
+  @override
+  Future<void> dispose() async => disposed = true;
 }
 
 void main() {
@@ -247,6 +292,140 @@ void main() {
       await local.dispose();
     },
   );
+  group('YouTube', () {
+    const item = LiturgyItem(
+      id: 'yt',
+      type: LiturgyItemType.onlineVideo,
+      name: 'Arautos do Rei - Tudo Novo',
+      url: 'https://www.youtube.com/watch?v=abcDEF12345',
+    );
+    late WebVideo web;
+    late LocalLiturgyMediaImpl local;
+    String? cached;
+    setUp(() {
+      web = WebVideo();
+      cached = null;
+      local = LocalLiturgyMediaImpl(
+        createWebVideo: () => web,
+        cachedVideo: (_) async => cached,
+        webPollInterval: const Duration(milliseconds: 5),
+      );
+    });
+    tearDown(() => local.dispose());
+    Future<void> settle() =>
+        Future<void>.delayed(const Duration(milliseconds: 30));
+
+    test('sem cópia baixada toca no embed do YouTube, como o desktop', () async {
+      web.state = const YoutubeWebState(
+        playing: true,
+        position: Duration(seconds: 9),
+        duration: Duration(seconds: 316),
+        hasData: true,
+      );
+      await local.open(item, 'pt', DateTime(2026));
+      expect(web.loads.single.$1, YoutubeWeb.embedUrl('abcDEF12345'));
+      expect(web.loads.single.$2, YoutubeWeb.headers);
+      expect(local.web, same(web));
+      expect(local.video, isNull);
+      await settle();
+      final state = local.snapshot;
+      expect(state.title, item.name);
+      expect(state.playing, isTrue);
+      expect(state.position, const Duration(seconds: 9));
+      expect(state.duration, const Duration(seconds: 316));
+      // As TVs não recebem o embed: o desktop projeta capturando a janela.
+      expect(state.videoControls!.canProject, isFalse);
+    });
+
+    test('a barra controla o vídeo da página', () async {
+      web.state = const YoutubeWebState(
+        playing: true,
+        duration: Duration(seconds: 316),
+        hasData: true,
+      );
+      await local.open(item, 'pt', DateTime(2026));
+      await settle();
+      await local.send(RemoteCommand(id: 'p', action: RemoteAction.pause));
+      expect(local.snapshot.playing, isFalse);
+      await local.send(RemoteCommand(id: 't', action: RemoteAction.toggle));
+      expect(local.snapshot.playing, isTrue);
+      await local.send(
+        RemoteCommand(
+          id: 's',
+          action: RemoteAction.seek,
+          position: const Duration(seconds: 42),
+        ),
+      );
+      await local.send(
+        RemoteCommand(id: 'v', action: RemoteAction.setVolume, volume: 40),
+      );
+      expect(
+        web.calls,
+        containsAllInOrder(['pause', 'play', 'seek 42', 'volume 0.4']),
+      );
+    });
+
+    test('vídeo terminado recomeça do início ao tocar', () async {
+      await local.open(item, 'pt', DateTime(2026));
+      web.state = const YoutubeWebState(
+        position: Duration(seconds: 316),
+        duration: Duration(seconds: 316),
+        ended: true,
+        hasData: true,
+      );
+      await settle();
+      expect(local.snapshot.playing, isFalse);
+      await local.send(RemoteCommand(id: 'p', action: RemoteAction.play));
+      expect(web.calls, containsAllInOrder(['seek 0', 'play']));
+    });
+
+    test('anúncio na tela não move a linha do tempo do vídeo', () async {
+      await local.open(item, 'pt', DateTime(2026));
+      web.state = const YoutubeWebState(
+        playing: true,
+        position: Duration(seconds: 3),
+        duration: Duration(seconds: 15),
+        hasData: true,
+        ad: true,
+      );
+      await settle();
+      expect(local.snapshot.position, Duration.zero);
+      expect(local.snapshot.duration, Duration.zero);
+    });
+
+    test('embed com erro passa para a página do vídeo, como o desktop', () async {
+      web.state = const YoutubeWebState(error: true);
+      await local.open(item, 'pt', DateTime(2026));
+      await settle();
+      expect(web.loads.map((l) => l.$1), [
+        YoutubeWeb.embedUrl('abcDEF12345'),
+        YoutubeWeb.watchUrl('abcDEF12345'),
+      ]);
+    });
+
+    test('com cópia baixada toca a cópia, sem página web', () async {
+      final video = Video();
+      cached = '/tmp/copia.mp4';
+      final withCopy = LocalLiturgyMediaImpl(
+        createWebVideo: () => web,
+        cachedVideo: (_) async => cached,
+        createVideo: (_) => video,
+      );
+      addTearDown(withCopy.dispose);
+      await withCopy.open(item, 'pt', DateTime(2026));
+      expect(withCopy.video, same(video));
+      expect(withCopy.web, isNull);
+      expect(web.loads, isEmpty);
+    });
+
+    test('fechar libera a página', () async {
+      await local.open(item, 'pt', DateTime(2026));
+      await local.send(RemoteCommand(id: 'x', action: RemoteAction.stop));
+      expect(web.disposed, isTrue);
+      expect(local.web, isNull);
+    });
+  });
+
   test(
     'tocar imagens passa sozinho e volta à primeira, como o automático do desktop',
     () async {
