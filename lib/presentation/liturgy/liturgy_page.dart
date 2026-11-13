@@ -766,6 +766,8 @@ class _MirrorItemCard extends StatelessWidget {
         subtitle: item.subtitle.isNotEmpty
             ? Text(
                 item.subtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
               )
             : null,
@@ -1320,7 +1322,12 @@ class _ItemCard extends StatelessWidget {
             if (item.type == LiturgyItemType.scheduled)
               ScheduledItemPreview(item: item, date: date),
             if (item.subtitle.isNotEmpty)
-              Text(item.subtitle, style: theme.textTheme.bodySmall),
+              Text(
+                item.subtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
             if (item.notes?.isNotEmpty == true)
               Text(item.notes!, style: theme.textTheme.bodySmall),
           ],
