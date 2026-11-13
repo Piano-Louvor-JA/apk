@@ -233,6 +233,45 @@ class LiturgyItemExecutor {
     }
   }
 
+  /// Como escolher um hino na lista de Hinos: a música fica pronta no
+  /// miniplayer de Hinos, sem tocar; o play dele começa (e leva ao palco).
+  /// [onStarted] roda quando ela começar a tocar.
+  static Future<String> prepareMusic(
+    BuildContext context,
+    LiturgyItem item, {
+    VoidCallback? onStarted,
+  }) async {
+    try {
+      final language =
+          EasyLocalization.of(context)?.locale.languageCode ?? 'pt';
+      final catalog = await LiturgyCatalogRepository.open(language);
+      final playback = await LiturgyPlayback.resolve(
+        item,
+        catalog: catalog,
+        offline: OfflineMusicService(),
+      );
+      final player = HymnAudioPlayer.instance;
+      if (player.isPlaying) await player.pause();
+      nowPlaying.start(
+        hymnId: item.musicId!,
+        title: playback.detail.title ?? item.name,
+        album: item.subtitle,
+        detail: playback.detail,
+        instrumental: item.musicMode == 'instrumental',
+        durationMs: playback.detail.durationMs ?? item.durationMs,
+        audioSource: playback.source,
+        audioIsLocal: playback.isLocal,
+      );
+      nowPlaying.setPlaying(false);
+      if (onStarted != null) {
+        whenTrackStarts(nowPlaying, item.musicId!, onStarted);
+      }
+      return '';
+    } catch (_) {
+      return 'liturgy.parity.audioUnavailable'.tr();
+    }
+  }
+
   static Future<String> _executeMusic(
     BuildContext context,
     LiturgyItem item, {

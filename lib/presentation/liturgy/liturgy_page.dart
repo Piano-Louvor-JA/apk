@@ -1235,6 +1235,33 @@ class _ItemCard extends StatelessWidget {
                   if (!bloc.isClosed) bloc.add(LiturgyUpdateItem(value));
                 }
 
+                // Música: o mesmo player de Hinos, pronto no miniplayer.
+                if (selected.type == LiturgyItemType.music &&
+                    selected.musicId != null) {
+                  if (localLiturgyPlayer.hasContent) {
+                    await localLiturgyPlayer.send(
+                      RemoteCommand(
+                        id: 'liturgy-music',
+                        action: RemoteAction.stop,
+                      ),
+                    );
+                  }
+                  if (!context.mounted) return;
+                  bloc.add(LiturgySelectItem(item.id));
+                  final message = await LiturgyItemExecutor.prepareMusic(
+                    context,
+                    selected,
+                    onStarted: () {
+                      if (!bloc.isClosed) bloc.add(LiturgyMarkDone(item.id));
+                    },
+                  );
+                  if (message.isNotEmpty && context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(message)));
+                  }
+                  return;
+                }
                 localLiturgyPlayer.choose(
                   selected,
                   language: language,
