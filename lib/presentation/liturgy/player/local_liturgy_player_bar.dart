@@ -142,6 +142,7 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
             pendingOpen: player.pending == null ? null : _open,
             busy: player.busy,
             compact: widget.compact,
+            showScreenTargets: false,
             onExpand: widget.onExpand,
             onMinimize: widget.onMinimize,
             navigatorKey: widget.navigatorKey,

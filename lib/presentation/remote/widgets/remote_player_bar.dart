@@ -27,6 +27,7 @@ class RemotePlayerBar extends StatefulWidget {
     this.send,
     this.videoFrame,
     this.compact = false,
+    this.showScreenTargets = true,
     this.onExpand,
     this.onMinimize,
     this.navigatorKey,
@@ -53,6 +54,9 @@ class RemotePlayerBar extends StatefulWidget {
   final VoidCallback? onEdit;
   final double? previewMaxHeight;
   final bool compact;
+
+  /// Telas e projeção independente; a Liturgia local usa o botão Telas.
+  final bool showScreenTargets;
   final VoidCallback? onExpand;
   final VoidCallback? onMinimize;
   final GlobalKey<NavigatorState>? navigatorKey;
@@ -853,23 +857,25 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
             ),
           ),
         ),
-        IconButton(
-          key: const Key('remote-video-targets'),
-          tooltip: 'remote.video.selectScreens'.tr(),
-          onPressed: _openTargets,
-          icon: Badge(
-            label: Text('$selectedMonitors'),
-            isLabelVisible: selectedMonitors > 0,
-            child: const Icon(TablerIcons.deviceDesktop),
+        if (widget.showScreenTargets) ...[
+          IconButton(
+            key: const Key('remote-video-targets'),
+            tooltip: 'remote.video.selectScreens'.tr(),
+            onPressed: _openTargets,
+            icon: Badge(
+              label: Text('$selectedMonitors'),
+              isLabelVisible: selectedMonitors > 0,
+              child: const Icon(TablerIcons.deviceDesktop),
+            ),
           ),
-        ),
-        IconButton(
-          key: const Key('remote-independent'),
-          tooltip: 'remote.video.independent'.tr(),
-          color: independentHot ? theme.colorScheme.primary : null,
-          onPressed: _openIndependent,
-          icon: const Icon(TablerIcons.devices),
-        ),
+          IconButton(
+            key: const Key('remote-independent'),
+            tooltip: 'remote.video.independent'.tr(),
+            color: independentHot ? theme.colorScheme.primary : null,
+            onPressed: _openIndependent,
+            icon: const Icon(TablerIcons.devices),
+          ),
+        ],
         if (video != null && video.canControlCaptions)
           IconButton(
             key: const Key('remote-video-captions'),
