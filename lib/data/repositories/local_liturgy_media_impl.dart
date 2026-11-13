@@ -156,12 +156,18 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   }
 
   @override
-  Future<void> open(
+  Future<void> open(LiturgyItem requested, String language, DateTime date) =>
+      _open(requested, language, date);
+
+  /// [keepProjection] mantém as TVs projetando ao reabrir o mesmo item, como
+  /// a troca de modo do desktop, que preserva a sessão.
+  Future<void> _open(
     LiturgyItem requested,
     String language,
-    DateTime date,
-  ) async {
-    await _release();
+    DateTime date, {
+    bool keepProjection = false,
+  }) async {
+    await _release(keepProjection: keepProjection);
     final generation = ++_generation;
     if (nowPlaying.track != null) {
       await (_audioOverride ?? HymnAudioPlayer.instance).stop();
@@ -593,6 +599,15 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
                 },
               ),
             );
+            // O receiver retoma a mídia pausada ao receber seek.
+            if (!_playing) {
+              _sendLive(
+                PalcoMessage(
+                  type: video != null ? 'video' : 'audio',
+                  fields: const {'action': 'pause'},
+                ),
+              );
+            }
           } else if (_audio != null)
             _stage.seekHymnAudio(position);
         }
@@ -676,13 +691,26 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         if (selected != null && selected.type == LiturgyItemType.music) {
           final position = _position;
           final playing = _playing;
-          await open(
+          await _open(
             selected.copyWith(musicMode: command.mode),
             _language,
             _date,
+            keepProjection: true,
           );
           await _audio?.seek(position);
-          if (!playing) await _audio?.pause();
+          _position = position;
+          if (!playing) {
+            await _audio?.pause();
+            _playing = false;
+          }
+          if (_projecting) {
+            await _project();
+            if (_audio != null && _output != 'player') {
+              for (final slot in _targets) {
+                if (_projected.contains(slot.id)) _startAudio(slot);
+              }
+            }
+          }
         }
         break;
       default:
@@ -716,8 +744,11 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     _projecting = false;
   }
 
-  Future<void> _release({bool stopAudio = true}) async {
-    await _stopProjection();
+  Future<void> _release({
+    bool stopAudio = true,
+    bool keepProjection = false,
+  }) async {
+    if (!keepProjection) await _stopProjection();
     for (final sub in _subscriptions) {
       await sub.cancel();
     }
