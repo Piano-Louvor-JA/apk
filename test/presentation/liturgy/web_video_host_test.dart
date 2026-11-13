@@ -26,6 +26,8 @@ class _Web implements LiturgyWebVideo {
   @override
   Future<void> setVolume(double volume) async {}
   @override
+  Future<void> setCaptionsHidden(bool hidden) async {}
+  @override
   Future<YoutubeWebState?> probe() async => null;
   @override
   Future<void> dispose() async {}

@@ -96,6 +96,9 @@ class WebVideo implements LiturgyWebVideo {
   @override
   Future<void> setVolume(double volume) async => calls.add('volume $volume');
   @override
+  Future<void> setCaptionsHidden(bool hidden) async =>
+      calls.add('captions $hidden');
+  @override
   Future<YoutubeWebState?> probe() async => state;
   @override
   Widget view() => const SizedBox();
@@ -166,6 +169,8 @@ void main() {
         'https://example.test/cover.jpg',
       ]);
       expect(media.snapshot.videoControls!.projecting, false);
+      // CC é do player do YouTube, não da música.
+      expect(media.snapshot.videoControls!.canControlCaptions, isFalse);
       positions.add(const Duration(seconds: 12));
       expect(media.snapshot.slideIndex, 1);
       expect(media.snapshot.duration, const Duration(minutes: 1));
@@ -357,6 +362,16 @@ void main() {
         DateTime(2026),
       );
       expect(web.loads.single.$1, YoutubeWeb.embedUrl('Q6V92PzabX8'));
+    });
+
+    test('CC fica só no YouTube e esconde as legendas do vídeo', () async {
+      await local.open(item, 'pt', DateTime(2026));
+      expect(local.snapshot.videoControls!.canControlCaptions, isTrue);
+      await local.send(
+        RemoteCommand(id: 'c', action: RemoteAction.videoToggleCaptions),
+      );
+      expect(web.calls, contains('captions true'));
+      expect(local.snapshot.videoControls!.captionsHidden, isTrue);
     });
 
     test('a barra controla o vídeo da página', () async {

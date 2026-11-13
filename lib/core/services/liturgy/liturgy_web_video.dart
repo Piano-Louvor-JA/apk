@@ -12,6 +12,7 @@ abstract class LiturgyWebVideo {
   Future<void> pause();
   Future<void> seekTo(Duration position);
   Future<void> setVolume(double volume);
+  Future<void> setCaptionsHidden(bool hidden);
   Future<YoutubeWebState?> probe();
   Widget view();
   Future<void> dispose();
@@ -25,7 +26,10 @@ class WebViewLiturgyVideo implements LiturgyWebVideo {
       ..setNavigationDelegate(
         NavigationDelegate(
           // Injeta o pulador de anúncio a cada página do YouTube carregada.
-          onPageFinished: (_) => _run(YoutubeWeb.adSkipScript),
+          onPageFinished: (_) {
+            _run(YoutubeWeb.adSkipScript);
+            if (_captionsHidden) _run(YoutubeWeb.captionsScript(true));
+          },
         ),
       );
     final platform = controller.platform;
@@ -36,7 +40,7 @@ class WebViewLiturgyVideo implements LiturgyWebVideo {
   }
 
   final controller = WebViewController();
-  bool _disposed = false;
+  bool _disposed = false, _captionsHidden = false;
 
   Future<void> _run(String script) async {
     if (_disposed) return;
@@ -66,12 +70,22 @@ class WebViewLiturgyVideo implements LiturgyWebVideo {
       _run(YoutubeWeb.volumeScript(volume));
 
   @override
+  Future<void> setCaptionsHidden(bool hidden) {
+    _captionsHidden = hidden;
+    return _run(YoutubeWeb.captionsScript(hidden));
+  }
+
+  @override
   Future<YoutubeWebState?> probe() async {
     if (_disposed) return null;
     try {
       // O pulador também é reaplicado aqui: a página pode trocar de vídeo
       // (anúncio → conteúdo) sem disparar um novo onPageFinished.
       await controller.runJavaScript(YoutubeWeb.adSkipScript);
+      // A legenda do YouTube pode entrar depois (troca de faixa/anúncio).
+      if (_captionsHidden) {
+        await controller.runJavaScript(YoutubeWeb.captionsScript(true));
+      }
       return YoutubeWebState.parse(
         await controller.runJavaScriptReturningResult(YoutubeWeb.probeScript),
       );

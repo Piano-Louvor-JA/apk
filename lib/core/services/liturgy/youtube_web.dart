@@ -49,6 +49,24 @@ class YoutubeWeb {
         'v.muted = ${value == 0 ? 'true' : 'false'}; })()';
   }
 
+  /// Esconde só a camada de legenda selecionável do player, nunca texto
+  /// gravado no vídeo (desktop: electron/youtube-captions.mjs).
+  static String captionsScript(bool hidden) =>
+      '''(() => {
+  const hidden = $hidden;
+  let style = document.getElementById('louvorja-youtube-captions');
+  if (hidden && !style) {
+    style = document.createElement('style');
+    style.id = 'louvorja-youtube-captions';
+    style.textContent = '#movie_player .ytp-caption-window-container, #movie_player .caption-window { display: none !important; visibility: hidden !important; }';
+    (document.head || document.documentElement).appendChild(style);
+  } else if (!hidden && style) style.remove();
+  for (const video of document.querySelectorAll('video')) {
+    for (const track of Array.from(video.textTracks || [])) track.mode = hidden ? 'hidden' : 'showing';
+  }
+  return true;
+})()''';
+
   /// Estado lido a cada meio segundo. `ad` = anúncio na tela.
   static const probeScript =
       '''(() => {

@@ -42,6 +42,13 @@ void main() {
     expect(script, contains('stopImmediatePropagation'));
   });
 
+  test('legendas: só a camada de legenda do player, como o desktop', () {
+    final hide = YoutubeWeb.captionsScript(true);
+    expect(hide, contains('.ytp-caption-window-container'));
+    expect(hide, contains("'hidden'"));
+    expect(YoutubeWeb.captionsScript(false), contains('const hidden = false'));
+  });
+
   test('comandos agem no vídeo da página', () {
     expect(YoutubeWeb.playScript, contains('.play()'));
     expect(YoutubeWeb.pauseScript, contains('.pause()'));

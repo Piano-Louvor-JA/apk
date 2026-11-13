@@ -159,7 +159,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
             // O embed do YouTube toca só no aparelho; as TVs recebem a cópia.
             canProject: web == null && (_stage.isOn || _palco.anyConnected),
             projecting: _projecting,
-            canControlCaptions: _lyrics.slides.isNotEmpty,
+            // CC é das legendas do YouTube (como o desktop), não da música.
+            canControlCaptions: web != null,
             captionsHidden: _captionsHidden,
             monitors: const [],
             independent: RemoteIndependentControls(
@@ -809,6 +810,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         break;
       case RemoteAction.videoToggleCaptions:
         _captionsHidden = !_captionsHidden;
+        await web?.setCaptionsHidden(_captionsHidden);
         if (_projecting) await _project();
         break;
       case RemoteAction.videoSetTarget:
