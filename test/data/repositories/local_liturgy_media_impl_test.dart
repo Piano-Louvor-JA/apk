@@ -311,12 +311,18 @@ void main() {
     late WebVideo web;
     late LocalLiturgyMediaImpl local;
     String? cached;
+    late List<String> downloads;
     setUp(() {
       web = WebVideo();
       cached = null;
+      downloads = [];
       local = LocalLiturgyMediaImpl(
         createWebVideo: () => web,
         cachedVideo: (_) async => cached,
+        downloadVideo: (url) async {
+          downloads.add(url);
+          return '/tmp/youtube-copia.mp4';
+        },
         webPollInterval: const Duration(milliseconds: 5),
       );
     });
@@ -344,7 +350,7 @@ void main() {
         expect(state.playing, isTrue);
         expect(state.position, const Duration(seconds: 9));
         expect(state.duration, const Duration(seconds: 316));
-        // As TVs não recebem o embed: o desktop projeta capturando a janela.
+        // Sem telas conectadas no teste: nada a projetar.
         expect(state.videoControls!.canProject, isFalse);
       },
     );
@@ -373,6 +379,26 @@ void main() {
       expect(web.calls, contains('captions true'));
       expect(local.snapshot.videoControls!.captionsHidden, isTrue);
     });
+
+    test(
+      'projetar o YouTube usa a cópia baixada (uma vez), como o desktop',
+      () async {
+        await local.open(item, 'pt', DateTime(2026));
+        await local.send(
+          RemoteCommand(id: 'p1', action: RemoteAction.videoToggleProjection),
+        );
+        expect(downloads, ['https://www.youtube.com/watch?v=abcDEF12345']);
+        // O player do aparelho continua no embed (sem trocar de player).
+        expect(local.web, same(web));
+        await local.send(
+          RemoteCommand(id: 'p2', action: RemoteAction.videoToggleProjection),
+        );
+        await local.send(
+          RemoteCommand(id: 'p3', action: RemoteAction.videoToggleProjection),
+        );
+        expect(downloads, hasLength(1));
+      },
+    );
 
     test('a barra controla o vídeo da página', () async {
       web.state = const YoutubeWebState(
