@@ -17,15 +17,15 @@ class _Translations extends AssetLoader {
   const _Translations();
   @override
   Future<Map<String, dynamic>> load(String path, Locale locale) async => {
-        'myEdits': {
-          'title': 'Minhas Edições',
-          'empty': 'Nenhuma edição publicada ainda.',
-          'musicLabel': 'Música #{id}',
-          'statusApproved': 'Aprovada',
-          'statusRejected': 'Rejeitada',
-          'statusPublished': 'Publicada',
-        },
-      };
+    'myEdits': {
+      'title': 'Minhas Edições',
+      'empty': 'Nenhuma edição publicada ainda.',
+      'musicLabel': 'Música #{id}',
+      'statusApproved': 'Aprovada',
+      'statusRejected': 'Rejeitada',
+      'statusPublished': 'Publicada',
+    },
+  };
 }
 
 Future<void> _pump(WidgetTester tester, Widget child) async {
@@ -51,12 +51,12 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
 }
 
 MyEditsPage _page(_MockDio dio) => MyEditsPage(
-      api: EditsApiImpl(
-        dio: dio,
-        apiBaseUrl: 'https://api.test',
-        bearerToken: () async => 'tok',
-      ),
-    );
+  api: EditsApiImpl(
+    dio: dio,
+    apiBaseUrl: 'https://api.test',
+    bearerToken: () async => 'tok',
+  ),
+);
 
 void main() {
   late _MockDio dio;
@@ -67,24 +67,30 @@ void main() {
   });
 
   void stub(Response<dynamic> response) {
-    when(() => dio.request<dynamic>(any(),
+    when(
+      () => dio.request<dynamic>(
+        any(),
         data: any(named: 'data'),
-        options: any(named: 'options'))).thenAnswer((_) async => response);
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer((_) async => response);
   }
 
   testWidgets('lista edits com status e motivo (RF-05)', (tester) async {
-    stub(Response<List<dynamic>>(
-      requestOptions: RequestOptions(path: ''),
-      data: [
-        {'id': 1, 'music_id': 42, 'status': 'approved', 'reason': null},
-        {
-          'id': 2,
-          'music_id': 77,
-          'status': 'rejected',
-          'reason': 'letra diverge da fonte oficial',
-        },
-      ],
-    ));
+    stub(
+      Response<List<dynamic>>(
+        requestOptions: RequestOptions(path: ''),
+        data: [
+          {'id': 1, 'music_id': 42, 'status': 'approved', 'reason': null},
+          {
+            'id': 2,
+            'music_id': 77,
+            'status': 'rejected',
+            'reason': 'letra diverge da fonte oficial',
+          },
+        ],
+      ),
+    );
 
     await _pump(tester, _page(dio));
     await tester.pumpAndSettle();
@@ -97,10 +103,12 @@ void main() {
   });
 
   testWidgets('lista vazia mostra estado vazio', (tester) async {
-    stub(Response<List<dynamic>>(
-      requestOptions: RequestOptions(path: ''),
-      data: <dynamic>[],
-    ));
+    stub(
+      Response<List<dynamic>>(
+        requestOptions: RequestOptions(path: ''),
+        data: <dynamic>[],
+      ),
+    );
 
     await _pump(tester, _page(dio));
     await tester.pumpAndSettle();
@@ -108,14 +116,17 @@ void main() {
     expect(find.text('Nenhuma edição publicada ainda.'), findsOneWidget);
   });
 
-  testWidgets('NENHUM botão de editar/publicar (read-only, decisão F0)',
-      (tester) async {
-    stub(Response<List<dynamic>>(
-      requestOptions: RequestOptions(path: ''),
-      data: [
-        {'id': 1, 'music_id': 42, 'status': 'published', 'reason': null},
-      ],
-    ));
+  testWidgets('NENHUM botão de editar/publicar (read-only, decisão F0)', (
+    tester,
+  ) async {
+    stub(
+      Response<List<dynamic>>(
+        requestOptions: RequestOptions(path: ''),
+        data: [
+          {'id': 1, 'music_id': 42, 'status': 'published', 'reason': null},
+        ],
+      ),
+    );
 
     await _pump(tester, _page(dio));
     await tester.pumpAndSettle();
@@ -126,16 +137,31 @@ void main() {
     expect(find.byType(FloatingActionButton), findsNothing);
   });
 
-  testWidgets('erro de rede mostra estado vazio sem quebrar', (tester) async {
-    when(() => dio.request<dynamic>(any(),
+  testWidgets('erro de rede mostra falha e permite tentar novamente', (
+    tester,
+  ) async {
+    when(
+      () => dio.request<dynamic>(
+        any(),
         data: any(named: 'data'),
-        options: any(named: 'options'))).thenThrow(DioException(
-      requestOptions: RequestOptions(path: ''),
-    ));
+        options: any(named: 'options'),
+      ),
+    ).thenThrow(DioException(requestOptions: RequestOptions(path: '')));
 
     await _pump(tester, _page(dio));
     await tester.pumpAndSettle();
 
+    expect(find.text('Nenhuma edição publicada ainda.'), findsNothing);
+    expect(find.text('myEdits.loadError'), findsOneWidget);
+    expect(find.byType(TextButton), findsOneWidget);
+    stub(
+      Response<List<dynamic>>(
+        requestOptions: RequestOptions(path: ''),
+        data: [],
+      ),
+    );
+    await tester.tap(find.byType(TextButton));
+    await tester.pumpAndSettle();
     expect(find.text('Nenhuma edição publicada ainda.'), findsOneWidget);
   });
 }

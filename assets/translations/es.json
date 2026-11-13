@@ -562,6 +562,7 @@
     "restored": "Conexión restaurada — sincronizando…"
   },
   "myEdits": {
+    "loadError": "No se pudieron cargar tus ediciones.",
     "title": "Mis ediciones",
     "empty": "Ninguna edición publicada aún.",
     "musicLabel": "Canción #{id}",

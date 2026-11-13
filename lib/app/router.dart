@@ -5,7 +5,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import '../core/services/global_search_service.dart';
@@ -16,7 +15,6 @@ import '../data/repositories/bible_repository_impl.dart';
 import '../data/repositories/hymn_repository_impl.dart';
 import '../data/datasources/local/catalog_cache.dart';
 import '../domain/entities/hymn.dart';
-import '../data/datasources/local/custom_session_store.dart';
 import '../data/datasources/remote/edits_api_impl.dart';
 import '../presentation/community/my_edits_page.dart';
 import '../presentation/home/home_page.dart';
@@ -70,22 +68,7 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'custom/my-edits',
                   builder: (context, state) {
-                    final dio = Dio();
-                    final db = ApiConfig.urlDatabase;
-                    final apiBase = db.endsWith('/json_db')
-                        ? db.substring(0, db.length - '/json_db'.length)
-                        : db;
-                    return MyEditsPage(
-                      api: EditsApiImpl(
-                        dio: dio,
-                        apiBaseUrl: apiBase,
-                        bearerToken: () async {
-                          final session =
-                              await CustomSessionStore().read();
-                          return session?.token;
-                        },
-                      ),
-                    );
+                    return MyEditsPage(api: EditsApiImpl.production());
                   },
                 ),
                 GoRoute(
@@ -160,7 +143,7 @@ HymnRepositoryImpl _searchHymnRepo() {
     filesUrls: ApiConfig.filesUrls(),
     apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
   );
-  return HymnRepositoryImpl(api, CatalogCache.noop());
+  return HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
 }
 
 Future<List<Hymn>> _searchHymns() => SearchSources.loadHymnSources(

@@ -1,6 +1,7 @@
 /// MyEditsPage — Minhas Edições do autor, READ-ONLY (portação APK, padrão F0:
 /// APK consome; escrita fica no desktop/web). RF-05: status + motivo público.
 library;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -35,16 +36,16 @@ class _MyEditsPageState extends State<MyEditsPage> {
   List<MyEditSummary> _edits = const [];
 
   Color _statusColor(String status) => switch (status) {
-        'approved' => Colors.green,
-        'rejected' => Colors.red,
-        _ => Colors.grey,
-      };
+    'approved' => Theme.of(context).colorScheme.primary,
+    'rejected' => Theme.of(context).colorScheme.error,
+    _ => Theme.of(context).colorScheme.onSurfaceVariant,
+  };
 
   String _statusLabel(String status) => switch (status) {
-        'approved' => 'myEdits.statusApproved'.tr(),
-        'rejected' => 'myEdits.statusRejected'.tr(),
-        _ => 'myEdits.statusPublished'.tr(),
-      };
+    'approved' => 'myEdits.statusApproved'.tr(),
+    'rejected' => 'myEdits.statusRejected'.tr(),
+    _ => 'myEdits.statusPublished'.tr(),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +56,24 @@ class _MyEditsPageState extends State<MyEditsPage> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('myEdits.loadError'.tr()),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _future = _load();
+                      });
+                    },
+                    child: Text('common.retry'.tr()),
+                  ),
+                ],
+              ),
+            );
           }
           if (_edits.isEmpty) {
             return Center(child: Text('myEdits.empty'.tr()));
@@ -69,7 +88,9 @@ class _MyEditsPageState extends State<MyEditsPage> {
                   label: Text(_statusLabel(edit.status)),
                   backgroundColor: _statusColor(edit.status).withAlpha(40),
                 ),
-                title: Text('myEdits.musicLabel'.tr(namedArgs: {'id': '${edit.musicId}'})),
+                title: Text(
+                  'myEdits.musicLabel'.tr(namedArgs: {'id': '${edit.musicId}'}),
+                ),
                 subtitle: edit.reason != null ? Text(edit.reason!) : null,
                 // READ-ONLY: sem trailing actions — editar/publicar é desktop/web
               );

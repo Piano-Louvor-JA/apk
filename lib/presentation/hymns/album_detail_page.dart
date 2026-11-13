@@ -552,7 +552,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage>
         apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
         languagePrefix: _languageCode(context),
       );
-      return HymnRepositoryImpl(api, CatalogCache.noop());
+      return HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
     }
   }
 
@@ -649,10 +649,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage>
 
     HymnRepository repo;
     if (kIsWeb) {
-      repo = HymnRepositoryImpl(api, CatalogCache.noop());
+      repo = HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
     } else {
       // Mobile: importa path_provider condicionalmente
-      repo = HymnRepositoryImpl(api, CatalogCache.noop());
+      repo = HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
     }
 
     return repo.getHymnsByAlbum(widget.albumId);

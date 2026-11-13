@@ -562,6 +562,7 @@
     "restored": "Connection restored — syncing…"
   },
   "myEdits": {
+    "loadError": "Could not load your edits.",
     "title": "My Edits",
     "empty": "No edits published yet.",
     "musicLabel": "Song #{id}",

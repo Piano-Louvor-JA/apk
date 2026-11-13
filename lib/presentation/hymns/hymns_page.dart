@@ -94,7 +94,7 @@ class _HymnsPageState extends State<HymnsPage> {
       cache = CatalogCache(dir);
     }
 
-    final repo = HymnRepositoryImpl(api, cache);
+    final repo = HymnRepositoryImpl.withCommunity(api, cache);
     final bloc = HymnsBloc(
       repo,
       catalogProvider: hymnCatalogProvider,

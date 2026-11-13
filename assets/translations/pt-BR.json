@@ -561,6 +561,7 @@
     "restored": "Conexão restaurada — sincronizando…"
   },
   "myEdits": {
+    "loadError": "Não foi possível carregar suas edições.",
     "title": "Minhas Edições",
     "empty": "Nenhuma edição publicada ainda.",
     "musicLabel": "Música #{id}",

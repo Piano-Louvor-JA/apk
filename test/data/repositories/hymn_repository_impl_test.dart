@@ -1,5 +1,9 @@
 library;
 
+import 'package:mocktail/mocktail.dart';
+import 'package:louvorja_piano_mobile/data/datasources/remote/edits_api_impl.dart';
+import 'package:louvorja_piano_mobile/data/models/applied_edit_model.dart';
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -72,6 +76,8 @@ class _MockApi implements LouvorjaApiClient {
   Future<Map<String, String>> fetchBibleChapter(int v, int b, int c) async =>
       {};
 }
+
+class _MockEditsApi extends Mock implements EditsApiImpl {}
 
 void main() {
   late _MockApi api;
@@ -327,6 +333,54 @@ void main() {
     final repo = HymnRepositoryImpl(api, cache);
     expect(await repo.getHymn(999), isNull);
   });
+
+  test(
+    'getHymnDetails entrega a edição aprovada no fluxo real do repositório',
+    () async {
+      api.musicDetail = const Hymn(
+        id: 42,
+        title: 'Oficial',
+        durationMs: 120000,
+        imageUrl: '/42.jpg',
+        lyricRaw: [
+          {'text': 'oficial'},
+        ],
+      );
+      final edits = _MockEditsApi();
+      when(() => edits.fetchApplied(42)).thenAnswer(
+        (_) async => const AppliedEditModel(
+          musicId: 42,
+          lyrics: '[{"text":"aprovado"}]',
+        ),
+      );
+      final repo = HymnRepositoryImpl(api, cache, editsApi: edits);
+      final hymn = await repo.getHymnDetails(42);
+      expect(hymn.lyricRaw!.single['text'], 'aprovado');
+      expect(hymn.durationMs, 120000);
+      expect(hymn.imageUrl, '/42.jpg');
+      verify(() => edits.fetchApplied(42)).called(1);
+    },
+  );
+
+  test(
+    'getHymnDetails preserva oficial quando não há edição disponível',
+    () async {
+      api.musicDetail = const Hymn(
+        id: 42,
+        lyricRaw: [
+          {'text': 'oficial'},
+        ],
+      );
+      final edits = _MockEditsApi();
+      when(() => edits.fetchApplied(42)).thenAnswer((_) async => null);
+      final hymn = await HymnRepositoryImpl(
+        api,
+        cache,
+        editsApi: edits,
+      ).getHymnDetails(42);
+      expect(hymn.lyricRaw!.single['text'], 'oficial');
+    },
+  );
 
   test('getHymnDetails delega para fetchMusic', () async {
     api.musicDetail = const Hymn(
