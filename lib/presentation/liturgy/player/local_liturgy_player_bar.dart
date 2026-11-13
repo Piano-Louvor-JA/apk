@@ -14,6 +14,7 @@ import 'local_liturgy_player.dart';
 import '../widgets/rich_notes_editor_page.dart';
 import 'local_liturgy_session.dart';
 import 'web_video_host.dart';
+import '../../shared/phone_projection.dart';
 
 /// Mesmo player visual do remoto, com comandos exclusivamente locais.
 class LocalLiturgyPlayerBar extends StatefulWidget {
@@ -60,16 +61,43 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
     if (mounted) setState(() {});
   }
 
+  void _say(String key) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(key.tr())));
+  }
+
   Future<void> _send(RemoteCommand command) async {
+    final wasProjecting = player.state.videoControls?.projecting ?? false;
+    final media = player.media;
+    final copying = media is LocalLiturgyMediaImpl && media.projectionNeedsCopy;
+    final toggle = command.action == RemoteAction.videoToggleProjection;
+    // Projetar, como em Hinos: liga o palco do celular e os monitores
+    // compartilhados; daí vai a todos os destinos marcados em Telas.
+    if (toggle && !wasProjecting) {
+      if (!await PhoneProjection.begin()) {
+        _say('liturgy.parity.noStage');
+        return;
+      }
+      if (copying) _say('liturgy.parity.preparingVideo');
+    }
+    var failed = false;
     try {
       await player.send(command);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('liturgy.parity.fileUnavailable'.tr())),
-        );
-      }
+      failed = true;
+      _say(
+        toggle && copying
+            ? 'liturgy.parity.videoForScreensFailed'
+            : 'liturgy.parity.fileUnavailable',
+      );
     }
+    if (toggle && copying && !failed && mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    }
+    final nowProjecting = player.state.videoControls?.projecting ?? false;
+    if (wasProjecting && !nowProjecting) await PhoneProjection.end();
   }
 
   Future<void> _edit() async {

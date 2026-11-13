@@ -246,7 +246,10 @@
       "resetProgress": "Reiniciar conclusão",
       "scheduledComingSoon": "Itens agendados ainda serão implementados no APK.",
       "chooseCategory": "Em qual categoria vai o novo momento?",
-      "newCategory": "Nova categoria"
+      "newCategory": "Nova categoria",
+      "preparingVideo": "Preparando o vídeo para as telas…",
+      "videoForScreensFailed": "Não foi possível preparar o vídeo para as telas.",
+      "noStage": "Não deu para ligar o palco: sem rede Wi-Fi?"
     },
     "richNotes": {
       "toolbar": "Formatação do texto",

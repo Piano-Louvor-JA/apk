@@ -164,7 +164,9 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         : RemoteVideoControls(
             audioOutput: _output,
             // O embed do YouTube toca só no aparelho; as TVs recebem a cópia.
-            canProject: _stage.isOn || _palco.anyConnected,
+            // A setinha liga o palco do celular antes (como em Hinos), então
+            // há sempre para onde projetar: monitores, conexões e TVs.
+            canProject: true,
             projecting: _projecting,
             // CC é das legendas do YouTube (como o desktop), não da música.
             canControlCaptions: web != null,
@@ -437,6 +439,9 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       _webPolling = false;
     }
   }
+
+  /// YouTube que ainda vai baixar a cópia para as telas (a barra avisa).
+  bool get projectionNeedsCopy => web != null && _webCopy == null;
 
   /// Vídeo local ou YouTube: as TVs recebem mensagens de vídeo.
   bool get _isVideo => video != null || web != null;

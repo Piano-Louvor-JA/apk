@@ -350,8 +350,8 @@ void main() {
         expect(state.playing, isTrue);
         expect(state.position, const Duration(seconds: 9));
         expect(state.duration, const Duration(seconds: 316));
-        // Sem telas conectadas no teste: nada a projetar.
-        expect(state.videoControls!.canProject, isFalse);
+        // A setinha liga o palco do celular (como em Hinos): sempre ativa.
+        expect(state.videoControls!.canProject, isTrue);
       },
     );
 
@@ -397,6 +397,34 @@ void main() {
           RemoteCommand(id: 'p3', action: RemoteAction.videoToggleProjection),
         );
         expect(downloads, hasLength(1));
+      },
+    );
+
+    test(
+      'dois toques seguidos em projetar baixam a cópia uma vez só',
+      () async {
+        final gate = Completer<String>();
+        final slow = LocalLiturgyMediaImpl(
+          createWebVideo: () => web,
+          cachedVideo: (_) async => null,
+          downloadVideo: (url) {
+            downloads.add(url);
+            return gate.future;
+          },
+        );
+        addTearDown(slow.dispose);
+        await slow.open(item, 'pt', DateTime(2026));
+        expect(slow.projectionNeedsCopy, isTrue);
+        final first = slow.send(
+          RemoteCommand(id: 'a', action: RemoteAction.videoToggleProjection),
+        );
+        final second = slow.send(
+          RemoteCommand(id: 'b', action: RemoteAction.videoToggleProjection),
+        );
+        gate.complete('/tmp/copia.mp4');
+        await Future.wait([first, second]);
+        expect(downloads, hasLength(1));
+        expect(slow.projectionNeedsCopy, isFalse);
       },
     );
 

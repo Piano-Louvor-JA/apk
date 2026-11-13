@@ -247,7 +247,10 @@
       "resetProgress": "Reiniciar finalización",
       "scheduledComingSoon": "Los elementos programados aún se implementarán en la app.",
       "chooseCategory": "¿En qué categoría va el nuevo momento?",
-      "newCategory": "Nueva categoría"
+      "newCategory": "Nueva categoría",
+      "preparingVideo": "Preparando el video para las pantallas…",
+      "videoForScreensFailed": "No fue posible preparar el video para las pantallas.",
+      "noStage": "No se pudo encender el escenario: ¿sin Wi-Fi?"
     },
     "richNotes": {
       "toolbar": "Formato del texto",

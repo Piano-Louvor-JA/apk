@@ -13,12 +13,6 @@ import 'package:louvorja_piano_mobile/core/utils/media_image_url.dart';
 
 import '../../tools/monitor_share_link.dart';
 
-import '../../../../core/services/palco/palco_controller.dart' show PalcoTarget;
-
-import '../../../../core/services/dlna/slide_http_server.dart';
-
-import '../../../../core/services/palco/palco_orchestrator.dart';
-
 import '../../../../core/services/hymn_audio_player.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -27,6 +21,7 @@ import '../../../../core/constants/api_config.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'player_timeline.dart';
+import '../phone_projection.dart';
 import '../../hymns/now_playing_page.dart';
 import '../../../../domain/entities/lyric_slides.dart';
 import '../../../../core/services/playlist_player.dart';
@@ -193,12 +188,12 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
       _endStageReturn();
       await stage.clearContent();
       // Sem projeção: esconde as telas do computador (se a opção pedir).
-      await MonitorShareSession.instance.setProjecting(false);
+      await PhoneProjection.end();
       return;
     }
     setState(() => _projectBusy = true);
     try {
-      if (!stage.isPalcoMode && !await _turnOnPhoneStage()) {
+      if (!await PhoneProjection.begin()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -208,39 +203,13 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
         }
         return;
       }
-      // Monitores do computador: reconecta se estava salvo e caiu.
-      final principal = PalcoOrchestrator.instance.slot('principal');
-      final ip = SlideHttpServer.localIp;
-      if (principal != null && ip != null) {
-        await MonitorShareSession.instance.ensureConnected(
-          phoneIp: ip,
-          wsPort: principal.wsPort,
-        );
-      }
       projecting.value = true;
-      await MonitorShareSession.instance.setProjecting(true);
       await _projectSlide();
       final pos = _lastPos;
       if (pos != null) await _sendStageReturn(pos, force: true);
     } finally {
       if (mounted) setState(() => _projectBusy = false);
     }
-  }
-
-  /// Liga o palco do celular (conexão Principal), igual à Transmissão.
-  Future<bool> _turnOnPhoneStage() async {
-    final orch = PalcoOrchestrator.instance;
-    await orch.loadStoredConfig();
-    if (orch.slot('principal') == null) {
-      orch.addSlot(id: 'principal', label: 'Principal');
-    }
-    final principal = orch.slot('principal')!;
-    await SlideHttpServer.resolveLocalIp();
-    final ip = SlideHttpServer.localIp;
-    if (ip == null) return false;
-    return StageSession.instance.turnOnPalco(
-      PalcoTarget(name: principal.label, ip: ip, wsPort: principal.wsPort),
-    );
   }
 
   Duration? _lastPos;

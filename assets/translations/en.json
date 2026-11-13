@@ -247,7 +247,10 @@
       "resetProgress": "Reset completion",
       "scheduledComingSoon": "Scheduled items are not available in the app yet.",
       "chooseCategory": "Which category is the new moment in?",
-      "newCategory": "New category"
+      "newCategory": "New category",
+      "preparingVideo": "Preparing the video for the screens…",
+      "videoForScreensFailed": "Could not prepare the video for the screens.",
+      "noStage": "Could not turn on the stage: no Wi-Fi?"
     },
     "richNotes": {
       "toolbar": "Text formatting",
