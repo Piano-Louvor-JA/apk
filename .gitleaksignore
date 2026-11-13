@@ -1,0 +1,4 @@
+
+# Falsos positivos: nomes de chaves locais SharedPreferences do Palco; não são credenciais.
+7e6f2ee51e09cd207f23c1912915269a5e4f20df:lib/core/services/palco/palco_orchestrator.dart:generic-api-key:35
+5ba70dac9c15513220f0d4a774a216014a1b15ea:lib/core/services/palco/palco_orchestrator.dart:generic-api-key:34
