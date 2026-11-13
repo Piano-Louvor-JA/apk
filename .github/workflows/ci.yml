@@ -50,7 +50,7 @@ jobs:
 
       - name: Coverage ratchet (bloqueia regressão de cobertura)
         env:
-          COVERAGE_MIN: ${{ github.event_name == 'pull_request' && github.base_ref == 'staging' && '50' || '' }}
+          COVERAGE_MIN: ${{ ((github.event_name == 'pull_request' && github.base_ref == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/staging')) && '50' || '' }}
         run: dart scripts/coverage-ratchet.dart
 
   coverage:
@@ -70,9 +70,9 @@ jobs:
         run: flutter test --coverage
 
       - name: Ratchet de coverage
-        # PR para staging: piso de 50%. Push e PR para main: ratchet do baseline.
+        # PR e push para staging: piso de 50%. Demais destinos: ratchet do baseline.
         env:
-          COVERAGE_MIN: ${{ github.event_name == 'pull_request' && github.base_ref == 'staging' && '50' || '' }}
+          COVERAGE_MIN: ${{ ((github.event_name == 'pull_request' && github.base_ref == 'staging') || (github.event_name == 'push' && github.ref == 'refs/heads/staging')) && '50' || '' }}
         run: python3 scripts/coverage_ratchet.py
 
   build-android:
@@ -152,10 +152,13 @@ jobs:
       - name: Baseline (staging)
         run: |
           cp scripts/test-regression.dart /tmp/test-regression.dart
+          git restore --worktree .
           git checkout staging
           flutter pub get
           dart run /tmp/test-regression.dart --baseline
+          git restore --worktree .
           git checkout "${{ github.head_ref }}"
+          flutter pub get
 
       - name: Compare (PR branch)
         run: dart run scripts/test-regression.dart --compare

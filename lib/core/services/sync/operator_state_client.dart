@@ -21,7 +21,9 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:louvorja_piano_mobile/data/repositories/liturgy_repository.dart';
 
+import 'package:louvorja_piano_mobile/core/services/home_location_preferences.dart';
 import 'package:louvorja_piano_mobile/data/repositories/scheduled_repository.dart';
 import 'package:louvorja_piano_mobile/domain/entities/scheduled_item.dart';
 
@@ -141,6 +143,7 @@ abstract final class SyncablePrefKeys {
     'accent',
     'interaction',
     'glassIntensity',
+    HomeLocationPreferences.storageKey,
   };
 
   /// Adapta chaves/valores locais ao contrato compartilhado. Tema permanece
@@ -178,6 +181,7 @@ class OperatorStateClient {
   final String? _apiBaseUrl;
   final Future<void> Function()? _onApplied;
 
+  static void Function(SharedPreferences)? onEnqueued;
   static const outboxStorageKey = 'louvorja.sync.outbox.v1';
   static const _updatedAtPrefix = 'louvorja.sync.operator.updatedAt';
   static const _prefsMeta = 'prefs::values';
@@ -253,7 +257,18 @@ class OperatorStateClient {
       'deleted_at': null,
     };
     await _writeOutbox(box);
+    try {
+      onEnqueued?.call(_prefs);
+    } catch (_) {
+      /* agendamento não pode bloquear a escrita local */
+    }
   }
+
+  /// Contrato do desktop: uma liturgia completa por idioma (pt/en/es).
+  Future<void> enqueueLiturgy(
+    Map<String, dynamic> state, {
+    String locale = 'pt',
+  }) => _enqueue('liturgy', LiturgyRepository.languageOf(locale), state);
 
   /// Enfileira o estado atual dos agendados (local-first, sem rede).
   Future<void> enqueueScheduled(ScheduledStatePayload state) =>
@@ -331,7 +346,10 @@ class OperatorStateClient {
 
     // LWW por namespace: cada produtor marca o SEU relógio (se veio no batch)
     for (final entry in entries) {
-      await _setMeta(entry.namespace, entry.updatedAt);
+      await _setMeta(
+        entry.namespace == 'liturgy' ? 'liturgy.${entry.key}' : entry.namespace,
+        entry.updatedAt,
+      );
     }
 
     final serverItems = (response['operator_state'] as List<dynamic>? ?? [])
@@ -374,6 +392,19 @@ Future<void> applyOperatorState(
     }
 
     switch (metaKey) {
+      case 'liturgy::pt' || 'liturgy::en' || 'liturgy::es' || 'liturgy::week':
+        if (value is! Map<String, dynamic> || value['weekdays'] is! Map)
+          continue;
+        final language = key == 'week' ? 'pt' : key;
+        if (updatedAtMs <= _metaOf(prefs, 'liturgy', language)) continue;
+        await LiturgyRepository(
+          prefs,
+          locale: language,
+        ).saveState(value, enqueue: false);
+        await prefs.setInt(
+          '${OperatorStateClient._updatedAtPrefix}.liturgy.$language',
+          updatedAtMs,
+        );
       case 'scheduled::items':
         if (!ScheduledStatePayload.isValid(value)) continue;
         if (updatedAtMs <= _metaOf(prefs, 'scheduled')) continue; // LWW
@@ -385,6 +416,7 @@ Future<void> applyOperatorState(
               .map(ScheduledCategory.fromJson)
               .toList()
               .cast<ScheduledCategory>(),
+          enqueue: false,
         );
         await repo.saveItems(
           (state['items'] as List<dynamic>)
@@ -392,6 +424,7 @@ Future<void> applyOperatorState(
               .map(ScheduledItem.fromJson)
               .toList()
               .cast<ScheduledItem>(),
+          enqueue: false,
         );
         await prefs.setInt(
           '${OperatorStateClient._updatedAtPrefix}.scheduled',
@@ -419,9 +452,11 @@ Future<void> applyOperatorState(
   }
 }
 
-int _metaOf(SharedPreferences prefs, String namespace) {
+int _metaOf(SharedPreferences prefs, String namespace, [String? key]) {
+  final metaNamespace = key == null ? namespace : '$namespace.$key';
   var newest =
-      prefs.getInt('${OperatorStateClient._updatedAtPrefix}.$namespace') ?? 0;
+      prefs.getInt('${OperatorStateClient._updatedAtPrefix}.$metaNamespace') ??
+      0;
   // Alterações ainda pendentes também participam do LWW, evitando que uma
   // resposta antiga sobrescreva uma edição feita durante o envio.
   try {
@@ -431,7 +466,13 @@ int _metaOf(SharedPreferences prefs, String namespace) {
             )
             as Map<String, dynamic>;
     for (final entry in box.values) {
-      if (entry is Map && entry['namespace'] == namespace) {
+      if (entry is Map &&
+          entry['namespace'] == namespace &&
+          (key == null ||
+              entry['key'] == key ||
+              (namespace == 'liturgy' &&
+                  key == 'pt' &&
+                  entry['key'] == 'week'))) {
         final at = entry['updated_at'];
         if (at is num && at > newest) newest = at.toInt();
       }
@@ -460,6 +501,14 @@ Future<void> _applyPref(
           key,
           key == 'interaction' && value == 'dynamic' ? 'dynamic_' : value,
         );
+      }
+    case HomeLocationPreferences.storageKey:
+      if (value is Map) {
+        await prefs.setString(
+          key,
+          jsonEncode(HomeLocation.fromJson(value).toJson()),
+        );
+        HomeLocationPreferences.notifyExternalChange();
       }
   }
 }

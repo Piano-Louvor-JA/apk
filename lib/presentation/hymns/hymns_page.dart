@@ -25,9 +25,8 @@ import 'package:louvorja_piano_mobile/core/services/offline_music_service.dart';
 import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.dart';
 import 'package:louvorja_piano_mobile/data/repositories/hymn_repository_impl.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
-import 'package:louvorja_piano_mobile/core/services/hymn_player_adapter.dart';
 import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/now_playing_page.dart';
+import 'package:louvorja_piano_mobile/presentation/playlists/playlist_sheets.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import 'bloc/hymns_bloc.dart';
 
@@ -94,7 +93,7 @@ class _HymnsPageState extends State<HymnsPage> {
       cache = CatalogCache(dir);
     }
 
-    final repo = HymnRepositoryImpl(api, cache);
+    final repo = HymnRepositoryImpl.withCommunity(api, cache);
     final bloc = HymnsBloc(
       repo,
       catalogProvider: hymnCatalogProvider,
@@ -199,7 +198,6 @@ class _HymnsViewState extends State<_HymnsView> {
 
       final source = DownloadUrlBuilder.build(url);
       final player = HymnAudioPlayer.instance;
-      final adapter = HymnPlayerAdapter(player);
 
       nowPlaying.start(
         hymnId: hymn.id,
@@ -211,18 +209,8 @@ class _HymnsViewState extends State<_HymnsView> {
         audioSource: source,
       );
       await player.playUrl(source);
-
-      if (!context.mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => NowPlayingPage(
-            detail: detail,
-            instrumental: false,
-            player: adapter,
-            filesUrl: ApiConfig.urlFiles,
-          ),
-        ),
-      );
+      // Resultado da busca só toca: a letra aparece na prévia do
+      // miniplayer; a tela cheia abre pelo botão de tela cheia.
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -487,29 +475,43 @@ class _HymnsViewState extends State<_HymnsView> {
                   ),
                 );
               }
+              // Mesmo critério e mesmas informações do desktop (título,
+              // coletânea e letra); sem seleção nem Enter — toque abre.
+              final albumsById = {
+                for (final al
+                    in context.read<HymnsBloc>().repository.getAllAlbums())
+                  al.id: al,
+              };
               return ListView.builder(
-                padding: const EdgeInsets.all(AppSpacing.s4),
-                itemCount: _searchResults.length,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s3,
+                  AppSpacing.s2,
+                  AppSpacing.s3,
+                  AppSpacing.s4,
+                ),
+                itemCount: _searchResults.length + 1,
                 itemBuilder: (context, i) {
-                  final h = _searchResults[i];
-                  return ListTile(
-                    leading: Text(
-                      h.number != null ? '#${h.number}' : '${h.id}',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                  if (i == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                      child: Text(
+                        'hymns.searchCriteria'.tr(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    title: Text(
-                      h.title ?? 'Hino #${h.id}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: Icon(
-                      TablerIcons.chevronRight,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    );
+                  }
+                  final h = _searchResults[i - 1];
+                  final album = h.albumIds
+                      .map((id) => albumsById[id])
+                      .whereType<Album>()
+                      .firstOrNull;
+                  return _SearchResultTile(
+                    hymn: h,
+                    album: album,
                     onTap: () => _openSearchResult(context, h),
+                    onAddToPlaylist: () => showAddToPlaylistSheet(context, h),
                   );
                 },
               );
@@ -703,6 +705,126 @@ class _AlbumCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Linha de resultado da busca (paridade desktop): nº do hinário, capa
+/// da coletânea, título, coletânea e duração.
+class _SearchResultTile extends StatelessWidget {
+  final Hymn hymn;
+  final Album? album;
+  final VoidCallback onTap;
+  final VoidCallback onAddToPlaylist;
+
+  const _SearchResultTile({
+    required this.hymn,
+    required this.album,
+    required this.onTap,
+    required this.onAddToPlaylist,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final duration = hymn.formattedDuration;
+    final coverUrl = album?.coverUrl;
+    final hasCover = coverUrl != null && coverUrl.isNotEmpty;
+    final isAsset = hasCover && coverUrl.startsWith('asset:');
+    const size = 44.0;
+    Widget placeholder() => SizedBox(
+      width: size,
+      height: size,
+      child: FittedBox(
+        child: _CoverPlaceholder(theme: theme, album: album),
+      ),
+    );
+    final Widget cover = !hasCover
+        ? placeholder()
+        : isAsset
+        ? Image.asset(
+            coverUrl.substring('asset:'.length),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => placeholder(),
+          )
+        // coverage:ignore-start
+        : CachedNetworkImage(
+            imageUrl: DownloadUrlBuilder.build(coverUrl),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            placeholder: (_, _) => placeholder(),
+            errorWidget: (_, _, _) => placeholder(),
+          );
+    // coverage:ignore-end
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 40,
+                child: Text(
+                  hymn.number != null ? '${hymn.number}' : '—',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ClipRRect(borderRadius: BorderRadius.circular(6), child: cover),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hymn.title ?? 'Hino #${hymn.id}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    if ((hymn.albumNames ?? '').isNotEmpty)
+                      Text(
+                        hymn.albumNames!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (duration.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Text(
+                  duration,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+              IconButton(
+                key: Key('search-add-playlist-${hymn.id}'),
+                icon: const Icon(TablerIcons.playlistAdd, size: 20),
+                tooltip: 'Adicionar à playlist',
+                visualDensity: VisualDensity.compact,
+                onPressed: onAddToPlaylist,
+              ),
+            ],
           ),
         ),
       ),

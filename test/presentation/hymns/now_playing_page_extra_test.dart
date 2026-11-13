@@ -46,25 +46,25 @@ class _FakePlayer extends HymnPlayerLike {
 }
 
 Hymn _detail({bool hasInstrumental = false}) => Hymn(
-      id: 1,
-      title: 'Nosso Sol é Jesus',
-      imageUrl: '/images/capa.jpg',
-      hasInstrumental: hasInstrumental,
-      lyricRaw: const [
-        {
-          'lyric': 'O nosso sol',
-          'time': '00:00:08',
-          'show_slide': '1',
-          'order': '1',
-        },
-        {
-          'lyric': 'Veio iluminar',
-          'time': '00:00:17',
-          'show_slide': '1',
-          'order': '2',
-        },
-      ],
-    );
+  id: 1,
+  title: 'Nosso Sol é Jesus',
+  imageUrl: '/images/capa.jpg',
+  hasInstrumental: hasInstrumental,
+  lyricRaw: const [
+    {
+      'lyric': 'O nosso sol',
+      'time': '00:00:08',
+      'show_slide': '1',
+      'order': '1',
+    },
+    {
+      'lyric': 'Veio iluminar',
+      'time': '00:00:17',
+      'show_slide': '1',
+      'order': '2',
+    },
+  ],
+);
 
 void main() {
   setUp(() {
@@ -153,7 +153,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('modo instrumental: botão de alternância aparece', (tester) async {
+  testWidgets('modo instrumental: botão de alternância aparece', (
+    tester,
+  ) async {
     final player = _FakePlayer();
 
     await tester.pumpWidget(
@@ -239,7 +241,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('avançar slide procura o timestamp da próxima letra', (tester) async {
+  testWidgets('avançar slide procura o timestamp da próxima letra', (
+    tester,
+  ) async {
     final player = _FakePlayer();
 
     await tester.pumpWidget(

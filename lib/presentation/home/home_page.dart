@@ -8,10 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app/theme/app_spacing.dart';
 import '../../core/services/apk_installer.dart';
 import '../../core/services/apk_version_guard.dart';
+import '../../core/services/home_location_preferences.dart';
+import '../../core/services/sync/operator_state_boot.dart';
 import '../../core/services/update_service.dart';
 import '../shared/widgets/gradient_background.dart';
 import '../shared/widgets/update_banner.dart';
@@ -37,7 +40,8 @@ class _HomePageState extends State<HomePage> {
   Timer? _clockTimer;
   final _districtController = TextEditingController();
   final _churchController = TextEditingController();
-  bool _editingDistrict = true;
+  // Comeca sem edicao para o teclado nao abrir antes de ler o que esta salvo.
+  bool _editingDistrict = false;
   bool _editingChurch = false;
 
   // Auto-update
@@ -55,7 +59,40 @@ class _HomePageState extends State<HomePage> {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
+    _loadLocation();
+    HomeLocationPreferences.externalChanges.addListener(_loadLocation);
     _checkForUpdates();
+  }
+
+  Future<void> _loadLocation() async {
+    final location = await HomeLocationPreferences.load();
+    // O pull da conta pode chegar com o usuario digitando: nao apaga o texto.
+    final typing =
+        (_editingDistrict && _districtController.text.trim().isNotEmpty) ||
+        (_editingChurch && _churchController.text.trim().isNotEmpty);
+    if (!mounted || typing) return;
+    setState(() {
+      _districtController.text = location.district;
+      _churchController.text = location.church;
+      _editingDistrict = location.district.isEmpty;
+      _editingChurch = location.district.isNotEmpty && location.church.isEmpty;
+    });
+  }
+
+  void _saveLocation() {
+    unawaited(
+      HomeLocationPreferences.save(
+        HomeLocation(
+          district: _districtController.text,
+          church: _churchController.text,
+        ),
+        outbox: (key, value) async => OperatorStateBoot.enqueuePrefsChange(
+          await SharedPreferences.getInstance(),
+          key,
+          value,
+        ),
+      ),
+    );
   }
 
   // coverage:ignore-start
@@ -151,6 +188,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    HomeLocationPreferences.externalChanges.removeListener(_loadLocation);
     _clockTimer?.cancel();
     _updateService.dispose();
     _districtController.dispose();
@@ -214,11 +252,14 @@ class _HomePageState extends State<HomePage> {
                         controller: _districtController,
                         editing: _editingDistrict,
                         onEdit: () => setState(() => _editingDistrict = true),
-                        onSubmit: (value) => setState(() {
-                          _districtController.text = value;
-                          _editingDistrict = false;
-                          _editingChurch = _churchController.text.isEmpty;
-                        }),
+                        onSubmit: (value) {
+                          setState(() {
+                            _districtController.text = value.trim();
+                            _editingDistrict = false;
+                            _editingChurch = _churchController.text.isEmpty;
+                          });
+                          _saveLocation();
+                        },
                       ),
                       const SizedBox(height: 12),
 
@@ -229,10 +270,13 @@ class _HomePageState extends State<HomePage> {
                         controller: _churchController,
                         editing: _editingChurch,
                         onEdit: () => setState(() => _editingChurch = true),
-                        onSubmit: (value) => setState(() {
-                          _churchController.text = value;
-                          _editingChurch = false;
-                        }),
+                        onSubmit: (value) {
+                          setState(() {
+                            _churchController.text = value.trim();
+                            _editingChurch = false;
+                          });
+                          _saveLocation();
+                        },
                       ),
                       const SizedBox(height: 24),
 

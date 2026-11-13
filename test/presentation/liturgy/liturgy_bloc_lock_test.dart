@@ -29,34 +29,37 @@ void main() {
     await bloc.stream.firstWhere((s) => s is LiturgyLoaded);
   });
 
-  test('lock persiste no repository e bloqueia mutações', () async {
-    bloc.add(LiturgyAddItem(item('Categoria')));
-    await bloc.stream.firstWhere(
-      (s) => s is LiturgyLoaded && s.items.isNotEmpty,
-    );
+  test(
+    'cadeado persiste e impede exclusões, sem impedir novos itens',
+    () async {
+      bloc.add(LiturgyAddItem(item('Categoria')));
+      await bloc.stream.firstWhere(
+        (s) => s is LiturgyLoaded && s.items.isNotEmpty,
+      );
 
-    // lock
-    bloc.add(LiturgyLockToggled());
-    final locked = await bloc.stream.firstWhere(
-      (s) => s is LiturgyLoaded && s.locked,
-    );
-    expect((locked as LiturgyLoaded).locked, isTrue);
-    expect(repo.isLocked(LiturgyWeekday.monday), isTrue);
+      // lock
+      bloc.add(LiturgyLockToggled());
+      final locked = await bloc.stream.firstWhere(
+        (s) => s is LiturgyLoaded && s.locked,
+      );
+      expect((locked as LiturgyLoaded).locked, isTrue);
+      expect(repo.isLocked(LiturgyWeekday.monday), isTrue);
 
-    // mutações bloqueadas
-    final itemsBefore = locked.items.length;
-    bloc.add(LiturgyAddItem(item('Outra')));
-    bloc.add(LiturgyDeleteItem('id-Categoria'));
-    bloc.add(LiturgyReorderItems(0, 1));
-    bloc.add(LiturgyClearDay());
-    await Future.delayed(const Duration(milliseconds: 100));
-    expect((bloc.state as LiturgyLoaded).items.length, itemsBefore);
+      // mutações bloqueadas
+      final itemsBefore = locked.items.length;
+      bloc.add(LiturgyAddItem(item('Outra')));
+      bloc.add(LiturgyDeleteItem('id-Categoria'));
+      bloc.add(LiturgyReorderItems(0, 1));
+      bloc.add(LiturgyClearDay());
+      await Future.delayed(const Duration(milliseconds: 100));
+      expect((bloc.state as LiturgyLoaded).items.length, itemsBefore + 1);
 
-    // unlock
-    bloc.add(LiturgyLockToggled());
-    await bloc.stream.firstWhere((s) => s is LiturgyLoaded && !s.locked);
-    expect(repo.isLocked(LiturgyWeekday.monday), isFalse);
-  });
+      // unlock
+      bloc.add(LiturgyLockToggled());
+      await bloc.stream.firstWhere((s) => s is LiturgyLoaded && !s.locked);
+      expect(repo.isLocked(LiturgyWeekday.monday), isFalse);
+    },
+  );
 
   test('clearDay limpa itens do dia', () async {
     bloc.add(LiturgyAddItem(item('A')));
@@ -87,22 +90,25 @@ void main() {
     expect(repo.loadItems(LiturgyWeekday.monday).first.name, 'B');
   });
 
-  test('reorder bloqueado quando lockado', () async {
-    bloc.add(LiturgyAddItem(item('A')));
-    await bloc.stream.firstWhere(
-      (s) => s is LiturgyLoaded && s.items.length == 1,
-    );
-    bloc.add(LiturgyAddItem(item('B')));
-    await bloc.stream.firstWhere(
-      (s) => s is LiturgyLoaded && s.items.length == 2,
-    );
+  test(
+    'reorder permitido com cadeado anti-exclusão, como no desktop',
+    () async {
+      bloc.add(LiturgyAddItem(item('A')));
+      await bloc.stream.firstWhere(
+        (s) => s is LiturgyLoaded && s.items.length == 1,
+      );
+      bloc.add(LiturgyAddItem(item('B')));
+      await bloc.stream.firstWhere(
+        (s) => s is LiturgyLoaded && s.items.length == 2,
+      );
 
-    bloc.add(LiturgyLockToggled());
-    await bloc.stream.firstWhere((s) => s is LiturgyLoaded && s.locked);
+      bloc.add(LiturgyLockToggled());
+      await bloc.stream.firstWhere((s) => s is LiturgyLoaded && s.locked);
 
-    final current = (bloc.state as LiturgyLoaded).items;
-    bloc.add(LiturgyItemsReordered(current.reversed.toList()));
-    await Future.delayed(const Duration(milliseconds: 100));
-    expect((bloc.state as LiturgyLoaded).items.first.name, 'A');
-  });
+      final current = (bloc.state as LiturgyLoaded).items;
+      bloc.add(LiturgyItemsReordered(current.reversed.toList()));
+      await Future.delayed(const Duration(milliseconds: 100));
+      expect((bloc.state as LiturgyLoaded).items.first.name, 'B');
+    },
+  );
 }

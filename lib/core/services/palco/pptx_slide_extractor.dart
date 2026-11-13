@@ -23,11 +23,17 @@ abstract final class PptxSlideExtractor {
   static const _minBytes = 20 * 1024;
 
   /// Retorna [{name, bytes}] dos slides em ordem. Vazio se não der.
-  static List<({String name, Uint8List bytes})> extract(String pptxPath) {
+  static List<({String name, Uint8List bytes})> extract(
+    String pptxPath, {
+    bool requireCompleteSlides = false,
+  }) {
     final file = File(pptxPath);
     if (!file.existsSync()) return const [];
     try {
       final archive = ZipDecoder().decodeBytes(file.readAsBytesSync());
+
+      if (requireCompleteSlides && !_isImageOnlyPresentation(archive))
+        return const [];
 
       // 1. Media: todas as imagens grandes por nome.
       final media = <String, ({String name, Uint8List bytes})>{};
@@ -46,6 +52,7 @@ abstract final class PptxSlideExtractor {
       // 2. Ordem dos slides: presentation.xml (sldIdLst) + rels.
       final ordered = _orderedSlideMedia(archive, media);
       if (ordered != null) return ordered;
+      if (requireCompleteSlides) return const [];
 
       // 3. Fallback: ordem numerica do sufixo (image1 < image2 < ...).
       final list = media.values.toList();
@@ -55,6 +62,69 @@ abstract final class PptxSlideExtractor {
       return list;
     } catch (_) {
       return const [];
+    }
+  }
+
+  static bool _isImageOnlyPresentation(Archive archive) {
+    try {
+      final pres = archive.findFile('ppt/presentation.xml');
+      if (pres == null) return false;
+      final doc = XmlDocument.parse(
+        String.fromCharCodes(pres.content as List<int>),
+      );
+      final size = doc.descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 'sldSz')
+          .firstOrNull;
+      if (size == null) return false;
+      final width = size.getAttribute('cx'), height = size.getAttribute('cy');
+      final slides = archive.files
+          .where((f) => RegExp(r'^ppt/slides/slide\d+\.xml$').hasMatch(f.name))
+          .toList();
+      if (slides.isEmpty) return false;
+      for (final slide in slides) {
+        final xml = XmlDocument.parse(
+          String.fromCharCodes(slide.content as List<int>),
+        );
+        final elements = xml.descendants.whereType<XmlElement>();
+        if (elements.any(
+          (e) => {
+            'sp',
+            'graphicFrame',
+            'cxnSp',
+            'srcRect',
+            'grpSp',
+          }.contains(e.name.local),
+        ))
+          return false;
+        final pictures = elements.where((e) => e.name.local == 'pic').toList();
+        if (pictures.length != 1) return false;
+        final transform = pictures.single.descendants
+            .whereType<XmlElement>()
+            .where((e) => e.name.local == 'xfrm')
+            .firstOrNull;
+        if (transform == null) return false;
+        final off = transform.children
+            .whereType<XmlElement>()
+            .where((e) => e.name.local == 'off')
+            .firstOrNull;
+        final ext = transform.children
+            .whereType<XmlElement>()
+            .where((e) => e.name.local == 'ext')
+            .firstOrNull;
+        if (off?.getAttribute('x') != '0' ||
+            off?.getAttribute('y') != '0' ||
+            ext?.getAttribute('cx') != width ||
+            ext?.getAttribute('cy') != height)
+          return false;
+      }
+      final declared = doc.descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 'sldId')
+          .length;
+      return declared == slides.length;
+    } catch (_) {
+      return false;
     }
   }
 

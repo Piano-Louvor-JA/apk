@@ -23,12 +23,15 @@ import 'package:louvorja_piano_mobile/core/services/bible_offline_versions.dart'
 import 'package:louvorja_piano_mobile/presentation/bible/book_colors.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bible_download_button.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/stage_customization_sheet.dart'
-    show StageModule;
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:louvorja_piano_mobile/presentation/shared/phone_projection.dart';
+import 'package:louvorja_piano_mobile/presentation/shared/widgets/project_arrow_button.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bloc/bible_bloc.dart';
+import 'package:louvorja_piano_mobile/presentation/bible/bible_recent_searches.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bible_reference_parser.dart';
+import 'package:louvorja_piano_mobile/presentation/bible/bible_search_panel.dart';
+import 'package:louvorja_piano_mobile/presentation/bible/bible_smart_search.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
 class BiblePage extends StatelessWidget {
@@ -108,72 +111,102 @@ class _BibleViewState extends State<_BibleView> {
     setState(() => _activePanel = NavPanel.verses);
   }
 
-  /// Busca rápida do AppBar: tenta referência (`gn 1:1-3`); se não casar,
-  /// trata como texto e faz busca global na Bíblia em cache.
-  void _applyQuickSearch(BuildContext context) {
-    final query = _appBarSearchController.text.trim();
-    if (query.isEmpty) return;
+  /// Últimas buscas (passagens e textos), mostradas com o campo vazio.
+  List<String> _recents = const [];
 
-    final ref = BibleReferenceParser.parse(query);
-    if (ref != null) {
-      _openReference(context, ref);
-      return;
-    }
-    // Texto livre: encaminha para a busca global da lista de versículos.
-    // Limpa antes para garantir notificação mesmo em busca repetida.
-    _quickSearch.value = null;
-    setState(() => _activePanel = NavPanel.verses);
-    _quickSearch.value = query;
+  @override
+  void initState() {
+    super.initState();
+    _loadRecents();
   }
 
-  void _openReference(BuildContext context, BibleReference ref) {
+  Future<void> _loadRecents() async {
+    final r = await BibleRecentSearches.load();
+    if (mounted) setState(() => _recents = r);
+  }
+
+  void _remember(String entry) {
+    BibleRecentSearches.add(entry).then((_) => _loadRecents());
+  }
+
+  /// Enter / seta do AppBar: executa a primeira sugestão.
+  void _applyQuickSearch(BuildContext context) {
     final state = context.read<BibleBloc>().state;
     if (state is! BibleLoaded) return;
-    String normTxt(String s) => s
-        .toLowerCase()
-        .replaceAll(RegExp(r'[áàâãä]'), 'a')
-        .replaceAll(RegExp(r'[éèêë]'), 'e')
-        .replaceAll(RegExp(r'[íìîï]'), 'i')
-        .replaceAll(RegExp(r'[óòôõö]'), 'o')
-        .replaceAll(RegExp(r'[úùûü]'), 'u')
-        .replaceAll('ç', 'c')
-        .trim();
-    final books = state.books;
-    final query = ref.bookQuery;
-    BibleBook? match;
-    for (final b in books) {
-      final ab = normTxt(b.abbreviation);
-      final nm = normTxt(b.name);
-      if (ab == query || nm == query) {
-        match = b;
-        break;
-      }
-    }
-    match ??= books.where((b) {
-      final ab = normTxt(b.abbreviation);
-      final nm = normTxt(b.name);
-      return ab.startsWith(query) || nm.startsWith(query);
-    }).firstOrNull;
-
-    if (match == null) {
+    final suggestions = BibleSmartSearch.suggest(
+      _appBarSearchController.text,
+      state.books,
+    );
+    if (suggestions.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('bible.bookNotFound'.tr())));
       return;
     }
+    _pickSuggestion(context, suggestions.first);
+  }
+
+  void _pickSuggestion(BuildContext context, BibleSuggestion s) {
+    switch (s.kind) {
+      case BibleSuggestionKind.book:
+        // Completa o nome e deixa digitar o capítulo (ou tocar num número).
+        final text = '${s.book!.name} ';
+        _appBarSearchController.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+        setState(() {});
+      case BibleSuggestionKind.reference:
+        _remember(s.label);
+        _openPassage(context, s.book!, s.chapter!, s.verses);
+      case BibleSuggestionKind.text:
+        _remember(s.query);
+        _closeSearch();
+        // Limpa antes para garantir notificação mesmo em busca repetida.
+        _quickSearch.value = null;
+        setState(() => _activePanel = NavPanel.verses);
+        _quickSearch.value = s.query;
+    }
+  }
+
+  /// Recente: executa de novo (passagem abre direto; texto busca).
+  void _runRecent(BuildContext context, String entry) {
+    _appBarSearchController.text = entry;
+    _applyQuickSearch(context);
+  }
+
+  void _fillExample(String example) {
+    _appBarSearchController.value = TextEditingValue(
+      text: example,
+      selection: TextSelection.collapsed(offset: example.length),
+    );
+    setState(() {});
+  }
+
+  void _closeSearch() {
+    setState(() {
+      _isSearching = false;
+      _appBarSearchController.clear();
+    });
+  }
+
+  void _openPassage(
+    BuildContext context,
+    BibleBook book,
+    int chapter,
+    List<int> verses,
+  ) {
     final bloc = context.read<BibleBloc>();
-    bloc.add(BibleSelectBook(match.id));
+    bloc.add(BibleSelectBook(book.id));
     // O carregamento do capítulo ZERA selectedVerses ao concluir; a
     // seleção precisa chegar DEPOIS, senão é apagada (corrida).
     () async {
-      bloc.add(BibleSelectChapter(ref.chapter));
+      bloc.add(BibleSelectChapter(chapter));
       await bloc.stream
-          .firstWhere(
-            (s) => s is BibleLoaded && s.selectedChapter == ref.chapter,
-          )
+          .firstWhere((s) => s is BibleLoaded && s.selectedChapter == chapter)
           .timeout(const Duration(seconds: 10), onTimeout: () => bloc.state);
-      if (ref.verses.isNotEmpty) {
-        bloc.add(BibleSelectVerses(ref.verses));
+      if (verses.isNotEmpty) {
+        bloc.add(BibleSelectVerses(verses));
       }
     }();
     setState(() {
@@ -210,6 +243,7 @@ class _BibleViewState extends State<_BibleView> {
                   ),
                   style: Theme.of(context).textTheme.bodyLarge,
                   onChanged: (v) => setState(() {}),
+                  textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _applyQuickSearch(context),
                 )
               : Text('bible.title'.tr()),
@@ -223,7 +257,6 @@ class _BibleViewState extends State<_BibleView> {
             else ...const [
               StageClearButton(),
               StageStopVideoButton(),
-              StageCastButton(module: StageModule.bible),
               BibleDownloadButton(),
             ],
             IconButton(
@@ -259,6 +292,23 @@ class _BibleViewState extends State<_BibleView> {
               return _ErrorView(code: state.code);
             }
             if (state is BibleLoaded) {
+              if (_isSearching) {
+                return BibleSearchPanel(
+                  query: _appBarSearchController.text,
+                  books: state.books,
+                  recents: _recents,
+                  onPick: (s) => _pickSuggestion(context, s),
+                  onChapter: (book, chapter) {
+                    _remember('${book.name} $chapter');
+                    _openPassage(context, book, chapter, const []);
+                  },
+                  onRecent: (r) => _runRecent(context, r),
+                  onExample: _fillExample,
+                  onClearRecents: () {
+                    BibleRecentSearches.clear().then((_) => _loadRecents());
+                  },
+                );
+              }
               return _body(context, state);
             }
             return const SizedBox.shrink();
@@ -479,6 +529,23 @@ class _Toolbar extends StatelessWidget {
 
 // --- Book Grid ---
 
+const _bookGridColumns = 4;
+const _bookGridSpacing = 6.0;
+const _bookGridVisibleRows = 2;
+
+/// Altura da grade de livros para mostrar só [_bookGridVisibleRows] linhas
+/// de quadrados numa largura [width]. Nunca negativa nem infinita: durante a
+/// animação do painel a largura chega a 0.
+@visibleForTesting
+double bookGridHeight(double width) {
+  if (!width.isFinite) return 0;
+  final tile =
+      (width - _bookGridSpacing * (_bookGridColumns - 1)) / _bookGridColumns;
+  if (tile <= 0) return 0;
+  return tile * _bookGridVisibleRows +
+      _bookGridSpacing * (_bookGridVisibleRows - 1);
+}
+
 class _BookGrid extends StatefulWidget {
   final BibleLoaded state;
   final ThemeData theme;
@@ -513,10 +580,10 @@ class _BookGridState extends State<_BookGrid> {
     final effectiveShowNt = _showNt || (selectedIsNt && !_userToggled);
     final view = effectiveShowNt ? ntBooks : otBooks;
 
-    return SizedBox(
-      height: 320,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.s3),
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.s3),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Tabs AT/NT
           Row(
@@ -543,24 +610,30 @@ class _BookGridState extends State<_BookGrid> {
             ],
           ),
           const SizedBox(height: AppSpacing.s2),
-          // Grid de livros
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              childAspectRatio: 1,
-              crossAxisSpacing: 6,
-              mainAxisSpacing: 6,
-            ),
-            itemCount: view.length,
-            itemBuilder: (context, index) {
-              final book = view[index];
-              return _BookTile(
-                book: book,
-                isSelected: book.id == widget.state.selectedBookId,
-                theme: widget.theme,
-                onTap: () => widget.onBookSelected(book.id),
+          // Grid de livros: só 2 linhas visíveis, o resto rola dentro dela.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SizedBox(
+                height: bookGridHeight(constraints.maxWidth),
+                child: GridView.builder(
+                  padding: EdgeInsets.zero,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _bookGridColumns,
+                    childAspectRatio: 1,
+                    crossAxisSpacing: _bookGridSpacing,
+                    mainAxisSpacing: _bookGridSpacing,
+                  ),
+                  itemCount: view.length,
+                  itemBuilder: (context, index) {
+                    final book = view[index];
+                    return _BookTile(
+                      book: book,
+                      isSelected: book.id == widget.state.selectedBookId,
+                      theme: widget.theme,
+                      onTap: () => widget.onBookSelected(book.id),
+                    );
+                  },
+                ),
               );
             },
           ),
@@ -774,6 +847,74 @@ class _VerseListState extends State<_VerseList> {
 
   bool _listeningQuickSearch = false;
 
+  /// Rolagem até o versículo escolhido (busca, chevrons): ele vai pro topo.
+  final _verseScroll = ScrollController();
+  final _verseKeys = <int, GlobalKey>{};
+  List<int> _verseOrder = const [];
+  bool _selectionFromTap = false;
+
+  /// Setinha de projetar (como Hinos e o Controle Remoto): tocar no
+  /// versículo só seleciona; a projeção começa na setinha e, enquanto
+  /// ligada, acompanha a seleção. Global: segue ao trocar de tela.
+  static final projecting = ValueNotifier<bool>(false);
+  bool _projectBusy = false;
+
+  Future<void> _toggleProjection(BibleLoaded state) async {
+    if (_projectBusy) return;
+    if (projecting.value) {
+      projecting.value = false;
+      await StageSession.instance.clearContent();
+      await PhoneProjection.end();
+      return;
+    }
+    if (state.selectedVerses.isEmpty) return;
+    setState(() => _projectBusy = true);
+    try {
+      // Liga o palco do celular e os monitores compartilhados ativos.
+      if (!await PhoneProjection.begin()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('liturgy.parity.noStage'.tr())),
+          );
+        }
+        return;
+      }
+      projecting.value = true;
+      final first = ([...state.selectedVerses]..sort()).first;
+      await _projectSelectedVerses(state, first);
+    } finally {
+      if (mounted) setState(() => _projectBusy = false);
+    }
+  }
+
+  GlobalKey _verseKey(int verse) =>
+      _verseKeys.putIfAbsent(verse, () => GlobalKey());
+
+  /// Itens têm altura variável e são construídos sob demanda: pula para a
+  /// posição estimada até o versículo existir e então alinha no topo.
+  Future<void> _scrollVerseToTop(int verse) async {
+    for (var attempt = 0; attempt < 8; attempt++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !_verseScroll.hasClients) return;
+      final ctx = _verseKeys[verse]?.currentContext;
+      if (ctx != null && ctx.mounted) {
+        await Scrollable.ensureVisible(
+          ctx,
+          alignment: 0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+        return;
+      }
+      final index = _verseOrder.indexOf(verse);
+      if (index < 0) return;
+      final pos = _verseScroll.position;
+      final avg =
+          (pos.maxScrollExtent + pos.viewportDimension) / _verseOrder.length;
+      _verseScroll.jumpTo((avg * index).clamp(0.0, pos.maxScrollExtent));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -811,6 +952,7 @@ class _VerseListState extends State<_VerseList> {
     QuickSearchNotifier.of(context)?.removeListener(_onQuickSearch);
     _debounce?.cancel();
     _searchController.dispose();
+    _verseScroll.dispose();
     super.dispose();
   }
 
@@ -852,10 +994,17 @@ class _VerseListState extends State<_VerseList> {
     // Reprojeta a seleção nova no Palco automaticamente.
     final before = oldWidget.state.selectedVerses;
     final after = widget.state.selectedVerses;
+    final fromTap = _selectionFromTap;
+    _selectionFromTap = false;
     if (after.isNotEmpty && before.join(',') != after.join(',')) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _projectSelectedVerses(widget.state, after.first);
       });
+      // Toque no versículo não rola; busca e chevrons trazem pro topo.
+      if (!fromTap) {
+        final first = ([...after]..sort()).first;
+        _scrollVerseToTop(first);
+      }
     }
   }
 
@@ -865,7 +1014,8 @@ class _VerseListState extends State<_VerseList> {
     int toggledVerse,
   ) async {
     final stage = StageSession.instance;
-    if (!stage.isOn) return;
+    // Só com a setinha ligada: tocar no versículo não projeta sozinho.
+    if (!projecting.value || !stage.isOn) return;
     final selected = [...state.selectedVerses]..sort();
     final versesToShow = selected.contains(toggledVerse)
         ? selected
@@ -913,6 +1063,7 @@ class _VerseListState extends State<_VerseList> {
             .where((e) => e.key > 0)
             .toList()
           ..sort((a, b) => a.key.compareTo(b.key));
+    _verseOrder = [for (final e in entries) e.key];
 
     return Column(
       children: [
@@ -1055,7 +1206,12 @@ class _VerseListState extends State<_VerseList> {
         ],
         // Versiculos
         Expanded(
-          child: entries.isEmpty
+          // Ocupa toda a área: sem isto o Stack encolhia à largura do
+          // botão (zero sem seleção) e os versículos sumiam.
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(child: entries.isEmpty
               ? Center(
                   child: Text(
                     'bible.emptyChapter'.tr(),
@@ -1063,9 +1219,13 @@ class _VerseListState extends State<_VerseList> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s4,
-                    vertical: AppSpacing.s2,
+                  controller: _verseScroll,
+                  // Fim com espaço: a setinha de projetar não cobre o verso.
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.s4,
+                    AppSpacing.s2,
+                    AppSpacing.s4,
+                    72,
                   ),
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
@@ -1074,7 +1234,9 @@ class _VerseListState extends State<_VerseList> {
                     final isSelected = state.selectedVerses.contains(verseNum);
 
                     return GestureDetector(
+                      key: _verseKey(verseNum),
                       onTap: () {
+                        _selectionFromTap = true;
                         context.read<BibleBloc>().add(
                           BibleSelectVerse(verseNum),
                         );
@@ -1142,7 +1304,23 @@ class _VerseListState extends State<_VerseList> {
                       ),
                     );
                   },
-                ),
+                )),
+              ValueListenableBuilder<bool>(
+                valueListenable: projecting,
+                builder: (context, on, _) => on || state.selectedVerses.isNotEmpty
+                    ? Positioned(
+                        right: AppSpacing.s4,
+                        bottom: AppSpacing.s4,
+                        child: ProjectArrowButton(
+                          projecting: on,
+                          busy: _projectBusy,
+                          onPressed: () => _toggleProjection(state),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ],
     );

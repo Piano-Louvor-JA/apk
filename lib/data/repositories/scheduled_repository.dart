@@ -2,6 +2,9 @@
 library;
 
 import 'dart:convert';
+import 'dart:async';
+import 'dart:math';
+import 'package:louvorja_piano_mobile/core/services/sync/operator_state_client.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,6 +15,50 @@ class ScheduledRepository {
   ScheduledRepository(this._prefs);
 
   final SharedPreferences _prefs;
+  static final _changes = StreamController<void>.broadcast();
+  static Stream<void> get changes => _changes.stream;
+  static String newId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+  Future<ScheduledCategory> upsertCategory({
+    String? id,
+    required String name,
+  }) async {
+    if (name.trim().isEmpty) throw ArgumentError.value(name, 'name');
+    final category = ScheduledCategory(id: id ?? newId(), name: name.trim());
+    final categories = loadCategories();
+    final index = categories.indexWhere((e) => e.id == category.id);
+    if (index < 0) {
+      categories.add(category);
+    } else {
+      categories[index] = category;
+    }
+    await saveCategories(categories);
+    return category;
+  }
+
+  Future<void> deleteCategory(String id) async {
+    await saveCategories(loadCategories().where((e) => e.id != id).toList());
+    await saveItems(loadItems().where((e) => e.categoryId != id).toList());
+  }
+
+  Future<void> upsertItem(ScheduledItem item) async {
+    final items = loadItems();
+    final index = items.indexWhere((e) => e.id == item.id);
+    if (index < 0) {
+      items.add(item);
+    } else {
+      items[index] = item;
+    }
+    await saveItems(items);
+  }
+
+  Future<void> deleteItem(String id) =>
+      saveItems(loadItems().where((e) => e.id != id).toList());
+  ScheduledItem? findOn(String categoryId, DateTime date) =>
+      itemsOn(date).where((e) => e.categoryId == categoryId).firstOrNull;
+  Future<void> _enqueue() => OperatorStateClient(_prefs).enqueueScheduled(
+    ScheduledStatePayload(categories: loadCategories(), items: loadItems()),
+  );
 
   static const _catsKey = 'scheduled_categories';
   static const _itemsKey = 'scheduled_items';
@@ -31,10 +78,12 @@ class ScheduledRepository {
 
   Future<void> saveCategories(
     List<ScheduledCategory> categories, {
+    bool enqueue = true,
     Future<void> Function(
       List<ScheduledCategory> categories,
       List<ScheduledItem> items,
-    )? outbox,
+    )?
+    outbox,
   }) async {
     await _prefs.setString(
       _catsKey,
@@ -48,6 +97,8 @@ class ScheduledRepository {
         // outbox nunca bloqueia o fluxo local
       }
     }
+    if (outbox == null && enqueue) await _enqueue();
+    _changes.add(null);
   }
 
   List<ScheduledItem> loadItems() {
@@ -65,10 +116,12 @@ class ScheduledRepository {
 
   Future<void> saveItems(
     List<ScheduledItem> items, {
+    bool enqueue = true,
     Future<void> Function(
       List<ScheduledCategory> categories,
       List<ScheduledItem> items,
-    )? outbox,
+    )?
+    outbox,
   }) async {
     await _prefs.setString(
       _itemsKey,
@@ -85,6 +138,8 @@ class ScheduledRepository {
         // outbox nunca bloqueia o fluxo local
       }
     }
+    if (outbox == null && enqueue) await _enqueue();
+    _changes.add(null);
   }
 
   /// Itens de uma data (qualquer categoria).
@@ -107,7 +162,8 @@ class ScheduledRepository {
     Future<void> Function(
       List<ScheduledCategory> categories,
       List<ScheduledItem> items,
-    )? outbox,
+    )?
+    outbox,
   }) async {
     final cats = loadCategories().toList();
     final catIds = cats.map((c) => c.id).toSet();

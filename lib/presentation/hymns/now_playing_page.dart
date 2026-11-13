@@ -1,6 +1,7 @@
 library;
 
 import 'dart:async';
+import 'package:louvorja_piano_mobile/core/utils/media_image_url.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -37,6 +38,10 @@ import '../shared/widgets/player_timeline.dart';
 /// - toque/seta = goToSlide → seek do áudio (bidirecional)
 /// - modos: cantado / instrumental (se houver) / sem áudio
 class NowPlayingPage extends StatefulWidget {
+  /// Telas cheias abertas: enquanto houver uma, ela projeta a letra e o
+  /// miniplayer não (evita mandar o mesmo trecho duas vezes ao palco).
+  static int openCount = 0;
+
   final Hymn detail;
   final bool instrumental;
 
@@ -111,6 +116,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   @override
   void initState() {
     super.initState();
+    NowPlayingPage.openCount += 1;
     _slides = LyricSlides.fromApi(
       musicName: widget.detail.title ?? '',
       coverUrl: widget.detail.imageUrl,
@@ -188,6 +194,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   @override
   void dispose() {
+    NowPlayingPage.openCount -= 1;
     PipController.setEnabled(false);
     // SPEC 13 (apk#132): NÃO dar MediaSession.release() aqui — os botões
     // NATIVOS do PiP (RemoteActions) e da notificação disparam broadcasts
@@ -266,7 +273,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     }
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
     // Caminho relativo da API (coletâneas): resolve pro endpoint de files.
-    return '${widget.filesUrl}/$raw';
+    return MediaImageUrl.resolve(raw, widget.filesUrl);
   }
 
   /// F3.3g: posição corrente do player local (para sincronizar a TV no
@@ -339,6 +346,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       footer: widget.detail.title,
       background: bg,
       module: 'hymns',
+      isCover: _index == 0,
     );
     if (!ok && mounted) {
       ScaffoldMessenger.of(
@@ -481,7 +489,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     if (img == null || img.isEmpty) return null;
     // asset: (capa de hinario local) — devolve cru, o chamador trata.
     if (img.startsWith('asset:')) return img;
-    return '${widget.filesUrl}/$img'.replaceAll('//images', '/images');
+    return MediaImageUrl.resolve(img, widget.filesUrl);
   }
 
   /// Sheet de "Adicionar à playlist": lista playlists existentes + criar

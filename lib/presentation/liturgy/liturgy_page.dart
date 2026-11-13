@@ -4,13 +4,23 @@
 library;
 
 import 'dart:async';
+import 'player/local_liturgy_session.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/scheduled_resolver.dart';
+import 'package:louvorja_piano_mobile/data/repositories/scheduled_repository.dart';
+import 'player/local_liturgy_player_bar.dart';
+import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/scheduled_item_preview.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_timing.dart';
+import 'package:louvorja_piano_mobile/presentation/liturgy/scheduled/scheduled_page.dart';
+import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/liturgy_context_bar.dart';
+import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/liturgy_session_summary.dart';
+import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_item_rules.dart';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/stage_customization_sheet.dart'
-    show StageModule;
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
+import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 
 import 'dart:typed_data';
@@ -18,7 +28,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/ja_liturgy_parser.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/media_duration_reader.dart';
-import 'package:louvorja_piano_mobile/data/datasources/remote/louvorja_api_impl.dart';
+import 'package:louvorja_piano_mobile/data/repositories/liturgy_catalog_repository.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -32,8 +42,8 @@ import 'package:louvorja_piano_mobile/presentation/liturgy/weekday_math.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/bloc/liturgy_bloc.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/services/liturgy_item_executor.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/liturgy_item_dialog.dart';
-import 'package:louvorja_piano_mobile/presentation/liturgy/liturgy_avulsa_page.dart';
-import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/remote_site_browser_page.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_bar.dart';
 
 /// Converte LiturgyItemType enum para a chave snake_case do i18n.
 String _typeToKey(dynamic type) {
@@ -46,42 +56,75 @@ String _typeToKey(dynamic type) {
   return snake;
 }
 
-class LiturgyPage extends StatelessWidget {
+class LiturgyPage extends StatefulWidget {
   final LiturgyBloc? testBloc;
 
   const LiturgyPage({super.key, this.testBloc});
 
   @override
+  State<LiturgyPage> createState() => _LiturgyPageState();
+}
+
+/// O bloc nasce UMA vez por página e fecha ao sair. Antes ele era criado
+/// dentro do build: qualquer reconstrução (tela pai, hot reload) trocava de
+/// bloc, o item adicionado ia para um e a tela escutava outro (só aparecia
+/// ao sair e voltar), e os antigos nunca fechavam.
+class _LiturgyPageState extends State<LiturgyPage> {
+  LiturgyBloc? _bloc;
+
+  StreamSubscription<String>? _repositoryChanges;
+  String? _language;
+  int _generation = 0;
+  static final _startedLanguages = <String>{};
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.testBloc != null) return;
+    final language = EasyLocalization.of(context)?.locale.languageCode ?? 'pt';
+    if (_language == language) return;
+    _language = language;
+    final generation = ++_generation;
+    SharedPreferences.getInstance().then((prefs) async {
+      if (!mounted || generation != _generation) return;
+      _repositoryChanges?.cancel();
+      _bloc?.close();
+      final repo = LiturgyRepository(prefs, locale: language);
+      if (_startedLanguages.add(language)) await repo.resetCompletion();
+      if (!mounted || generation != _generation) return;
+      final bloc = LiturgyBloc(repo)
+        ..add(LiturgyLoadRequested(_todayWeekday()));
+      _repositoryChanges = LiturgyRepository.changes
+          .where((lang) => lang == language)
+          .listen((_) {
+            if (!bloc.isClosed) bloc.add(LiturgyReloadRequested());
+          });
+      setState(() => _bloc = bloc);
+    });
+  }
+
+  @override
+  void dispose() {
+    _generation++;
+    _repositoryChanges?.cancel();
+    _bloc?.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (testBloc != null) {
-      return BlocProvider<LiturgyBloc>.value(
-        value: testBloc!,
-        child: const _LiturgyView(),
+    final bloc = widget.testBloc ?? _bloc;
+    if (bloc == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('liturgy.title'.tr()),
+          actions: const [StageClearButton(), StageStopVideoButton()],
+        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
-    return FutureBuilder<SharedPreferences>(
-      future: SharedPreferences.getInstance(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Scaffold(
-            appBar: AppBar(
-              title: Text('liturgy.title'.tr()),
-              actions: const [
-                StageClearButton(),
-                StageStopVideoButton(),
-                StageCastButton(module: StageModule.liturgy),
-              ],
-            ),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
-        final bloc = LiturgyBloc(LiturgyRepository(snapshot.data!));
-        bloc.add(LiturgyLoadRequested(_todayWeekday()));
-        return BlocProvider<LiturgyBloc>.value(
-          value: bloc,
-          child: const _LiturgyView(),
-        );
-      },
+    return BlocProvider<LiturgyBloc>.value(
+      value: bloc,
+      child: const _LiturgyView(),
     );
   }
 
@@ -95,23 +138,10 @@ class _LiturgyView extends StatefulWidget {
   State<_LiturgyView> createState() => _LiturgyViewState();
 }
 
-/// Enquanto o Controle Remoto (desktop) está conectado, a liturgia do
-/// DESKTOP substitui a local: mesma lista, tap = executa no desktop.
-/// Desconectou, volta pra liturgia local do APK.
+/// Liturgia NATIVA do apk: sempre a local, com ou sem Controle Remoto
+/// conectado. A liturgia do desktop fica no Controle Remoto
+/// (RemoteLiturgyPage), são coisas diferentes.
 class _LiturgyViewState extends State<_LiturgyView> {
-  StreamSubscription? _remoteSub;
-  RemotePlayerState? _remoteState;
-
-  @override
-  void initState() {
-    super.initState();
-    // Liturgia pode abrir depois do state inicial chegar pelo WS.
-    _remoteState = RemoteSession.instance.lastState;
-    _remoteSub = RemoteSession.instance.states.listen((s) {
-      if (mounted) setState(() => _remoteState = s);
-    });
-  }
-
   /// Importa liturgia exportada pelo LouvorJA Delphi (arquivo .ja).
   ///
   /// Merge por dia: itens com mesmo (tipo+nome+musicaId/filePath) não
@@ -145,7 +175,10 @@ class _LiturgyViewState extends State<_LiturgyView> {
     }
 
     // Duração automática: música do catálogo; vídeo/áudio local do arquivo.
-    await _enrichDurations(imported);
+    await _enrichDurations(
+      imported,
+      EasyLocalization.of(context)?.locale.languageCode ?? 'pt',
+    );
 
     final bloc = context.read<LiturgyBloc>();
 
@@ -236,7 +269,7 @@ class _LiturgyViewState extends State<_LiturgyView> {
 
   /// Preenche durationMs: música via índice da API; vídeo/áudio via
   /// leitura do MP4 local (caminho existente no dispositivo).
-  Future<void> _enrichDurations(JaLiturgy imported) async {
+  Future<void> _enrichDurations(JaLiturgy imported, String locale) async {
     final musicIds = <int>{};
     final localPaths = <String>{};
     for (final items in imported.values) {
@@ -257,12 +290,8 @@ class _LiturgyViewState extends State<_LiturgyView> {
     Map<int, int> durationsById = {};
     if (musicIds.isNotEmpty) {
       try {
-        final api = LouvorjaApiImpl(
-          baseUrls: ApiConfig.databaseUrls(),
-          filesUrls: ApiConfig.filesUrls(),
-          apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
-        );
-        final index = await api.fetchMusicIndex();
+        final catalog = await LiturgyCatalogRepository.open(locale);
+        final index = await catalog.musicIndex();
         durationsById = {
           for (final h in index)
             if (h.durationMs != null) h.id: h.durationMs!,
@@ -294,12 +323,6 @@ class _LiturgyViewState extends State<_LiturgyView> {
         }
       }
     }
-  }
-
-  @override
-  void dispose() {
-    _remoteSub?.cancel();
-    super.dispose();
   }
 
   Future<void> _confirmDeleteDay(
@@ -334,99 +357,96 @@ class _LiturgyViewState extends State<_LiturgyView> {
     }
   }
 
-  /// Espelho ativo: liturgia do alvo conectado (desktop OU web link)
-  /// substitui a local.
-  bool get _isMirroring =>
-      _remoteState?.liturgyItems.isNotEmpty == true &&
-      RemoteSession.instance.isControlling;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text('liturgy.title'.tr()),
-        // Espelhada: sem ações de edição local — só exibição (lockada).
-        actions: _isMirroring
-            ? const [StageStopVideoButton()]
-            : [
-                IconButton(
-                  key: const Key('liturgy-import-ja'),
-                  tooltip: 'liturgy.importJa'.tr(),
-                  icon: const Icon(TablerIcons.fileImport, size: 22),
-                  onPressed: () => _importJaFile(context),
+        actions: [
+          IconButton(
+            key: const Key('liturgy-import-ja'),
+            tooltip: 'liturgy.importJa'.tr(),
+            icon: const Icon(TablerIcons.fileImport, size: 22),
+            onPressed: () => _importJaFile(context),
+          ),
+          IconButton(
+            key: const Key('liturgy-scheduled-manage'),
+            tooltip: 'liturgy.scheduled.title'.tr(),
+            icon: const Icon(TablerIcons.calendarTime),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ScheduledPage()),
+            ),
+          ),
+          IconButton(
+            key: const Key('liturgy-avulsa-btn'),
+            tooltip: 'liturgy.avulsa.openAvulsa'.tr(),
+            icon: const Icon(TablerIcons.calendarPlus, size: 22),
+            onPressed: () => LiturgyContextBar.createCustom(context),
+          ),
+          BlocBuilder<LiturgyBloc, LiturgyState>(
+            builder: (context, state) {
+              final locked = state is LiturgyLoaded && state.locked;
+              return IconButton(
+                key: const Key('liturgy-lock-toggle'),
+                tooltip: locked ? 'liturgy.unlock'.tr() : 'liturgy.lock'.tr(),
+                icon: Icon(
+                  locked ? TablerIcons.lock : TablerIcons.lockOpen,
+                  size: 22,
+                  color: locked ? theme.colorScheme.primary : null,
                 ),
-                IconButton(
-                  key: const Key('liturgy-avulsa-btn'),
-                  tooltip: 'liturgy.avulsa.openAvulsa'.tr(),
-                  icon: const Icon(TablerIcons.calendarPlus, size: 22),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const LiturgyAvulsaPage(),
-                    ),
-                  ),
-                ),
-                BlocBuilder<LiturgyBloc, LiturgyState>(
-                  builder: (context, state) {
-                    final locked = state is LiturgyLoaded && state.locked;
-                    return IconButton(
-                      key: const Key('liturgy-lock-toggle'),
-                      tooltip: locked
-                          ? 'liturgy.unlock'.tr()
-                          : 'liturgy.lock'.tr(),
-                      icon: Icon(
-                        locked ? TablerIcons.lock : TablerIcons.lockOpen,
-                        size: 22,
-                        color: locked ? theme.colorScheme.primary : null,
-                      ),
-                      onPressed: state is LiturgyLoaded
-                          ? () => context.read<LiturgyBloc>().add(
-                              LiturgyLockToggled(),
-                            )
-                          : null,
-                    );
-                  },
-                ),
-                BlocBuilder<LiturgyBloc, LiturgyState>(
-                  builder: (context, state) {
-                    final loaded = state is LiturgyLoaded;
-                    final hasItems = loaded && state.items.isNotEmpty;
-                    final locked = loaded && state.locked;
-                    return IconButton(
-                      key: const Key('liturgy-delete-day'),
-                      tooltip: 'liturgy.deleteDay'.tr(),
-                      icon: const Icon(TablerIcons.trash, size: 22),
-                      onPressed: hasItems && !locked
-                          ? () => _confirmDeleteDay(context, state)
-                          : null,
-                    );
-                  },
-                ),
-                const StageClearButton(),
-                const StageCastButton(module: StageModule.liturgy),
-              ],
+                onPressed: state is LiturgyLoaded
+                    ? () =>
+                          context.read<LiturgyBloc>().add(LiturgyLockToggled())
+                    : null,
+              );
+            },
+          ),
+          BlocBuilder<LiturgyBloc, LiturgyState>(
+            builder: (context, state) {
+              final loaded = state is LiturgyLoaded;
+              final hasItems = loaded && state.items.isNotEmpty;
+              final locked = loaded && state.locked;
+              return IconButton(
+                key: const Key('liturgy-delete-day'),
+                tooltip: 'liturgy.deleteDay'.tr(),
+                icon: const Icon(TablerIcons.trash, size: 22),
+                onPressed: hasItems && !locked
+                    ? () => _confirmDeleteDay(context, state)
+                    : null,
+              );
+            },
+          ),
+          const StageClearButton(),
+        ],
       ),
-      floatingActionButton: BlocBuilder<LiturgyBloc, LiturgyState>(
-        builder: (context, state) {
-          if (state is LiturgyLoaded &&
-              state.items.isNotEmpty &&
-              !state.locked) {
-            return FloatingActionButton(
-              onPressed: () => showLiturgyItemDialog(context, isCategory: true),
-              child: const Icon(TablerIcons.plus, size: 24),
-            );
-          }
-          return const SizedBox.shrink();
+      floatingActionButton: StreamBuilder<RemotePlayerState>(
+        stream: localLiturgyPlayer.stream,
+        initialData: localLiturgyPlayer.state,
+        builder: (context, snapshot) {
+          if (localLiturgyPlayer.pending != null ||
+              localLiturgyPlayer.busy ||
+              snapshot.data?.hasOpenMedia == true)
+            return const SizedBox.shrink();
+          return BlocBuilder<LiturgyBloc, LiturgyState>(
+            builder: (context, state) {
+              if (state is LiturgyLoaded) {
+                return FloatingActionButton(
+                  key: const Key('liturgy-add-moment'),
+                  tooltip: 'liturgy.actions.add'.tr(),
+                  onPressed: () => _addMoment(context, state),
+                  child: const Icon(TablerIcons.plus, size: 24),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          );
         },
       ),
       body: BlocBuilder<LiturgyBloc, LiturgyState>(
         builder: (context, state) {
           if (state is! LiturgyLoaded) {
             return const Center(child: CircularProgressIndicator());
-          }
-          // Espelho: Controle Remoto conectado → liturgia do DESKTOP.
-          if (_isMirroring) {
-            return _RemoteLiturgyMirror(state: _remoteState!);
           }
           return _Body(state: state);
         },
@@ -435,19 +455,196 @@ class _LiturgyViewState extends State<_LiturgyView> {
   }
 }
 
-/// Lista espelhada da liturgia do desktop. Tap = liturgy.select.
-class _RemoteLiturgyMirror extends StatelessWidget {
+/// "+" flutuante: com categorias na liturgia, primeiro a categoria do novo
+/// momento (senão ele ficava solto, fora delas); sem categorias, como antes.
+Future<void> _addMoment(BuildContext context, LiturgyLoaded state) async {
+  final categories = state.items
+      .where((item) => item.type == LiturgyItemType.category)
+      .toList();
+  if (categories.isEmpty) {
+    showLiturgyItemDialog(context);
+    return;
+  }
+  const newCategory = '\u0000new';
+  final chosen = await showModalBottomSheet<String>(
+    context: context,
+    builder: (sheet) {
+      final theme = Theme.of(sheet);
+      return SafeArea(
+        child: Column(
+          key: const Key('liturgy-choose-category'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'liturgy.parity.chooseCategory'.tr(),
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final category in categories)
+                    ListTile(
+                      leading: Icon(
+                        TablerIcons.tag,
+                        color: theme.colorScheme.primary,
+                      ),
+                      title: Text(category.name),
+                      onTap: () => Navigator.pop(sheet, category.id),
+                    ),
+                  ListTile(
+                    key: const Key('liturgy-choose-new-category'),
+                    leading: const Icon(TablerIcons.plus),
+                    title: Text('liturgy.parity.newCategory'.tr()),
+                    onTap: () => Navigator.pop(sheet, newCategory),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+  if (chosen == null || !context.mounted) return;
+  if (chosen == newCategory) {
+    showLiturgyItemDialog(context, isCategory: true);
+  } else {
+    showLiturgyItemDialog(context, parentCategoryId: chosen);
+  }
+}
+
+/// Lista espelhada da liturgia do desktop com os controles no rodapé.
+///
+/// Tocar no item só escolhe; quem executa no desktop (liturgy.select) é o play.
+/// Item concluído não executa, igual ao botão play da linha no desktop.
+class RemoteLiturgyMirror extends StatefulWidget {
   final RemotePlayerState state;
 
-  const _RemoteLiturgyMirror({required this.state});
+  /// Injetável para testes; default = sessão global.
+  final Future<void> Function(RemoteCommand command)? send;
+
+  /// Abre o navegador do celular para um item de site. Injetável para testes.
+  final Future<void> Function(BuildContext context, RemoteSiteBrowserPage page)?
+  openSite;
+
+  const RemoteLiturgyMirror({
+    super.key,
+    required this.state,
+    this.send,
+    this.openSite,
+  });
+
+  @override
+  State<RemoteLiturgyMirror> createState() => _RemoteLiturgyMirrorState();
+}
+
+class _RemoteLiturgyMirrorState extends State<RemoteLiturgyMirror> {
+  int? _chosenIndex;
+
+  RemotePlayerState get state => widget.state;
 
   Future<void> _select(int index, {bool toggleDone = false}) {
-    return RemoteSession.instance.send(
+    return (widget.send ?? RemoteSession.instance.send)(
       RemoteCommand(
         id: 'l${DateTime.now().microsecondsSinceEpoch}',
         action: toggleDone
             ? RemoteAction.liturgyToggleDone
             : RemoteAction.liturgySelect,
+        index: index,
+      ),
+    );
+  }
+
+  /// A escolha só vale enquanto o item existe e não foi concluído.
+  int? get _validChosen {
+    if (state.hasOpenMedia) return null;
+    final chosen = _chosenIndex;
+    if (chosen == null) return null;
+    for (final item in state.liturgyItems) {
+      if (item.index == chosen) return item.done ? null : chosen;
+    }
+    return null;
+  }
+
+  void _toggleChosen(int index) {
+    setState(() => _chosenIndex = _validChosen == index ? null : index);
+  }
+
+  Future<void> _sendCommand(RemoteCommand command) =>
+      (widget.send ?? RemoteSession.instance.send)(command);
+
+  String _commandId() => 's${DateTime.now().microsecondsSinceEpoch}';
+
+  /// Link de site navegável no celular, ou null para seguir o fluxo normal.
+  String? _siteUrlOf(int index) {
+    for (final item in state.liturgyItems) {
+      if (item.index != index) continue;
+      final url = item.type == 'site' ? item.url?.trim() : null;
+      if (url == null || RemoteSiteBrowserPage.normalize(url) == null) {
+        return null;
+      }
+      return url;
+    }
+    return null;
+  }
+
+  /// Play no site: abre o site no desktop (sem projetar) e o navegador do
+  /// celular, que espelha página e rolagem; a seta de lá projeta.
+  Future<void> _openSite(int index, String url) {
+    final item = state.liturgyItems.firstWhere((e) => e.index == index);
+    _sendCommand(
+      RemoteCommand(
+        id: _commandId(),
+        action: RemoteAction.liturgyOpen,
+        index: index,
+      ),
+    );
+    final page = RemoteSiteBrowserPage(
+      url: url,
+      title: item.title ?? url,
+      onToggleScreens: () => _sendCommand(
+        RemoteCommand(
+          id: _commandId(),
+          action: RemoteAction.videoToggleProjection,
+        ),
+      ),
+      onNavigate: (url) => _sendCommand(
+        RemoteCommand(
+          id: _commandId(),
+          action: RemoteAction.siteNavigate,
+          url: url,
+        ),
+      ),
+      onScroll: (ratio) => _sendCommand(
+        RemoteCommand(
+          id: _commandId(),
+          action: RemoteAction.siteScroll,
+          ratio: ratio,
+        ),
+      ),
+    );
+    return (widget.openSite ?? RemoteSiteBrowserPage.open)(context, page);
+  }
+
+  void _executeChosen(int index) {
+    setState(() => _chosenIndex = null);
+    final siteUrl = _siteUrlOf(index);
+    if (siteUrl != null && state.liturgyCanOpen) {
+      _openSite(index, siteUrl);
+      return;
+    }
+    if (!state.liturgyCanOpen) {
+      _select(index);
+      return;
+    }
+    (widget.send ?? RemoteSession.instance.send)(
+      RemoteCommand(
+        id: 'l${DateTime.now().microsecondsSinceEpoch}',
+        action: RemoteAction.liturgyOpen,
         index: index,
       ),
     );
@@ -477,21 +674,30 @@ class _RemoteLiturgyMirror extends StatelessWidget {
     // list não traz categoryId — usa isCategory + ordem).
     final children = <Widget>[];
     final items = state.liturgyItems;
+    final chosen = _validChosen;
+    // Com mídia aberta, um toque acidental iniciaria outro item junto.
+    final locked = state.hasOpenMedia;
     for (final e in items) {
       final item = _toItem(e);
-      final isSel = e.index == state.liturgySelectedIndex;
+      // Com escolha pendente, só ela fica destacada.
+      final isSel = e.index == (chosen ?? state.liturgySelectedIndex);
       final isCat = e.isCategory;
       children.add(
         Padding(
           key: Key('mirror-liturgy-${e.index}'),
           padding: EdgeInsets.only(left: isCat ? 0 : 32, bottom: isCat ? 0 : 4),
           child: _MirrorItemCard(
+            key: Key('mirror-liturgy-tap-${e.index}'),
             item: item,
             isCategory: isCat,
             theme: theme,
             selected: isSel,
-            onTap: isCat ? null : () => _select(e.index),
-            onToggleDone: () => _select(e.index, toggleDone: true),
+            onTap: isCat || e.done || locked
+                ? null
+                : () => _toggleChosen(e.index),
+            onToggleDone: locked
+                ? null
+                : () => _select(e.index, toggleDone: true),
           ),
         ),
       );
@@ -529,10 +735,19 @@ class _RemoteLiturgyMirror extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.s3),
-            children: children,
+          child: Opacity(
+            opacity: locked ? 0.5 : 1,
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.s3),
+              children: children,
+            ),
           ),
+        ),
+        RemotePlayerBar(
+          state: state,
+          showTransport: true,
+          send: widget.send,
+          pendingOpen: chosen == null ? null : () => _executeChosen(chosen),
         ),
       ],
     );
@@ -547,9 +762,10 @@ class _MirrorItemCard extends StatelessWidget {
   final ThemeData theme;
   final bool selected;
   final VoidCallback? onTap;
-  final VoidCallback onToggleDone;
+  final VoidCallback? onToggleDone;
 
   const _MirrorItemCard({
+    super.key,
     required this.item,
     required this.isCategory,
     required this.theme,
@@ -601,7 +817,10 @@ class _MirrorItemCard extends StatelessWidget {
         title: Text(
           item.name.isEmpty
               ? 'liturgy.types.${_typeToKey(item.type)}'.tr()
-              : item.name,
+              : [
+                  item.complementaryTitle,
+                  item.name,
+                ].whereType<String>().where((s) => s.isNotEmpty).join(' — '),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: isCategory ? FontWeight.w700 : FontWeight.w500,
             fontSize: isCategory ? null : 14,
@@ -612,6 +831,8 @@ class _MirrorItemCard extends StatelessWidget {
         subtitle: item.subtitle.isNotEmpty
             ? Text(
                 item.subtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
               )
             : null,
@@ -629,6 +850,10 @@ class _MirrorItemCard extends StatelessWidget {
     );
   }
 }
+
+/// Resumo do culto (relógio, horários, duração e término) e notas do culto:
+/// fora do APK por enquanto. Os dados continuam salvos e sincronizados.
+const _showSessionExtras = false;
 
 Color _parseHexStatic(String hex, ThemeData theme) {
   final cleaned = hex.replaceAll('#', '');
@@ -651,258 +876,78 @@ class _Body extends StatefulWidget {
 }
 
 class _BodyState extends State<_Body> {
-  final _stopwatch = Stopwatch();
-  Duration _elapsed = Duration.zero;
   final Set<String> _collapsedCategories = {};
-
-  // Horario de inicio do culto (null = nao definido, usa stopwatch manual)
-  TimeOfDay? _startTime;
-
-  // Tick periodico para atualizar o display em tempo real
-  Timer? _tickTimer;
-
-  int get _totalDurationMs =>
-      widget.state.items.fold(0, (sum, item) => sum + item.durationMs);
-
-  String _formatDuration(int ms) {
-    final h = ms ~/ 3600000;
-    final m = (ms % 3600000) ~/ 60000;
-    final s = (ms % 60000) ~/ 1000;
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  Duration get _currentElapsed {
-    if (_startTime != null) {
-      final now = DateTime.now();
-      final start = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        _startTime!.hour,
-        _startTime!.minute,
-      );
-      final diff = now.difference(start);
-      return diff.isNegative ? Duration.zero : diff;
-    }
-    return _stopwatch.isRunning ? _stopwatch.elapsed : _elapsed;
-  }
-
-  bool get _isRunning => _startTime != null || _stopwatch.isRunning;
-
-  void _startTick() {
-    _tickTimer?.cancel();
-    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  void _stopTick() {
-    _tickTimer?.cancel();
-    _tickTimer = null;
-  }
-
-  Future<void> _pickStartTime(BuildContext context) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _startTime ?? TimeOfDay.now(),
-    );
-    if (picked != null && mounted) {
-      setState(() {
-        _startTime = picked;
-        _stopwatch.stop();
-        _elapsed = Duration.zero;
-      });
-      _startTick();
-    }
-  }
-
-  void _toggleTimer() {
-    setState(() {
-      if (_startTime != null) {
-        _startTime = null;
-        _stopTick();
-        return;
-      }
-      if (_stopwatch.isRunning) {
-        _stopwatch.stop();
-        _elapsed = _stopwatch.elapsed;
-        _stopTick();
-      } else {
-        _stopwatch.start();
-        _startTick();
-      }
-    });
-  }
-
-  void _resetTimer() {
-    setState(() {
-      _stopwatch.reset();
-      _elapsed = Duration.zero;
-      _startTime = null;
-    });
-    _stopTick();
-  }
-
-  void _toggleCollapse(String categoryId) {
-    setState(() {
-      if (_collapsedCategories.contains(categoryId)) {
-        _collapsedCategories.remove(categoryId);
-      } else {
-        _collapsedCategories.add(categoryId);
-      }
-    });
-  }
-
+  Widget _timeline() => widget.state.items.isEmpty
+      ? _EmptyState()
+      : _Timeline(
+          items: widget.state.items,
+          collapsedCategories: _collapsedCategories,
+          onToggleCollapse: (id) => setState(() {
+            if (!_collapsedCategories.add(id)) _collapsedCategories.remove(id);
+          }),
+          locked: widget.state.locked,
+        );
   @override
-  void dispose() {
-    _stopwatch.stop();
-    _stopTick();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        _DayTabs(selectedDay: widget.state.selectedDay),
-        // Cronometro de culto -- layout em 2 linhas
-        if (widget.state.items.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: theme.colorScheme.surfaceContainer,
-            child: Column(
-              children: [
-                // Linha 1: horario de inicio + tempo decorrido + botoes
-                Row(
-                  children: [
-                    // Horario de inicio clicavel
-                    GestureDetector(
-                      key: const Key('cult-start-time'),
-                      onTap: () => _pickStartTime(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _startTime != null
-                              ? theme.colorScheme.primary.withValues(
-                                  alpha: 0.12,
-                                )
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            bottomRight: Radius.circular(8),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              TablerIcons.calendarTime,
-                              size: 18,
-                              color: _startTime != null
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _startTime != null
-                                  ? '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}'
-                                  : 'liturgy.setStartTime'.tr(),
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: _startTime != null
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Display do tempo decorrido
-                    Expanded(
-                      child: Text(
-                        _formatDuration(_currentElapsed.inMilliseconds),
-                        key: const Key('cult-timer-display'),
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                          color: _isRunning ? theme.colorScheme.primary : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Botao play/pause/limpar
-                    IconButton(
-                      key: const Key('cult-timer-toggle'),
-                      icon: Icon(
-                        _startTime != null
-                            ? TablerIcons.circleX
-                            : (_stopwatch.isRunning
-                                  ? TablerIcons.playerPauseFilled
-                                  : TablerIcons.playerPlayFilled),
-                        size: 24,
-                      ),
-                      color: theme.colorScheme.primary,
-                      onPressed: _toggleTimer,
-                    ),
-                    if (_elapsed > Duration.zero ||
-                        _stopwatch.elapsed > Duration.zero ||
-                        _startTime != null)
-                      IconButton(
-                        key: const Key('cult-timer-reset'),
-                        icon: const Icon(TablerIcons.refresh, size: 20),
-                        onPressed: _resetTimer,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                // Linha 2: duracao total
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      TablerIcons.hourglass,
-                      size: 14,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${'liturgy.totalDuration'.tr()}: ${_formatDuration(_totalDurationMs)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+  Widget build(BuildContext context) => StreamBuilder<RemotePlayerState>(
+    stream: localLiturgyPlayer.stream,
+    initialData: localLiturgyPlayer.state,
+    builder: (context, snapshot) {
+      final mediaOpen =
+          snapshot.data?.hasOpenMedia == true || localLiturgyPlayer.busy;
+      final showPlayer = mediaOpen || localLiturgyPlayer.pending != null;
+      return LayoutBuilder(
+        builder: (context, constraints) => Column(
+          children: [
+            AbsorbPointer(
+              absorbing: mediaOpen,
+              child: _DayTabs(
+                selectedDay: widget.state.customId == null
+                    ? widget.state.selectedDay
+                    : null,
+              ),
             ),
-          ),
-        Expanded(
-          child: widget.state.items.isEmpty
-              ? _EmptyState()
-              : _Timeline(
-                  items: widget.state.items,
-                  collapsedCategories: _collapsedCategories,
-                  onToggleCollapse: _toggleCollapse,
-                  locked: widget.state.locked,
+            AbsorbPointer(
+              absorbing: mediaOpen,
+              child: LiturgyContextBar(state: widget.state),
+            ),
+            if (_showSessionExtras && !showPlayer)
+              LiturgySessionSummary(
+                key: ValueKey('summary-${widget.state.contextKey}'),
+                state: widget.state,
+              ),
+            Expanded(
+              child: AbsorbPointer(
+                absorbing: mediaOpen,
+                child: mediaOpen
+                    ? Opacity(opacity: .45, child: _timeline())
+                    : _timeline(),
+              ),
+            ),
+            if (_showSessionExtras && !showPlayer)
+              _NotesBar(
+                key: ValueKey('notes-${widget.state.contextKey}'),
+                notes: widget.state.notes,
+              ),
+            if (showPlayer)
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * .65,
                 ),
+                child: const SingleChildScrollView(
+                  child: LocalLiturgyPlayerBar(),
+                ),
+              ),
+          ],
         ),
-        _NotesBar(notes: widget.state.notes),
-      ],
-    );
-  }
+      );
+    },
+  );
 }
 
 // --- Day Tabs ---
 
 class _DayTabs extends StatelessWidget {
-  final LiturgyWeekday selectedDay;
+  final LiturgyWeekday? selectedDay;
 
   const _DayTabs({required this.selectedDay});
 
@@ -1058,7 +1103,13 @@ class _Timeline extends StatelessWidget {
     }
 
     return ReorderableListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.s3),
+      // Espaço no fim: o último item sobe acima do botão "+" (56 + margem).
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s3,
+        AppSpacing.s3,
+        AppSpacing.s3,
+        88,
+      ),
       buildDefaultDragHandles: false,
       itemCount: segments.length,
       onReorder: reorderSegments,
@@ -1094,25 +1145,47 @@ class _Timeline extends StatelessWidget {
               isCategory: isCategory,
               theme: theme,
               hasChildren: seg.children.isNotEmpty,
+              categoryChildren: seg.children.map((e) => e.item).toList(),
               isCollapsed: isCollapsed,
-              draggable: !locked,
+              draggable: true,
+              dragIndex: segIndex,
               onToggleCollapse: isCategory && seg.children.isNotEmpty
                   ? () => onToggleCollapse(seg.item.id)
                   : null,
             ),
-            // Filhos indentados (ocultos quando colapsados)
-            if (!isCollapsed)
-              for (final child in seg.children)
-                Padding(
-                  key: ValueKey(child.item.id),
-                  padding: const EdgeInsets.only(left: 32, bottom: 4),
-                  child: _ItemCard(
-                    item: child.item,
-                    isCategory: false,
-                    theme: theme,
-                    isChild: true,
-                  ),
-                ),
+            if (!isCollapsed && seg.children.isNotEmpty)
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: seg.children.length,
+                onReorder: (from, to) {
+                  final adjusted = to > from ? to - 1 : to;
+                  final children = seg.children.map((e) => e.item).toList();
+                  final moved = children.removeAt(from);
+                  children.insert(adjusted.clamp(0, children.length), moved);
+                  final next = [...items];
+                  for (var index = 0; index < seg.children.length; index++) {
+                    next[seg.children[index].originalIndex] = children[index];
+                  }
+                  context.read<LiturgyBloc>().add(LiturgyItemsReordered(next));
+                },
+                itemBuilder: (context, index) {
+                  final child = seg.children[index];
+                  return Padding(
+                    key: ValueKey('child-${child.item.id}'),
+                    padding: const EdgeInsets.only(left: 32, bottom: 4),
+                    child: _ItemCard(
+                      item: child.item,
+                      isCategory: false,
+                      theme: theme,
+                      isChild: true,
+                      draggable: true,
+                      dragIndex: index,
+                    ),
+                  );
+                },
+              ),
           ],
         );
       },
@@ -1123,26 +1196,6 @@ class _Timeline extends StatelessWidget {
 // --- Item Card ---
 
 class _ItemCard extends StatelessWidget {
-  /// Palco: projeta o item da liturgia em execução na TV (se ligado).
-  /// Vídeo/PPTX ocupam a tela inteira — o executor cuida deles; projetar
-  /// o nome do item antes só deixava texto sobre a mídia (bug do .mp4
-  /// "exibiu só o nome").
-  Future<void> _projectToStage(LiturgyItem item) async {
-    final stage = StageSession.instance;
-    if (!stage.isOn) return;
-    if (item.type == LiturgyItemType.video ||
-        item.type == LiturgyItemType.onlineVideo ||
-        item.type == LiturgyItemType.presentation ||
-        item.type == LiturgyItemType.images) {
-      return;
-    }
-    await stage.project(
-      title: item.name,
-      body: item.subtitle.isEmpty ? null : item.subtitle,
-      module: 'liturgy',
-    );
-  }
-
   final LiturgyItem item;
   final bool isCategory;
   final ThemeData theme;
@@ -1151,6 +1204,8 @@ class _ItemCard extends StatelessWidget {
   final bool isCollapsed;
   final VoidCallback? onToggleCollapse;
   final bool draggable;
+  final int dragIndex;
+  final List<LiturgyItem> categoryChildren;
 
   const _ItemCard({
     required this.item,
@@ -1161,10 +1216,25 @@ class _ItemCard extends StatelessWidget {
     this.isCollapsed = false,
     this.onToggleCollapse,
     this.draggable = false,
+    this.dragIndex = 0,
+    this.categoryChildren = const [],
   });
 
   @override
   Widget build(BuildContext context) {
+    final currentState = context.watch<LiturgyBloc>().state;
+    final deletionLocked = currentState is LiturgyLoaded && currentState.locked;
+    // Um item destacado por vez: o escolhido no player local manda.
+    final pendingId = localLiturgyPlayer.pending?.id;
+    final selected = pendingId != null
+        ? pendingId == item.id
+        : currentState is LiturgyLoaded &&
+              currentState.selectedItemId == item.id;
+    final date = currentState is LiturgyLoaded
+        ? LiturgyTiming.activeDate(
+            currentState.customId == null ? currentState.selectedDay : null,
+          )
+        : DateTime.now();
     final typeMeta = LiturgyTypeRegistry.metaFor(item.type);
     final accent = item.accentColor.isNotEmpty
         ? _parseHex(item.accentColor)
@@ -1175,7 +1245,9 @@ class _ItemCard extends StatelessWidget {
         bottom: isChild ? 2 : AppSpacing.s1,
         top: isChild ? 0 : 0,
       ),
-      color: isCategory
+      color: selected
+          ? theme.colorScheme.primaryContainer
+          : isCategory
           ? accent.withValues(alpha: 0.10)
           : isChild
           ? theme.colorScheme.surfaceContainerLow
@@ -1190,18 +1262,141 @@ class _ItemCard extends StatelessWidget {
             : BorderSide.none,
       ),
       child: ListTile(
-        onTap: !isCategory && LiturgyItemExecutor.isExecutable(item.type)
+        onTap:
+            !isCategory &&
+                (!item.done || LiturgyItemRules.keepsControls(item)) &&
+                (LiturgyItemExecutor.isExecutable(item.type) ||
+                    item.type == LiturgyItemType.notice ||
+                    item.type == LiturgyItemType.prayer)
             ? () async {
-                _projectToStage(item);
-                final msg = await LiturgyItemExecutor.execute(context, item);
-                if (msg.isNotEmpty && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(msg),
-                      duration: const Duration(seconds: 2),
+                final bloc = context.read<LiturgyBloc>();
+                final state = bloc.state;
+                final language =
+                    EasyLocalization.of(context)?.locale.languageCode ?? 'pt';
+                final date = state is LiturgyLoaded
+                    ? LiturgyTiming.activeDate(
+                        state.customId == null ? state.selectedDay : null,
+                      )
+                    : DateTime.now();
+                var selected = item;
+                if (item.type == LiturgyItemType.scheduled) {
+                  final repo = ScheduledRepository(
+                    await SharedPreferences.getInstance(),
+                  );
+                  final resolved = ScheduledResolver.resolve(
+                    item,
+                    date,
+                    repo.loadCategories(),
+                    repo.loadItems(),
+                  );
+                  if (!context.mounted) return;
+                  if (resolved == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('liturgy.parity.scheduledEmpty'.tr()),
+                      ),
+                    );
+                    return;
+                  }
+                  selected = resolved;
+                }
+                final internal = LiturgyItemRules.playsInLocalPlayer(selected);
+                void started(LiturgyItem _) {
+                  if (!bloc.isClosed) {
+                    bloc.add(LiturgySelectItem(item.id));
+                    bloc.add(LiturgyMarkDone(item.id));
+                  }
+                }
+
+                void changed(LiturgyItem value) {
+                  if (!bloc.isClosed) bloc.add(LiturgyUpdateItem(value));
+                }
+
+                // Música: o mesmo player de Hinos, pronto no miniplayer.
+                if (selected.type == LiturgyItemType.music &&
+                    selected.musicId != null) {
+                  if (localLiturgyPlayer.hasContent) {
+                    await localLiturgyPlayer.send(
+                      RemoteCommand(
+                        id: 'liturgy-music',
+                        action: RemoteAction.stop,
+                      ),
+                    );
+                  }
+                  if (!context.mounted) return;
+                  bloc.add(LiturgySelectItem(item.id));
+                  final message = await LiturgyItemExecutor.prepareMusic(
+                    context,
+                    selected,
+                    onStarted: () {
+                      if (!bloc.isClosed) bloc.add(LiturgyMarkDone(item.id));
+                    },
+                  );
+                  if (message.isNotEmpty && context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(message)));
+                  }
+                  return;
+                }
+                // Um ou outro: fecha o player de Hinos (também no palco) e
+                // fica só o player do item escolhido.
+                bloc.add(LiturgySelectItem(item.id));
+                if (nowPlaying.hasTrack) {
+                  await HymnAudioPlayer.instance.stop();
+                  nowPlaying.stop();
+                  StageSession.instance.stopHymnAudio();
+                }
+                if (!context.mounted) return;
+                localLiturgyPlayer.choose(
+                  selected,
+                  language: language,
+                  date: date,
+                  onStarted: internal ? started : null,
+                  onChanged: state is LiturgyLoaded && state.locked
+                      ? null
+                      : changed,
+                  externalOpen: internal
+                      ? null
+                      : () async {
+                          if (!context.mounted) return;
+                          final message = await LiturgyItemExecutor.execute(
+                            context,
+                            selected,
+                            date: date,
+                            onStarted: () => started(selected),
+                            onAnnotationChanged: changed,
+                          );
+                          if (message.isNotEmpty && context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text(message)));
+                          }
+                        },
+                );
+              }
+            : isCategory
+            ? () async {
+                // Categoria sem nada tocando: some o player e o destaque.
+                if (localLiturgyPlayer.state.hasOpenMedia ||
+                    localLiturgyPlayer.busy ||
+                    nowPlaying.isPlaying) {
+                  return;
+                }
+                final bloc = context.read<LiturgyBloc>();
+                if (localLiturgyPlayer.pending != null) {
+                  await localLiturgyPlayer.send(
+                    RemoteCommand(
+                      id: 'liturgy-category',
+                      action: RemoteAction.stop,
                     ),
                   );
                 }
+                if (nowPlaying.hasTrack) {
+                  await HymnAudioPlayer.instance.stop();
+                  nowPlaying.stop();
+                }
+                if (!bloc.isClosed) bloc.add(LiturgyClearSelection());
               }
             : null,
         contentPadding: const EdgeInsets.symmetric(
@@ -1223,7 +1418,10 @@ class _ItemCard extends StatelessWidget {
         title: Text(
           item.name.isEmpty
               ? 'liturgy.types.${_typeToKey(item.type)}'.tr()
-              : item.name,
+              : [
+                  item.complementaryTitle,
+                  item.name,
+                ].whereType<String>().where((s) => s.isNotEmpty).join(' — '),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: isCategory ? FontWeight.w700 : FontWeight.w500,
             fontSize: isChild ? 14 : null,
@@ -1231,21 +1429,38 @@ class _ItemCard extends StatelessWidget {
             color: item.done ? theme.colorScheme.onSurfaceVariant : null,
           ),
         ),
-        subtitle: item.subtitle.isNotEmpty
-            ? Text(
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isCategory && item.startTime?.isNotEmpty == true)
+              Text(
+                item.endTime?.isNotEmpty == true
+                    ? '${item.startTime} – ${item.endTime}'
+                    : LiturgyTiming.categoryEnd(item, categoryChildren) == null
+                    ? item.startTime!
+                    : '${item.startTime} – ~${(categoryChildren.fold<int>(0, (sum, child) => sum + LiturgyItemRules.durationMs(child)) / 60000).round()} min · ${'liturgy.parity.estimated'.tr()}',
+                style: theme.textTheme.bodySmall,
+              ),
+            if (item.type == LiturgyItemType.scheduled)
+              ScheduledItemPreview(item: item, date: date),
+            if (item.subtitle.isNotEmpty)
+              Text(
                 item.subtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: isChild ? 12 : null,
-                ),
-              )
-            : null,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            if (item.notes?.isNotEmpty == true)
+              Text(item.notes!, style: theme.textTheme.bodySmall),
+          ],
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (draggable && !isChild)
+            if (draggable)
               ReorderableDragStartListener(
                 key: Key('drag-${item.id}'),
-                index: 0,
+                index: dragIndex,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 2),
                   child: Icon(
@@ -1275,7 +1490,7 @@ class _ItemCard extends StatelessWidget {
                 onPressed: () =>
                     showLiturgyItemDialog(context, parentCategoryId: item.id),
               ),
-            if (item.durationMs > 0)
+            if (LiturgyItemRules.durationMs(item) > 0)
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.s1),
                 child: Text(
@@ -1302,6 +1517,7 @@ class _ItemCard extends StatelessWidget {
               itemBuilder: (ctx) => [
                 PopupMenuItem(
                   value: 'edit',
+                  enabled: !deletionLocked,
                   child: Row(
                     children: [
                       const Icon(TablerIcons.pencil, size: 18),
@@ -1312,6 +1528,7 @@ class _ItemCard extends StatelessWidget {
                 ),
                 PopupMenuItem(
                   value: 'delete',
+                  enabled: !deletionLocked,
                   child: Row(
                     children: [
                       const Icon(
@@ -1325,11 +1542,36 @@ class _ItemCard extends StatelessWidget {
                   ),
                 ),
               ],
-              onSelected: (value) {
+              onSelected: (value) async {
                 if (value == 'edit') {
                   showLiturgyItemDialog(context, existing: item);
                 } else if (value == 'delete') {
-                  context.read<LiturgyBloc>().add(LiturgyDeleteItem(item.id));
+                  final bloc = context.read<LiturgyBloc>();
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text('liturgy.actions.delete'.tr()),
+                      content: Text(
+                        isCategory
+                            ? 'liturgy.parity.deleteCategoryConfirm'.tr(
+                                namedArgs: {'name': item.name},
+                              )
+                            : item.name,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: Text('common.cancel'.tr()),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text('liturgy.actions.delete'.tr()),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true && !bloc.isClosed)
+                    bloc.add(LiturgyDeleteItem(item.id));
                 }
               },
             ),
@@ -1357,7 +1599,7 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.s6),
         child: Column(
@@ -1383,11 +1625,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: AppSpacing.s2),
             OutlinedButton.icon(
               key: const Key('liturgy-open-avulsa'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const LiturgyAvulsaPage(),
-                ),
-              ),
+              onPressed: () => LiturgyContextBar.createCustom(context),
               icon: const Icon(TablerIcons.calendarPlus, size: 18),
               label: Text('liturgy.avulsa.openAvulsa'.tr()),
             ),
@@ -1400,10 +1638,34 @@ class _EmptyState extends StatelessWidget {
 
 // --- Notes Bar ---
 
-class _NotesBar extends StatelessWidget {
+class _NotesBar extends StatefulWidget {
   final String notes;
 
-  const _NotesBar({required this.notes});
+  const _NotesBar({super.key, required this.notes});
+  @override
+  State<_NotesBar> createState() => _NotesBarState();
+}
+
+class _NotesBarState extends State<_NotesBar> {
+  late final TextEditingController _controller;
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.notes);
+  }
+
+  @override
+  void didUpdateWidget(covariant _NotesBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.notes != _controller.text && oldWidget.notes != widget.notes)
+      _controller.text = widget.notes;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1427,7 +1689,7 @@ class _NotesBar extends StatelessWidget {
           border: InputBorder.none,
         ),
         style: theme.textTheme.bodySmall,
-        controller: TextEditingController(text: notes),
+        controller: _controller,
         onChanged: (v) {
           context.read<LiturgyBloc>().add(LiturgyUpdateNotes(v));
         },

@@ -15,6 +15,8 @@ import '../data/repositories/bible_repository_impl.dart';
 import '../data/repositories/hymn_repository_impl.dart';
 import '../data/datasources/local/catalog_cache.dart';
 import '../domain/entities/hymn.dart';
+import '../data/datasources/remote/edits_api_impl.dart';
+import '../presentation/community/my_edits_page.dart';
 import '../presentation/home/home_page.dart';
 import '../presentation/hymns/hymns_page.dart';
 import '../presentation/hymns/album_detail_page.dart';
@@ -23,14 +25,16 @@ import '../presentation/playlists/playlists_page.dart';
 import '../presentation/search/global_search_page.dart';
 import '../presentation/settings/settings_page.dart';
 import '../presentation/settings/terms_page.dart';
+import '../presentation/liturgy/player/web_video_host.dart';
 import '../presentation/shared/widgets/main_navigation.dart';
 import '../presentation/tools/tools_page.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/',
+  observers: [webVideoRoutes],
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
@@ -62,6 +66,12 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'custom',
                   builder: (context, state) => const CustomCollectionsPage(),
+                ),
+                GoRoute(
+                  path: 'custom/my-edits',
+                  builder: (context, state) {
+                    return MyEditsPage(api: EditsApiImpl.production());
+                  },
                 ),
                 GoRoute(
                   path: ':albumId',
@@ -135,7 +145,7 @@ HymnRepositoryImpl _searchHymnRepo() {
     filesUrls: ApiConfig.filesUrls(),
     apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
   );
-  return HymnRepositoryImpl(api, CatalogCache.noop());
+  return HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
 }
 
 Future<List<Hymn>> _searchHymns() => SearchSources.loadHymnSources(
