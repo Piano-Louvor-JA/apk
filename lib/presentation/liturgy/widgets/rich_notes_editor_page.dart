@@ -10,12 +10,15 @@ class RichNotesEditorPage extends StatefulWidget {
   const RichNotesEditorPage({
     super.key,
     required this.html,
-    this.titleController,
+    this.title,
+    this.onTitleSaved,
   });
   final String html;
 
-  /// Com ele, o título também é editável (lido pelo chamador ao salvar).
-  final TextEditingController? titleController;
+  /// Com ele, o título também é editável; [onTitleSaved] recebe o novo
+  /// título ao salvar. O campo é da própria tela (vive até ela sair).
+  final String? title;
+  final ValueChanged<String>? onTitleSaved;
   @override
   State<RichNotesEditorPage> createState() => _RichNotesEditorPageState();
 }
@@ -23,6 +26,16 @@ class RichNotesEditorPage extends StatefulWidget {
 class _RichNotesEditorPageState extends State<RichNotesEditorPage> {
   late final WebViewController _controller;
   bool _ready = false;
+  late final TextEditingController? _title = widget.title == null
+      ? null
+      : TextEditingController(text: widget.title);
+
+  @override
+  void dispose() {
+    _title?.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -82,7 +95,9 @@ class _RichNotesEditorPageState extends State<RichNotesEditorPage> {
     } catch (_) {
       /* iOS pode retornar a string já decodificada */
     }
-    if (mounted) Navigator.pop(context, RichNotes.sanitize(html));
+    if (!mounted) return;
+    if (_title case final title?) widget.onTitleSaved?.call(title.text);
+    Navigator.pop(context, RichNotes.sanitize(html));
   }
 
   Future<void> _colors({bool highlight = false}) async {
@@ -148,7 +163,7 @@ class _RichNotesEditorPageState extends State<RichNotesEditorPage> {
     ),
     body: Column(
       children: [
-        if (widget.titleController case final title?)
+        if (_title case final title?)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: TextField(

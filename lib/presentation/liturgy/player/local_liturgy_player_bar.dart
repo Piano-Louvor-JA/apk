@@ -75,7 +75,7 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
   Future<void> _edit() async {
     final item = player.active;
     if (item == null) return;
-    final title = TextEditingController(text: item.name);
+    String? title;
     final value = await Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) => RichNotesEditorPage(
@@ -84,12 +84,12 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
             subtitle: item.subtitle,
             notes: item.notes,
           ),
-          titleController: title,
+          title: item.name,
+          onTitleSaved: (value) => title = value,
         ),
       ),
     );
-    final name = title.text.trim();
-    title.dispose();
+    final name = title?.trim() ?? '';
     if (value != null) {
       await player.updateText(
         item.copyWith(
