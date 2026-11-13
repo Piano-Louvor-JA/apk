@@ -311,18 +311,12 @@ void main() {
     late WebVideo web;
     late LocalLiturgyMediaImpl local;
     String? cached;
-    late List<String> downloads;
     setUp(() {
       web = WebVideo();
       cached = null;
-      downloads = [];
       local = LocalLiturgyMediaImpl(
         createWebVideo: () => web,
         cachedVideo: (_) async => cached,
-        downloadVideo: (url) async {
-          downloads.add(url);
-          return '/tmp/youtube-copia.mp4';
-        },
         webPollInterval: const Duration(milliseconds: 5),
       );
     });
@@ -380,53 +374,32 @@ void main() {
       expect(local.snapshot.videoControls!.captionsHidden, isTrue);
     });
 
-    test(
-      'projetar o YouTube usa a cópia baixada (uma vez), como o desktop',
-      () async {
-        await local.open(item, 'pt', DateTime(2026));
-        await local.send(
-          RemoteCommand(id: 'p1', action: RemoteAction.videoToggleProjection),
-        );
-        expect(downloads, ['https://www.youtube.com/watch?v=abcDEF12345']);
-        // O player do aparelho continua no embed (sem trocar de player).
-        expect(local.web, same(web));
-        await local.send(
-          RemoteCommand(id: 'p2', action: RemoteAction.videoToggleProjection),
-        );
-        await local.send(
-          RemoteCommand(id: 'p3', action: RemoteAction.videoToggleProjection),
-        );
-        expect(downloads, hasLength(1));
-      },
-    );
+    test('projetar o YouTube é na hora: o player do aparelho segue', () async {
+      await local.open(item, 'pt', DateTime(2026));
+      await local.send(
+        RemoteCommand(id: 'p1', action: RemoteAction.videoToggleProjection),
+      );
+      expect(local.web, same(web));
+      expect(web.loads, hasLength(1));
+    });
 
-    test(
-      'dois toques seguidos em projetar baixam a cópia uma vez só',
-      () async {
-        final gate = Completer<String>();
-        final slow = LocalLiturgyMediaImpl(
-          createWebVideo: () => web,
-          cachedVideo: (_) async => null,
-          downloadVideo: (url) {
-            downloads.add(url);
-            return gate.future;
-          },
-        );
-        addTearDown(slow.dispose);
-        await slow.open(item, 'pt', DateTime(2026));
-        expect(slow.projectionNeedsCopy, isTrue);
-        final first = slow.send(
-          RemoteCommand(id: 'a', action: RemoteAction.videoToggleProjection),
-        );
-        final second = slow.send(
-          RemoteCommand(id: 'b', action: RemoteAction.videoToggleProjection),
-        );
-        gate.complete('/tmp/copia.mp4');
-        await Future.wait([first, second]);
-        expect(downloads, hasLength(1));
-        expect(slow.projectionNeedsCopy, isFalse);
-      },
-    );
+    test('mensagem às telas: o player do YouTube no ponto e estado atuais', () {
+      final message = LocalLiturgyMediaImpl.youtubeMessage(
+        videoId: 'abcDEF12345',
+        position: const Duration(seconds: 31),
+        playing: true,
+        captionsHidden: true,
+        connectionsMuted: true,
+      );
+      expect(message.type, 'video');
+      expect(message.fields, {
+        'youtubeId': 'abcDEF12345',
+        'positionMs': 31000,
+        'paused': false,
+        'captionsHidden': true,
+        'connectionsMuted': true,
+      });
+    });
 
     test('a barra controla o vídeo da página', () async {
       web.state = const YoutubeWebState(

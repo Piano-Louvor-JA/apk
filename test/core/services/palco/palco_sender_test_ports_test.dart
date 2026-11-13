@@ -78,4 +78,36 @@ void main() {
       expect(sender.effectiveWsPort, heldWs.port);
     },
   );
+
+  test(
+    'serve o player do YouTube das TVs (origem HTTP, sem erro 153)',
+    () async {
+      // O binding (para ler o asset) troca o HttpClient por um que responde
+      // 400 a tudo; aqui a requisição precisa ser real.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final overrides = HttpOverrides.current;
+      HttpOverrides.global = null;
+      addTearDown(() => HttpOverrides.global = overrides);
+      PalcoSender.bindEphemeralPortsForTesting = true;
+      final sender = PalcoSender(
+        httpPortFixed: heldHttp.port,
+        wsPortFixed: heldWs.port,
+      );
+      addTearDown(sender.stop);
+      await sender.start();
+      final client = HttpClient();
+      addTearDown(client.close);
+      final req = await client.getUrl(
+        Uri.parse(
+          'http://127.0.0.1:${sender.effectiveHttpPort}/youtube?v=abcDEF12345',
+        ),
+      );
+      final res = await req.close();
+      final body = await res.transform(const SystemEncoding().decoder).join();
+      expect(res.statusCode, 200);
+      expect(res.headers.contentType?.mimeType, 'text/html');
+      expect(body, contains('youtube.com/iframe_api'));
+      expect(body, contains('louvorjaYoutube'));
+    },
+  );
 }

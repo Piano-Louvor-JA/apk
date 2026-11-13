@@ -121,6 +121,7 @@ class PalcoSender {
   /// assets/palco/receiver.html — servido em / e /receiver.html.
   /// Testes injetam bytes direto (rootBundle não funciona em unit test).
   Uint8List? _receiverPage;
+  Uint8List? _youtubePage;
 
   /// Portas fixas em produção; 0 (efêmera) em teste.
   final int httpPortFixed;
@@ -487,6 +488,16 @@ class PalcoSender {
         } catch (_) {
           res.statusCode = 404;
         }
+        await res.close();
+      } else if (path == '/youtube') {
+        // Player do YouTube das TVs: o app da TV roda de arquivo local e o
+        // embed recusa essa origem (erro 153); daqui ele tem origem HTTP.
+        _youtubePage ??= (await rootBundle.load(
+          'assets/palco/youtube.html',
+        )).buffer.asUint8List();
+        res.headers.contentType = ContentType.html;
+        res.headers.set('Cache-Control', 'no-store');
+        res.add(_youtubePage!);
         await res.close();
       } else if (path == '/legenda' || path == '/purify.min.js') {
         // Transmissão (paridade desktop): legenda para a fonte de navegador

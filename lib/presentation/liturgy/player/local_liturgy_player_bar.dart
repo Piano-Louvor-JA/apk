@@ -70,31 +70,17 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
 
   Future<void> _send(RemoteCommand command) async {
     final wasProjecting = player.state.videoControls?.projecting ?? false;
-    final media = player.media;
-    final copying = media is LocalLiturgyMediaImpl && media.projectionNeedsCopy;
     final toggle = command.action == RemoteAction.videoToggleProjection;
     // Projetar, como em Hinos: liga o palco do celular e os monitores
     // compartilhados; daí vai a todos os destinos marcados em Telas.
-    if (toggle && !wasProjecting) {
-      if (!await PhoneProjection.begin()) {
-        _say('liturgy.parity.noStage');
-        return;
-      }
-      if (copying) _say('liturgy.parity.preparingVideo');
+    if (toggle && !wasProjecting && !await PhoneProjection.begin()) {
+      _say('liturgy.parity.noStage');
+      return;
     }
-    var failed = false;
     try {
       await player.send(command);
     } catch (_) {
-      failed = true;
-      _say(
-        toggle && copying
-            ? 'liturgy.parity.videoForScreensFailed'
-            : 'liturgy.parity.fileUnavailable',
-      );
-    }
-    if (toggle && copying && !failed && mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      _say('liturgy.parity.fileUnavailable');
     }
     final nowProjecting = player.state.videoControls?.projecting ?? false;
     if (wasProjecting && !nowProjecting) await PhoneProjection.end();

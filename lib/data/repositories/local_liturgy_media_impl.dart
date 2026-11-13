@@ -46,9 +46,8 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   Timer? _webPoll;
   bool _webPolling = false, _webFallback = false, _webEnded = false;
 
-  /// YouTube em reprodução e a cópia baixada que vai às TVs ao projetar.
+  /// YouTube em reprodução: as telas tocam o mesmo vídeo, sincronizado.
   LiturgyWebTarget? _youtube;
-  String? _webCopy;
 
   /// Última ordem da barra: tocar. Pausa vinda de outro lugar (a WebView
   /// saiu da tela ao minimizar) é desfeita.
@@ -105,7 +104,6 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   Timer? _imageAutoplay;
   final LiturgyWebVideo Function()? _createWebVideo;
   final Future<String?> Function(String url)? _cachedVideo;
-  final Future<String> Function(String url)? _downloadVideo;
   final Duration _webPollInterval;
   LocalLiturgyMediaImpl({
     HymnAudioPlayer? audio,
@@ -114,12 +112,10 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     Duration imageAutoplayInterval = const Duration(seconds: 5),
     LiturgyWebVideo Function()? createWebVideo,
     Future<String?> Function(String url)? cachedVideo,
-    Future<String> Function(String url)? downloadVideo,
     Duration webPollInterval = const Duration(milliseconds: 500),
   }) : _imageAutoplayInterval = imageAutoplayInterval,
        _createWebVideo = createWebVideo,
        _cachedVideo = cachedVideo,
-       _downloadVideo = downloadVideo,
        _webPollInterval = webPollInterval,
        _audioOverride = audio,
        _resolveMusic = resolveMusic,
@@ -386,7 +382,6 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     final page = (_createWebVideo ?? WebViewLiturgyVideo.new)();
     web = page;
     _youtube = target;
-    _webCopy = null;
     _webFallback = false;
     _webEnded = false;
     await page.load(
@@ -440,8 +435,25 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     }
   }
 
-  /// YouTube que ainda vai baixar a cópia para as telas (a barra avisa).
-  bool get projectionNeedsCopy => web != null && _webCopy == null;
+  /// Telas tocam o próprio player do YouTube, já no ponto e no estado do
+  /// aparelho (como o desktop): projetar é na hora, sem baixar nada. Os
+  /// comandos seguintes (play/pause/seek) seguem como mensagens de vídeo.
+  static PalcoMessage youtubeMessage({
+    required String videoId,
+    required Duration position,
+    required bool playing,
+    required bool captionsHidden,
+    required bool connectionsMuted,
+  }) => PalcoMessage(
+    type: 'video',
+    fields: {
+      'youtubeId': videoId,
+      'positionMs': position.inMilliseconds,
+      'paused': !playing,
+      'captionsHidden': captionsHidden,
+      'connectionsMuted': connectionsMuted,
+    },
+  );
 
   /// Vídeo local ou YouTube: as TVs recebem mensagens de vídeo.
   bool get _isVideo => video != null || web != null;
@@ -550,7 +562,18 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         final share =
             _independent.contains(slot.id) && _independentMode == 'share';
         controller.setLiturgyShare(share);
-        if (_isVideo && _source != null) {
+        if (web != null && _youtube != null) {
+          _sendToSlot(
+            slot,
+            youtubeMessage(
+              videoId: _youtube!.videoId,
+              position: _position,
+              playing: _playing,
+              captionsHidden: _captionsHidden,
+              connectionsMuted: _output == 'player',
+            ),
+          );
+        } else if (_isVideo && _source != null) {
           _sendToSlot(
             slot,
             PalcoMessage(
@@ -616,6 +639,9 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         }
       }
       _projecting = targets.isNotEmpty;
+    } else if (web != null) {
+      // YouTube só vai às telas do Palco (a setinha liga o Principal antes).
+      _projecting = false;
     } else if (_isVideo && _source != null) {
       _projecting = _stage.playVideoOnStage(_source!);
     } else if (_preview != null) {
@@ -804,18 +830,6 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
         if (_projecting) {
           await _stopProjection();
         } else {
-          // YouTube: as TVs tocam a cópia baixada (o embed só toca aqui),
-          // sincronizada com o player do aparelho, como no desktop.
-          final youtube = _youtube;
-          if (web != null && youtube != null && _webCopy == null) {
-            final page = web;
-            final copy = _downloadVideo != null
-                ? await _downloadVideo(youtube.url)
-                : await (await _videoCache()).download(youtube.url);
-            if (web != page) break;
-            _webCopy = copy;
-          }
-          if (web != null && _webCopy != null) _source = _webCopy;
           await _project();
         }
         await _routeAudio();
@@ -840,6 +854,15 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
       case RemoteAction.videoToggleCaptions:
         _captionsHidden = !_captionsHidden;
         await web?.setCaptionsHidden(_captionsHidden);
+        if (web != null && _projecting) {
+          _sendLive(
+            PalcoMessage(
+              type: 'video',
+              fields: {'action': 'captions', 'captionsHidden': _captionsHidden},
+            ),
+          );
+          break;
+        }
         if (_projecting) await _project();
         break;
       case RemoteAction.videoSetTarget:
@@ -956,7 +979,6 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
     final page = web;
     web = null;
     _youtube = null;
-    _webCopy = null;
     _webEnded = false;
     _webWantsPlay = false;
     await page?.dispose();
