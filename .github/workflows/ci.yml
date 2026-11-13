@@ -152,14 +152,11 @@ jobs:
       - name: Baseline (staging)
         run: |
           cp scripts/test-regression.dart /tmp/test-regression.dart
-          # O pub get regrava o pubspec.lock com os pacotes do SDK do runner
-          # (ex.: Flutter 3.50); descarta antes de trocar de branch, senão o
-          # checkout aborta por alteração local.
-          git checkout -- pubspec.lock
+          git restore --worktree .
           git checkout staging
           flutter pub get
           dart run /tmp/test-regression.dart --baseline
-          git checkout -- pubspec.lock
+          git restore --worktree .
           git checkout "${{ github.head_ref }}"
           flutter pub get
 
