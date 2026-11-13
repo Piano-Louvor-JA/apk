@@ -392,7 +392,8 @@
     "timer": "Tiempo",
     "timerSubtitle": "Cronómetro, cuenta regresiva y reloj",
     "remoteControl": "Control Remoto",
-    "remoteControlSubtitle": "Controla la liturgia y el reproductor del desktop"
+    "remoteControlSubtitle": "Controla la liturgia y el reproductor del desktop",
+    "liturgyComingSoon": "La Liturgia está en desarrollo. Pronto estará disponible."
   },
   "search": {
     "title": "Búsqueda",

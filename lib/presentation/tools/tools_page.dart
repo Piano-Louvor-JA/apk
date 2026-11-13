@@ -35,7 +35,28 @@ class _ToolsPageState extends State<ToolsPage> {
     return _buildGallery();
   }
 
+  /// Liturgia local ainda em refinamento: o card avisa e não abre.
+  /// Para liberar, troque para true.
+  static const _liturgyReleased = false;
+
   void _open(_ToolView tool) {
+    if (tool == _ToolView.liturgy && !_liturgyReleased) {
+      showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          key: const Key('liturgy-coming-soon'),
+          title: Text('tools.liturgy'.tr()),
+          content: Text('tools.liturgyComingSoon'.tr()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: Text('common.close'.tr()),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     setState(() {
       if (tool == _ToolView.connections) {
         _inConnections = true;

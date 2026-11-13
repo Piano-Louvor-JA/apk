@@ -44,4 +44,20 @@ void main() {
     expect(find.byKey(const Key('tools-connections-back')), findsNothing);
     expect(card('palco'), findsNothing);
   });
+
+  testWidgets('Liturgia avisa que está em desenvolvimento e não abre', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: ToolsPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(card('liturgy'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liturgy-coming-soon')), findsOneWidget);
+    expect(find.text('tools.liturgyComingSoon'), findsOneWidget);
+    await tester.tap(find.text('common.close'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('liturgy-coming-soon')), findsNothing);
+    expect(find.byKey(const Key('tool-back')), findsNothing);
+    expect(find.text('tools.title'), findsOneWidget);
+  });
 }

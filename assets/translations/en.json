@@ -392,7 +392,8 @@
     "timer": "Time",
     "timerSubtitle": "Stopwatch, countdown and clock",
     "remoteControl": "Remote Control",
-    "remoteControlSubtitle": "Control the desktop liturgy and player"
+    "remoteControlSubtitle": "Control the desktop liturgy and player",
+    "liturgyComingSoon": "Liturgy is under development. It will be available soon."
   },
   "search": {
     "title": "Search",
