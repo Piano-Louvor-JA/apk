@@ -25,6 +25,8 @@ import 'package:louvorja_piano_mobile/presentation/bible/bible_download_button.d
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:louvorja_piano_mobile/presentation/shared/phone_projection.dart';
+import 'package:louvorja_piano_mobile/presentation/shared/widgets/project_arrow_button.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bloc/bible_bloc.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bible_recent_searches.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bible_reference_parser.dart';
@@ -851,6 +853,40 @@ class _VerseListState extends State<_VerseList> {
   List<int> _verseOrder = const [];
   bool _selectionFromTap = false;
 
+  /// Setinha de projetar (como Hinos e o Controle Remoto): tocar no
+  /// versículo só seleciona; a projeção começa na setinha e, enquanto
+  /// ligada, acompanha a seleção. Global: segue ao trocar de tela.
+  static final projecting = ValueNotifier<bool>(false);
+  bool _projectBusy = false;
+
+  Future<void> _toggleProjection(BibleLoaded state) async {
+    if (_projectBusy) return;
+    if (projecting.value) {
+      projecting.value = false;
+      await StageSession.instance.clearContent();
+      await PhoneProjection.end();
+      return;
+    }
+    if (state.selectedVerses.isEmpty) return;
+    setState(() => _projectBusy = true);
+    try {
+      // Liga o palco do celular e os monitores compartilhados ativos.
+      if (!await PhoneProjection.begin()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('liturgy.parity.noStage'.tr())),
+          );
+        }
+        return;
+      }
+      projecting.value = true;
+      final first = ([...state.selectedVerses]..sort()).first;
+      await _projectSelectedVerses(state, first);
+    } finally {
+      if (mounted) setState(() => _projectBusy = false);
+    }
+  }
+
   GlobalKey _verseKey(int verse) =>
       _verseKeys.putIfAbsent(verse, () => GlobalKey());
 
@@ -978,7 +1014,8 @@ class _VerseListState extends State<_VerseList> {
     int toggledVerse,
   ) async {
     final stage = StageSession.instance;
-    if (!stage.isOn) return;
+    // Só com a setinha ligada: tocar no versículo não projeta sozinho.
+    if (!projecting.value || !stage.isOn) return;
     final selected = [...state.selectedVerses]..sort();
     final versesToShow = selected.contains(toggledVerse)
         ? selected
@@ -1169,7 +1206,9 @@ class _VerseListState extends State<_VerseList> {
         ],
         // Versiculos
         Expanded(
-          child: entries.isEmpty
+          child: Stack(
+            children: [
+              Positioned.fill(child: entries.isEmpty
               ? Center(
                   child: Text(
                     'bible.emptyChapter'.tr(),
@@ -1178,9 +1217,12 @@ class _VerseListState extends State<_VerseList> {
                 )
               : ListView.builder(
                   controller: _verseScroll,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s4,
-                    vertical: AppSpacing.s2,
+                  // Fim com espaço: a setinha de projetar não cobre o verso.
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.s4,
+                    AppSpacing.s2,
+                    AppSpacing.s4,
+                    72,
                   ),
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
@@ -1259,7 +1301,23 @@ class _VerseListState extends State<_VerseList> {
                       ),
                     );
                   },
-                ),
+                )),
+              ValueListenableBuilder<bool>(
+                valueListenable: projecting,
+                builder: (context, on, _) => on || state.selectedVerses.isNotEmpty
+                    ? Positioned(
+                        right: AppSpacing.s4,
+                        bottom: AppSpacing.s4,
+                        child: ProjectArrowButton(
+                          projecting: on,
+                          busy: _projectBusy,
+                          onPressed: () => _toggleProjection(state),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ],
     );
