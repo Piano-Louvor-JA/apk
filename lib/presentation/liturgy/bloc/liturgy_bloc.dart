@@ -79,6 +79,9 @@ class LiturgySelectItem extends LiturgyEvent {
   final String id;
 }
 
+/// Nenhum item destacado (toque na linha da categoria sem nada tocando).
+class LiturgyClearSelection extends LiturgyEvent {}
+
 class LiturgyMarkDone extends LiturgyEvent {
   const LiturgyMarkDone(this.id);
   final String id;
@@ -238,6 +241,12 @@ class LiturgyBloc extends Bloc<LiturgyEvent, LiturgyState> {
           startTime: start,
           endTime: current.endTime,
         );
+    });
+    on<LiturgyClearSelection>((event, emit) {
+      final current = state;
+      if (current is LiturgyLoaded && current.selectedItemId != null) {
+        emit(current.copyWith(selectedItemId: null));
+      }
     });
     on<LiturgySessionClockStarted>((event, emit) async {
       final current = state;

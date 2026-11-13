@@ -59,6 +59,17 @@ void main() {
       }
     },
   );
+  test('limpar seleção tira o destaque e mantém o relógio', () async {
+    await dispatch(
+      const LiturgyAddItem(
+        LiturgyItem(id: 'm', type: LiturgyItemType.music, name: 'Hino'),
+      ),
+    );
+    await dispatch(const LiturgySelectItem('m'));
+    final cleared = await dispatch(LiturgyClearSelection());
+    expect(cleared.selectedItemId, isNull);
+    expect(cleared.sessionStartedAt, isNotNull);
+  });
   test('ordenação recebida também grava a avulsa selecionada', () async {
     await dispatch(const LiturgyCustomCreated('Especial'));
     final items = [

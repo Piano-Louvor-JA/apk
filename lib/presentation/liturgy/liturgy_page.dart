@@ -18,6 +18,9 @@ import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_item_rules.d
 import 'package:easy_localization/easy_localization.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_cast_button.dart';
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/stage_stop_video_button.dart';
+import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
+import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
+import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 
 import 'dart:typed_data';
@@ -1153,10 +1156,12 @@ class _ItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentState = context.watch<LiturgyBloc>().state;
     final deletionLocked = currentState is LiturgyLoaded && currentState.locked;
-    final selected =
-        localLiturgyPlayer.pending?.id == item.id ||
-        (currentState is LiturgyLoaded &&
-            currentState.selectedItemId == item.id);
+    // Um item destacado por vez: o escolhido no player local manda.
+    final pendingId = localLiturgyPlayer.pending?.id;
+    final selected = pendingId != null
+        ? pendingId == item.id
+        : currentState is LiturgyLoaded &&
+              currentState.selectedItemId == item.id;
     final date = currentState is LiturgyLoaded
         ? LiturgyTiming.activeDate(
             currentState.customId == null ? currentState.selectedDay : null,
@@ -1266,6 +1271,15 @@ class _ItemCard extends StatelessWidget {
                   }
                   return;
                 }
+                // Um ou outro: fecha o player de Hinos (também no palco) e
+                // fica só o player do item escolhido.
+                bloc.add(LiturgySelectItem(item.id));
+                if (nowPlaying.hasTrack) {
+                  await HymnAudioPlayer.instance.stop();
+                  nowPlaying.stop();
+                  StageSession.instance.stopHymnAudio();
+                }
+                if (!context.mounted) return;
                 localLiturgyPlayer.choose(
                   selected,
                   language: language,
@@ -1292,6 +1306,29 @@ class _ItemCard extends StatelessWidget {
                           }
                         },
                 );
+              }
+            : isCategory
+            ? () async {
+                // Categoria sem nada tocando: some o player e o destaque.
+                if (localLiturgyPlayer.state.hasOpenMedia ||
+                    localLiturgyPlayer.busy ||
+                    nowPlaying.isPlaying) {
+                  return;
+                }
+                final bloc = context.read<LiturgyBloc>();
+                if (localLiturgyPlayer.pending != null) {
+                  await localLiturgyPlayer.send(
+                    RemoteCommand(
+                      id: 'liturgy-category',
+                      action: RemoteAction.stop,
+                    ),
+                  );
+                }
+                if (nowPlaying.hasTrack) {
+                  await HymnAudioPlayer.instance.stop();
+                  nowPlaying.stop();
+                }
+                if (!bloc.isClosed) bloc.add(LiturgyClearSelection());
               }
             : null,
         contentPadding: const EdgeInsets.symmetric(
