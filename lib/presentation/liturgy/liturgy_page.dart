@@ -1223,21 +1223,7 @@ class _ItemCard extends StatelessWidget {
                   }
                   selected = resolved;
                 }
-                final internal =
-                    {
-                      LiturgyItemType.music,
-                      LiturgyItemType.video,
-                      LiturgyItemType.onlineVideo,
-                      LiturgyItemType.audio,
-                      LiturgyItemType.pdf,
-                      LiturgyItemType.images,
-                      LiturgyItemType.annotation,
-                      LiturgyItemType.notice,
-                      LiturgyItemType.prayer,
-                    }.contains(selected.type) &&
-                    (selected.playerId == null ||
-                        selected.playerId!.isEmpty ||
-                        selected.playerId == 'default');
+                final internal = LiturgyItemRules.playsInLocalPlayer(selected);
                 void started(LiturgyItem _) {
                   if (!bloc.isClosed) {
                     bloc.add(LiturgySelectItem(item.id));

@@ -19,12 +19,10 @@ import 'package:open_filex/open_filex.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_playback.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/scheduled_resolver.dart';
 import 'package:louvorja_piano_mobile/core/services/offline_music_service.dart';
-import 'package:louvorja_piano_mobile/core/services/hymn_player_adapter.dart';
 import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/core/utils/scripture_format.dart';
 import 'package:louvorja_piano_mobile/data/repositories/liturgy_catalog_repository.dart';
 import 'package:louvorja_piano_mobile/data/repositories/scheduled_repository.dart';
-import 'package:louvorja_piano_mobile/presentation/hymns/now_playing_page.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bible_page.dart';
 import 'package:louvorja_piano_mobile/presentation/bible/bloc/bible_bloc.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/widgets/liturgy_text_control_page.dart';
@@ -36,7 +34,6 @@ import 'package:louvorja_piano_mobile/core/services/palco/palco_controller.dart'
     show PalcoAudioRoute;
 import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
-import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
 /// Monta a URL de stream do hino da liturgia (percent-encode por segmento).
 ///
@@ -273,22 +270,8 @@ class LiturgyItemExecutor {
         );
         if (stage.audioRoute == PalcoAudioRoute.tv) await player.setVolume(0);
       }
-      if (!context.mounted) return '';
-      unawaited(
-        Navigator.of(context).push<void>(
-          MaterialPageRoute(
-            builder: (_) => NowPlayingPage(
-              detail: playback.detail,
-              instrumental: item.musicMode == 'instrumental',
-              player: HymnPlayerAdapter(player),
-              filesUrl: ApiConfig.urlFiles,
-              audioSource: playback.source,
-              audioIsLocal: playback.isLocal,
-              catalogDurationMs: item.durationMs,
-            ),
-          ),
-        ),
-      );
+      // Como em Hinos: toca no miniplayer (prévia da letra); a tela cheia
+      // abre pelo botão de tela cheia dele.
       return '';
     } catch (_) {
       return 'liturgy.parity.audioUnavailable'.tr();

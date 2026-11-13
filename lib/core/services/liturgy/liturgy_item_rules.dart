@@ -2,6 +2,25 @@ import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 
 /// Regras de domínio de liturgy-item-helpers.ts do desktop.
 abstract final class LiturgyItemRules {
+  /// Mídias e textos do player local da Liturgia. Música fica de fora: toca
+  /// no mesmo player de Hinos (mesma origem e mesmo tipo de mídia).
+  static const _localPlayerTypes = {
+    LiturgyItemType.video,
+    LiturgyItemType.onlineVideo,
+    LiturgyItemType.audio,
+    LiturgyItemType.pdf,
+    LiturgyItemType.images,
+    LiturgyItemType.annotation,
+    LiturgyItemType.notice,
+    LiturgyItemType.prayer,
+  };
+
+  static bool playsInLocalPlayer(LiturgyItem item) =>
+      _localPlayerTypes.contains(item.type) &&
+      (item.playerId == null ||
+          item.playerId!.isEmpty ||
+          item.playerId == 'default');
+
   static bool keepsControls(LiturgyItem item) =>
       item.type == LiturgyItemType.annotation ||
       item.type == LiturgyItemType.site;
