@@ -150,7 +150,11 @@ jobs:
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
             --dart-define=API_TOKEN="$API_TOKEN"
-          cd ios && pod install
+          # Com todos os plugins em Swift Package Manager o Flutter não gera
+          # Podfile; só roda o CocoaPods quando algum plugin ainda precisar.
+          if [ -f ios/Podfile ]; then
+            (cd ios && pod install)
+          fi
 
       - name: Restaurar chave da App Store Connect API
         env:
