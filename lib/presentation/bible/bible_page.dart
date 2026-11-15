@@ -228,6 +228,7 @@ class _BibleViewState extends State<_BibleView> {
             ],
             IconButton(
               key: const Key('bible-search-toggle'),
+              tooltip: (_isSearching ? 'common.close' : 'common.search').tr(),
               icon: Icon(_isSearching ? TablerIcons.x : TablerIcons.search),
               onPressed: () {
                 setState(() {
@@ -1297,6 +1298,7 @@ class _LocationReferenceFieldState extends State<_LocationReferenceField> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           suffixIcon: IconButton(
             icon: const Icon(Icons.search, size: 18),
+            tooltip: 'common.search'.tr(),
             onPressed: _apply,
           ),
         ),

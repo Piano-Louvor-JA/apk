@@ -37,10 +37,18 @@
     "pause": "Pause",
     "stop": "Stop",
     "reset": "Reset",
-    "decrease": "Decrease",
-    "increase": "Increase",
+    "decrease": "Decrease value",
+    "increase": "Increase value",
     "clearSearch": "Clear search",
-    "back": "Back"
+    "back": "Back",
+    "play": "Play",
+    "rewind15": "Back 15 seconds",
+    "forward15": "Forward 15 seconds",
+    "minus": "Decrease",
+    "plus": "Increase",
+    "previous": "Previous",
+    "next": "Next",
+    "menu": "Open menu"
   },
   "hymns": {
     "title": "Hymns",

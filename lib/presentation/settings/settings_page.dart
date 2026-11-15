@@ -601,6 +601,7 @@ class _ThemeModeButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: IconButton(
+        tooltip: tooltip,
         onPressed: onPressed,
         icon: Icon(icon, size: 21),
         color: active

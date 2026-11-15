@@ -37,10 +37,18 @@
     "pause": "Pausar",
     "stop": "Parar",
     "reset": "Zerar",
-    "decrease": "Diminuir",
-    "increase": "Aumentar",
+    "decrease": "Diminuir valor",
+    "increase": "Aumentar valor",
     "clearSearch": "Limpar busca",
-    "back": "Voltar"
+    "back": "Voltar",
+    "play": "Reproduzir",
+    "rewind15": "Voltar 15 segundos",
+    "forward15": "Avançar 15 segundos",
+    "minus": "Diminuir",
+    "plus": "Aumentar",
+    "previous": "Anterior",
+    "next": "Próximo",
+    "menu": "Abrir menu"
   },
   "hymns": {
     "title": "Hinos",

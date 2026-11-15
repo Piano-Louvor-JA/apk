@@ -840,6 +840,11 @@ class _BodyState extends State<_Body> {
                     // Botao play/pause/limpar
                     IconButton(
                       key: const Key('cult-timer-toggle'),
+                      tooltip: _startTime != null
+                          ? 'common.stop'.tr()
+                          : (_stopwatch.isRunning
+                                ? 'common.pause'.tr()
+                                : 'common.play'.tr()),
                       icon: Icon(
                         _startTime != null
                             ? TablerIcons.circleX
@@ -856,6 +861,7 @@ class _BodyState extends State<_Body> {
                         _startTime != null)
                       IconButton(
                         key: const Key('cult-timer-reset'),
+                        tooltip: 'common.reset'.tr(),
                         icon: const Icon(TablerIcons.refresh, size: 20),
                         onPressed: _resetTimer,
                       ),
