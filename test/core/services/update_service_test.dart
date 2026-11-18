@@ -46,6 +46,117 @@ void main() {
     expect(result.hasUpdate, isFalse);
   });
 
+  test('T1: release com 4 APKs + IPA seleciona somente o universal', () async {
+    final dio = _MockDio();
+    when(
+      () => dio.get<dynamic>(
+        any(),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer(
+      (_) async => Response<dynamic>(
+        data: {
+          'tag_name': 'v1.0.1',
+          'body': 'notas',
+          'assets': [
+            {
+              'name': 'louvorja-piano-1.0.1-arm64-v8a.apk',
+              'browser_download_url':
+                  'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1-arm64-v8a.apk',
+              'size': 90000000,
+            },
+            {
+              'name': 'louvorja-piano-1.0.1-universal.apk',
+              'browser_download_url':
+                  'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1-universal.apk',
+              'size': 157000000,
+              'digest':
+                  'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+            },
+            {
+              'name': 'louvorja-piano-ios-unsigned.ipa',
+              'browser_download_url':
+                  'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-ios-unsigned.ipa',
+              'size': 80000000,
+            },
+            {
+              'name': 'louvorja-piano-1.0.1-x86_64.apk',
+              'browser_download_url':
+                  'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1-x86_64.apk',
+              'size': 95000000,
+            },
+            {
+              'name': 'louvorja-piano-1.0.1-armeabi-v7a.apk',
+              'browser_download_url':
+                  'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1-armeabi-v7a.apk',
+              'size': 85000000,
+            },
+          ],
+        },
+        statusCode: 200,
+        requestOptions: RequestOptions(path: ''),
+      ),
+    );
+
+    final service = UpdateService(
+      dio: dio,
+      packageInfoProvider: () async => _pkg('1.0.0'),
+    );
+
+    final result = await service.checkForUpdates();
+
+    expect(result.hasUpdate, isTrue);
+    expect(
+      result.downloadUrl,
+      'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1-universal.apk',
+    );
+    expect(result.apkSize, 157000000);
+    expect(
+      result.apkSha256,
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    );
+    expect(result.releaseNotes, 'notas');
+  });
+
+  test('T2: release sem universal (só per-ABI) retorna none', () async {
+    final dio = _MockDio();
+    when(
+      () => dio.get<dynamic>(
+        any(),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer(
+      (_) async => Response<dynamic>(
+        data: {
+          'tag_name': 'v1.0.1',
+          'assets': [
+            {
+              'name': 'louvorja-piano-1.0.1-arm64-v8a.apk',
+              'browser_download_url': 'https://dl/arm64',
+              'size': 90000000,
+            },
+            {
+              'name': 'louvorja-piano-1.0.1-x86_64.apk',
+              'browser_download_url': 'https://dl/x86',
+              'size': 95000000,
+            },
+          ],
+        },
+        statusCode: 200,
+        requestOptions: RequestOptions(path: ''),
+      ),
+    );
+
+    final service = UpdateService(
+      dio: dio,
+      packageInfoProvider: () async => _pkg('1.0.0'),
+    );
+
+    expect((await service.checkForUpdates()).hasUpdate, isFalse);
+  });
+
   test('detecta versao mais recente com asset APK', () async {
     final dio = _MockDio();
     when(
@@ -61,9 +172,9 @@ void main() {
           'body': 'Bug fixes',
           'assets': [
             {
-              'name': 'app-release.apk',
+              'name': 'louvorja-piano-0.2.0-universal.apk',
               'browser_download_url':
-                  'https://github.com/pianolouvorja/apk/releases/download/v0.2.0/app-release.apk',
+                  'https://github.com/pianolouvorja/apk/releases/download/v0.2.0/louvorja-piano-0.2.0-universal.apk',
               'size': 60000000,
               'digest':
                   'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -84,7 +195,7 @@ void main() {
 
     expect(result.hasUpdate, isTrue);
     expect(result.latestVersion, '0.2.0');
-    expect(result.downloadUrl, contains('app-release.apk'));
+    expect(result.downloadUrl, contains('-universal.apk'));
     expect(result.apkSize, 60000000);
     expect(
       result.apkSha256,
@@ -108,7 +219,7 @@ void main() {
           data: {
             'tag_name': 'v0.1.0',
             'assets': [
-              {'name': 'app.apk', 'browser_download_url': 'url', 'size': 1},
+              {'name': 'louvorja-piano-0.1.0-universal.apk', 'browser_download_url': 'url', 'size': 1},
             ],
           },
           statusCode: 200,
@@ -185,9 +296,9 @@ void main() {
             'body': 'notes',
             'assets': [
               {
-                'name': 'louvorja-piano-0.2.0.apk',
+                'name': 'louvorja-piano-0.2.0-universal.apk',
                 'browser_download_url':
-                    'https://pianolouvorja.duckdns.org/dl/v0.2.0/louvorja-piano-0.2.0.apk',
+                    'https://pianolouvorja.duckdns.org/dl/v0.2.0/louvorja-piano-0.2.0-universal.apk',
                 'size': 60000000,
                 'digest':
                     'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -215,7 +326,7 @@ void main() {
       // E sem header Authorization (token vive no servidor)
       expect(
         result.downloadUrl,
-        'https://pianolouvorja.duckdns.org/dl/v0.2.0/louvorja-piano-0.2.0.apk',
+        'https://pianolouvorja.duckdns.org/dl/v0.2.0/louvorja-piano-0.2.0-universal.apk',
       );
     },
   );
@@ -322,7 +433,7 @@ void main() {
         'tag_name': 'v9.9.9',
         'assets': [
           {
-            'name': 'app.apk',
+            'name': 'louvorja-piano-9.9.9-universal.apk',
             'browser_download_url': 'https://dl/apk',
             'size': 10,
           },
