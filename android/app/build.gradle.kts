@@ -44,6 +44,14 @@ android {
         }
     }
 
+    // yt-dlp: o Python e o QuickJS rodam a partir dos .so extraídos no
+    // aparelho (equivale a android:extractNativeLibs="true").
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
             // Sem key.properties (ex.: CI) assina com a chave debug.
@@ -67,6 +75,9 @@ dependencies {
     testImplementation(kotlin("test"))
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("androidx.media:media:1.7.0")
+    // yt-dlp (+ Python e QuickJS) para baixar vídeos do YouTube, o mesmo
+    // motor do desktop. O vídeo e o áudio são juntados pelo LiturgyMedia.
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
 }
 
 kotlin {
