@@ -210,7 +210,7 @@ void main() {
       // URL de consulta foi pro proxy, NAO pro api.github.com
       expect(
         captured.single,
-        'https://pianolouvorja.duckdns.org/repos/pianolouvorja/apk/releases/latest',
+        'https://pianolouvorja.duckdns.org/repos/Piano-Louvor-JA/apk/releases/latest',
       );
       // E sem header Authorization (token vive no servidor)
       expect(
