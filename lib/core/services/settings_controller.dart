@@ -19,7 +19,10 @@ class SettingsController extends ChangeNotifier {
   static const _keyInteraction = 'interaction';
   static const _keyGlassIntensity = 'glassIntensity';
 
-  ThemeMode _themeMode = ThemeMode.system;
+  /// Tema escuro por padrao, igual ao desktop (etherealLumens).
+  static const _defaultThemeMode = ThemeMode.dark;
+
+  ThemeMode _themeMode = _defaultThemeMode;
   AccentKey _accent = AccentKey.orange;
   InteractionKey _interaction = InteractionKey.dynamic_;
   int _glassIntensity = 60;
@@ -40,7 +43,7 @@ class SettingsController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _themeMode = ThemeMode.values.firstWhere(
       (m) => m.name == prefs.getString(_keyThemeMode),
-      orElse: () => ThemeMode.system,
+      orElse: () => _defaultThemeMode,
     );
     _accent = AccentKey.values.firstWhere(
       (a) => a.name == prefs.getString(_keyAccent),

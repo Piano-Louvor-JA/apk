@@ -2,6 +2,7 @@ library;
 
 import 'dart:async' show unawaited, StreamSubscription;
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
@@ -76,11 +77,20 @@ class StageSession extends ChangeNotifier {
       ? _palco!.sendRemoteCommand(command, role: role, value: value)
       : Future.value(null);
 
+  /// Retorno de palco: vai para TODAS as conexões no ar (a tela de retorno
+  /// pode estar aberta em qualquer uma; quem não está em /retorno ignora).
+  void sendStageReturn(Map<String, dynamic> fields) {
+    if (!isPalcoMode) return;
+    for (final s in PalcoOrchestrator.instance.slots) {
+      if (s.controller.isRunning) s.controller.sendStageReturn(fields);
+    }
+  }
+
   /// Liga o palco no modo Palco WS (receiver LouvorJA na TV).
   /// A TV conecta no sender do celular ao abrir o app dela.
   Future<bool> turnOnPalco(PalcoTarget tv) async {
     // Multi-palco: o slot "principal" do orchestrator É o transporte desta
-    // sessão — um sender só (portas 7080/7081), estado compartilhado com o
+    // sessão — um sender só (portas 4980/4981), estado compartilhado com o
     // gerenciador de telas. Antes: controller paralelo deixava o slot
     // "desconectado" no gerenciador (bug 2026-08-21).
     final orch = PalcoOrchestrator.instance;
@@ -235,8 +245,12 @@ class StageSession extends ChangeNotifier {
   void rerouteCurrentAudio() {
     if (_currentAudioUrl == null) return;
     if (!_routesToTv) {
-      // voltou pra local: para na TV (player local segue por conta da UI)
-      _audioTarget().stopAudio();
+      // Áudio no celular: só silencia as conexões. 'stop' no receiver
+      // volta para "aguardando" e apagava a letra projetada (espelho
+      // sumia ao pausar/retomar no miniplayer).
+      for (final p in _allConnectedControllers()) {
+        p.pauseAudio();
+      }
       return;
     }
     var url = _currentAudioUrl!;
@@ -315,6 +329,51 @@ class StageSession extends ChangeNotifier {
     for (final p in _projectionTargets()) {
       p.project(text: '', footer: '', background: _slideUrls[index]);
     }
+  }
+
+  /// Página web renderizada pelo próprio Android: não depende de iframe remoto.
+  bool projectWebSnapshot(Uint8List bytes) {
+    final targets = _projectionTargets();
+    if (targets.isEmpty) return false;
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    var sent = false;
+    for (final target in targets) {
+      final url = target.serveMedia('liturgy-web.png', bytes);
+      if (url != null) {
+        target.project(text: '', footer: '', background: '$url?t=$stamp');
+        sent = true;
+      }
+    }
+    return sent;
+  }
+
+  /// Galeria de imagens local com os mesmos controles de slides do PPTX.
+  int projectImageFiles(List<String> paths, {int initialIndex = 0}) {
+    final targets = _projectionTargets();
+    if (targets.isEmpty) return 0;
+    final urls = <String>[];
+    for (var i = 0; i < paths.length; i++) {
+      final file = File(paths[i]);
+      if (!file.existsSync()) return 0;
+      try {
+        final name =
+            'gallery-${DateTime.now().microsecondsSinceEpoch}-$i.${paths[i].split('.').last}';
+        final url = targets.first.serveMedia(name, file.readAsBytesSync());
+        if (url == null) return 0;
+        urls.add(url);
+      } catch (_) {
+        return 0;
+      }
+    }
+    _slideUrls = urls;
+    if (urls.isNotEmpty) _projectSlide(initialIndex.clamp(0, urls.length - 1));
+    return urls.length;
+  }
+
+  bool showSlide(int index) {
+    if (index < 0 || index >= _slideUrls.length) return false;
+    _projectSlide(index);
+    return true;
   }
 
   /// Carrega e projeta a 1a imagem de slides extraídos de um .pptx.
@@ -419,6 +478,7 @@ class StageSession extends ChangeNotifier {
     _videoOnStage = true;
     notifyListeners();
   }
+
   bool _stageVideoPaused = false;
   bool get isStageVideoPaused => _stageVideoPaused;
 
@@ -576,7 +636,19 @@ class StageSession extends ChangeNotifier {
     if (!isOn) return;
     final current = _lastContent;
     if (current != null) {
-      await _project(current);
+      await project(
+        title: current.title,
+        body: current.body,
+        richBody: current.richBody,
+        titleColor: current.titleColor,
+        footer: current.footer,
+        module: current.module,
+        isBible: current.isBible,
+        background: current.background,
+        footerRef: current.footerRef,
+        footerVersion: current.footerVersion,
+        isCover: current.isCover,
+      );
     } else {
       await _projectIdle();
     }
@@ -589,17 +661,26 @@ class StageSession extends ChangeNotifier {
   Future<bool> project({
     required String title,
     String? body,
+    String? richBody,
+    String? titleColor,
     String? footer,
     String? background,
     String? footerRef,
     String? footerVersion,
     bool isBible = false,
     String module = 'hymns',
+    bool? isCover,
   }) async {
     if (!isOn) return false;
     final content = _StageContent(
       title: title,
       body: body,
+      richBody: richBody,
+      titleColor: titleColor,
+      background: background,
+      footerRef: footerRef,
+      footerVersion: footerVersion,
+      isCover: isCover,
       footer: footer,
       module: module,
       isBible: isBible,
@@ -608,8 +689,12 @@ class StageSession extends ChangeNotifier {
     if (isPalcoMode) {
       // Palco WS: texto nativo (body com \n vira <br> no receiver).
       final text = [
-        title,
-        body,
+        titleColor != null && RegExp(r'^#[a-fA-F0-9]{6}$').hasMatch(titleColor)
+            ? '<span style="color:$titleColor">${richBody == null ? title : const HtmlEscape().convert(title)}</span>'
+            : richBody == null
+            ? title
+            : const HtmlEscape().convert(title),
+        richBody ?? body,
       ].whereType<String>().where((s) => s.isNotEmpty).join('<br><br>');
       // F3.3m/o: estilos da letra (sombra/caixinha) e footer destacado.
       // Bíblia tem tipografia PRÓPRIA (tamanho/peso/cor) — diferente da música.
@@ -636,6 +721,8 @@ class StageSession extends ChangeNotifier {
           fSize: fSize,
           fWeight: fWeight,
           s: s,
+          scope: isBible ? 'bible' : module,
+          isCover: isCover,
         );
       }
       return targets.isNotEmpty;
@@ -646,6 +733,10 @@ class StageSession extends ChangeNotifier {
   /// Controllers que recebem a projeção (multi-palco).
   List<PalcoController> _projectionTargets() {
     final orch = PalcoOrchestrator.instance;
+    // Várias conexões no ar: projeta em todas as marcadas no painel.
+    if (orch.usesMarks) {
+      return orch.projectionSlots.map((s) => s.controller).toList();
+    }
     if (orch.isMirrorMode) {
       final group = orch.mirrorGroup!;
       debugPrint(
@@ -680,6 +771,8 @@ class StageSession extends ChangeNotifier {
     required double fSize,
     required int fWeight,
     required StageSettings s,
+    String? scope,
+    bool? isCover,
   }) {
     p.project(
       text: text,
@@ -696,10 +789,13 @@ class StageSession extends ChangeNotifier {
       textBox: s.textBox,
       boxOpacity: s.boxOpacity,
       boxBorder: s.boxBorder
-          ? {'width': 0.4, 'color': 'rgba(255,255,255,.25)'}
+          ? {'width': 0.2, 'color': 'rgba(255,255,255,0.85)'}
           : null,
       fontSize: fSize,
       fontWeight: fWeight,
+      scope: scope,
+      margin: s.margin,
+      isCover: isCover,
     );
   }
 
@@ -710,7 +806,8 @@ class StageSession extends ChangeNotifier {
   }
 
   /// Volta ao idle (background aguardando mídia).
-  Future<void> clearContent() async {
+  /// [allConnections]: limpa também as conexões desmarcadas no painel.
+  Future<void> clearContent({bool allConnections = false}) async {
     _lastContent = null;
     if (!isOn) return;
     // F3.3p: limpa TAMBÉM sequência de slides/timer pendentes.
@@ -719,7 +816,12 @@ class StageSession extends ChangeNotifier {
     _palco?.stopTimer();
     if (isPalcoMode) {
       // Multi-palco: idle nos mesmos targets da projeção.
-      for (final p in _projectionTargets()) {
+      final targets = allConnections
+          ? PalcoOrchestrator.instance.slots
+                .map((s) => s.controller)
+                .where((c) => c.isConnected)
+          : _projectionTargets();
+      for (final p in targets) {
         p.projectIdle();
       }
       return;
@@ -772,13 +874,25 @@ class StageSession extends ChangeNotifier {
 
 class _StageContent {
   final String title;
-  final String? body;
+  final String? body,
+      richBody,
+      titleColor,
+      background,
+      footerRef,
+      footerVersion;
+  final bool? isCover;
   final String? footer;
   final String module;
   final bool isBible;
   const _StageContent({
     required this.title,
     this.body,
+    this.richBody,
+    this.titleColor,
+    this.background,
+    this.footerRef,
+    this.footerVersion,
+    this.isCover,
     this.footer,
     this.module = 'hymns',
     this.isBible = false,

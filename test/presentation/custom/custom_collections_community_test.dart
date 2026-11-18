@@ -1,6 +1,7 @@
 library;
 
 import 'dart:typed_data';
+import 'package:go_router/go_router.dart';
 
 import 'dart:convert';
 
@@ -90,6 +91,22 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('Minhas Edições é acessível pelas coletâneas', (tester) async {
+    final dio = Dio()..httpClientAdapter = _ApiAdapter([otherAuthor]);
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (_, _) =>
+        CustomCollectionsPage(dio: dio, authController: _fakeAuth())),
+      GoRoute(path: '/hymns/custom/my-edits', builder: (_, _) =>
+        const Scaffold(body: Text('destino edições'))),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('myEdits.title'));
+    await tester.pumpAndSettle();
+    expect(find.text('destino edições'), findsOneWidget);
+  });
 
   testWidgets('coletânea de outro autor aparece com autor e botão baixar',
       (tester) async {

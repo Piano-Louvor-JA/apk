@@ -8,6 +8,8 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:louvorja_piano_mobile/core/services/bundle/bundle_snapshot_store.dart';
+import 'package:louvorja_piano_mobile/core/services/bundle/bundle_sync_contract.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
 import 'package:louvorja_piano_mobile/domain/entities/bible_book.dart';
 import 'package:louvorja_piano_mobile/domain/entities/bible_version.dart';
@@ -27,6 +29,11 @@ class LouvorjaApiImpl implements LouvorjaApiClient {
   final List<String> _filesUrls;
   final String apiToken;
   final DateTime Function() _now;
+
+  /// Snapshot bundle-first (SPEC piano-bundle-sync v1.2.0): quando aplicado,
+  /// a leitura de `music_<id>`/álbum/índice/capítulo serve do bundle SEM
+  /// request item-a-item (RF-03/RF-04). Chave ausente cai no fluxo legado.
+  final BundleSnapshotStore? bundleStore;
 
   /// Base em uso (a primaria, ou o fallback apos o primeiro failover).
   String get baseUrl => _baseUrls.first;
@@ -55,6 +62,7 @@ class LouvorjaApiImpl implements LouvorjaApiClient {
     required this.apiToken,
     this.languagePrefix = 'pt',
     DateTime Function()? now,
+    this.bundleStore,
   }) : _baseUrls = baseUrls,
        _filesUrls = filesUrls,
        _now = now ?? DateTime.now,
@@ -74,12 +82,14 @@ class LouvorjaApiImpl implements LouvorjaApiClient {
     required String apiToken,
     String languagePrefix = 'pt',
     DateTime Function()? now,
+    BundleSnapshotStore? bundleStore,
   }) => LouvorjaApiImpl(
     baseUrls: [baseUrl],
     filesUrls: [filesUrl],
     apiToken: apiToken,
     languagePrefix: languagePrefix,
     now: now,
+    bundleStore: bundleStore,
   );
 
   @visibleForTesting
@@ -96,6 +106,12 @@ class LouvorjaApiImpl implements LouvorjaApiClient {
   }
 
   Future<dynamic> _fetchJson(String filename) async {
+    // Bundle-first (RF-03/RF-04): snapshot aplicado serve a chave SEM
+    // request. Ausente/corrompido => fluxo legado abaixo (RF-06, sem
+    // varredura: só a chave pedida vai à rede).
+    final fromBundle = _readFromBundle(filename);
+    if (fromBundle != null) return fromBundle;
+
     final cacheBuster = _cacheBuster;
 
     // Failover: cascade de hosts. Cada host recebe as tentativas de retry
@@ -164,6 +180,25 @@ class LouvorjaApiImpl implements LouvorjaApiClient {
     }
 
     throw const LouvorjaApiException('errors.serverBusy', 'Servidor ocupado');
+  }
+
+  /// Resolve o artifact do bundle pela chave pedida (ADR-09): capítulos
+  /// `bible_*` pertencem ao snapshot bible; todo o resto do padrão catalog
+  /// ao snapshot catalog. Retorna null quando a chave não está em padrão
+  /// nenhum (sempre legado) ou não está no snapshot aplicado.
+  dynamic _readFromBundle(String filename) {
+    final store = bundleStore;
+    if (store == null) return null;
+    final key = filename.endsWith('.json')
+        ? filename.substring(0, filename.length - 5)
+        : filename;
+    if (isBibleKey(key)) {
+      return store.readJson(BundleKind.bible, key);
+    }
+    if (isCatalogKey(key)) {
+      return store.readJson(BundleKind.catalog, key);
+    }
+    return null;
   }
 
   @override

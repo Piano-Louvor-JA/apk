@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:louvorja_piano_mobile/core/services/home_location_preferences.dart';
 import 'package:louvorja_piano_mobile/core/services/sync/operator_state_client.dart';
 import 'package:louvorja_piano_mobile/core/services/sync/sync_timestamps.dart';
 import 'package:louvorja_piano_mobile/data/repositories/scheduled_repository.dart';
@@ -84,6 +85,98 @@ void main() {
       final payload =
           jsonDecode(entry['value_json'] as String) as Map<String, dynamic>;
       expect(payload, {'themeMode': 'light', 'accent': 'azure'});
+    });
+  });
+
+  group('home.location (paridade com o desktop)', () {
+    const location = {'district': 'Distrito Norte', 'church': 'Igreja Sede'};
+
+    test('envia como objeto dentro do lote prefs::values', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final fetch = FakeFetch()..nextResponse = <String, dynamic>{};
+      final client = OperatorStateClient(
+        prefs,
+        fetch: fetch.call,
+        apiBaseUrl: 'https://api.test',
+        sessionToken: () async => 'tok123456',
+      );
+
+      await client.enqueuePrefs({'home.location': location});
+      await client.flush();
+
+      final ops = fetch.bodies.single['operator_state'] as List<dynamic>;
+      final op = ops.single as Map<String, dynamic>;
+      expect(op['namespace'], 'prefs');
+      expect(op['key'], 'values');
+      expect(jsonDecode(op['value_json'] as String), {
+        'home.location': location,
+      });
+    });
+
+    test('pull grava o valor da conta sem reenfileirar', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final client = OperatorStateClient(prefs);
+
+      await applyOperatorState(prefs, [
+        {
+          'namespace': 'prefs',
+          'key': 'values',
+          'updated_at_ms': 1000,
+          'deleted_at': null,
+          'value_json': jsonEncode({
+            'home.location': {'district': ' Norte ', 'church': 'Sede'},
+          }),
+        },
+      ]);
+
+      final stored =
+          jsonDecode(prefs.getString('home.location')!) as Map<String, dynamic>;
+      expect(stored, {'district': 'Norte', 'church': 'Sede'});
+      expect(client.outboxCount(), 0);
+    });
+
+    test('pull avisa a tela que o valor mudou', () async {
+      final prefs = await SharedPreferences.getInstance();
+      var notified = 0;
+      void listener() => notified++;
+      HomeLocationPreferences.externalChanges.addListener(listener);
+      addTearDown(
+        () => HomeLocationPreferences.externalChanges.removeListener(listener),
+      );
+
+      await applyOperatorState(prefs, [
+        {
+          'namespace': 'prefs',
+          'key': 'values',
+          'updated_at_ms': 1000,
+          'deleted_at': null,
+          'value_json': jsonEncode({'home.location': location}),
+        },
+      ]);
+
+      expect(notified, 1);
+    });
+
+    test('pull com valor invalido nao altera o que esta salvo', () async {
+      SharedPreferences.setMockInitialValues({
+        'home.location': '{"district":"Local","church":"Local"}',
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      await applyOperatorState(prefs, [
+        {
+          'namespace': 'prefs',
+          'key': 'values',
+          'updated_at_ms': 1000,
+          'deleted_at': null,
+          'value_json': jsonEncode({'home.location': 'invalido'}),
+        },
+      ]);
+
+      expect(
+        prefs.getString('home.location'),
+        '{"district":"Local","church":"Local"}',
+      );
     });
   });
 

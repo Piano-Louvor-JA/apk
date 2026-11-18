@@ -40,6 +40,16 @@ checked=
 ''';
 
 void main() {
+  test('ANSI preserva aspas e travessão de Windows-1252', () {
+    expect(decodeJaFile([0x93, 0x46, 0xe9, 0x94, 0x20, 0x97]), '“Fé” —');
+  });
+  test('INI aceita espaços ao redor da chave', () {
+    final data = JaLiturgyParser.parse(
+      '[Geral]\n1 = item_1\n[item_1]\ntipo = musica\nitem = Hino\nmusica = 42',
+    );
+    expect(data[1]!.single.musicId, 42);
+  });
+
   test('parse completo: dias, tipos, campos', () {
     final map = JaLiturgyParser.parse(_sample);
     expect(map.keys, containsAll([6, 7]));

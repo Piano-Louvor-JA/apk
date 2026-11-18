@@ -11,6 +11,7 @@ import 'package:flutter/material.dart' show Color;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'palco_controller.dart';
+import 'palco_sender.dart';
 import 'palco_slot.dart';
 import 'palco_models.dart';
 import '../dlna/stage_settings_repository.dart';
@@ -29,6 +30,62 @@ class PalcoOrchestrator extends ChangeNotifier {
   final Map<String, PalcoSlot> _slots = {};
   static const _slotsKey = 'palco.multi.slots.v1';
   static const _activeKey = 'palco.multi.active.v1';
+  static const _mutedKey = 'palco.multi.muted.v1';
+  static const _hideLogoKey = 'palco.idle.hideLogo.v1';
+  static const _mutedTvsKey = 'palco.tv.muted.v1';
+
+  /// Tela de espera das conexões sem o logo LouvorJA.
+  bool get hideIdleLogo => PalcoSender.hideIdleLogo;
+
+  Future<void> setHideIdleLogo(bool hide) async {
+    PalcoSender.hideIdleLogo = hide;
+    for (final s in _slots.values) {
+      if (s.controller.isRunning) s.controller.sendIdleStyle(hideLogo: hide);
+    }
+    notifyListeners();
+    final prefs = await _prefs();
+    await prefs?.setBool(_hideLogoKey, hide);
+  }
+
+  /// Conexões desmarcadas no painel do botão de TV: não recebem projeção.
+  /// Padrão: todas marcadas (conjunto vazio).
+  final Set<String> _muted = {};
+  bool isMuted(String id) => _muted.contains(id);
+
+  Future<void> setMuted(String id, bool muted) async {
+    if (muted ? !_muted.add(id) : !_muted.remove(id)) return;
+    notifyListeners();
+    final prefs = await _prefs();
+    await prefs?.setStringList(_mutedKey, _muted.toList());
+  }
+
+  /// TVs desmarcadas no Palco: continuam conectadas, mas na tela de espera.
+  bool isTvMuted(PalcoClientInfo c) =>
+      PalcoSender.mutedTvs.contains(PalcoSender.muteKey(c));
+
+  Future<void> setTvMuted(PalcoClientInfo c, bool muted) async {
+    final key = PalcoSender.muteKey(c);
+    if (muted
+        ? !PalcoSender.mutedTvs.add(key)
+        : !PalcoSender.mutedTvs.remove(key)) {
+      return;
+    }
+    for (final s in _slots.values) {
+      if (s.controller.isRunning) s.controller.applyMute(c);
+    }
+    notifyListeners();
+    final prefs = await _prefs();
+    await prefs?.setStringList(_mutedTvsKey, PalcoSender.mutedTvs.toList());
+  }
+
+  /// Conexões no ar, com TV/navegador ligado e marcadas: recebem a projeção
+  /// (igual à Transmissão do desktop, que manda para todas).
+  List<PalcoSlot> get projectionSlots =>
+      slots.where((s) => s.isConnected && !_muted.contains(s.id)).toList();
+
+  /// Marcas valem com 2+ conexões no ar ou com alguma desmarcada.
+  bool get usesMarks =>
+      connectedCount > 1 || projectionSlots.length != connectedCount;
   bool _loaded = false;
 
   /// Restaura telas salvas. Senders são ligados quando o palco abre.
@@ -49,6 +106,13 @@ class PalcoOrchestrator extends ChangeNotifier {
         }
       }
     }
+    PalcoSender.hideIdleLogo = prefs.getBool(_hideLogoKey) ?? false;
+    PalcoSender.mutedTvs
+      ..clear()
+      ..addAll(prefs.getStringList(_mutedTvsKey) ?? const []);
+    _muted
+      ..clear()
+      ..addAll(prefs.getStringList(_mutedKey) ?? const []);
     final active = prefs.getString(_activeKey);
     if (active != null && _slots.containsKey(active)) _activeSlotId = active;
     notifyListeners();
@@ -352,6 +416,7 @@ class PalcoOrchestrator extends ChangeNotifier {
 
   /// Targets de projeção: espelho (grupo) ou slot ativo.
   List<PalcoSlot> _projectionTargets() {
+    if (usesMarks) return projectionSlots;
     if (isMirrorMode) {
       return mirrorGroup!
           .map((id) => _slots[id])
@@ -421,12 +486,14 @@ class PalcoOrchestrator extends ChangeNotifier {
       textBox: settings.textBox,
       boxOpacity: settings.boxOpacity,
       boxBorder: settings.boxBorder
-          ? {'width': 0.4, 'color': 'rgba(255,255,255,.25)'}
+          ? {'width': 0.2, 'color': 'rgba(255,255,255,0.85)'}
           : null,
       textAlign: settings.textAlign,
       textVerticalAlign: settings.textVerticalAlign,
       fontSize: fSize,
       fontWeight: fWeight,
+      scope: isBible ? 'bible' : module,
+      margin: settings.margin,
     );
     return true;
   }

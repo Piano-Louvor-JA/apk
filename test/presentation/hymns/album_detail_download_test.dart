@@ -22,8 +22,9 @@ class _MockApi implements LouvorjaApiClient {
   @override
   String languagePrefix = 'pt';
   @override
-  Future<List<Hymn>> fetchAlbumHymns(int albumId) async =>
-      [const Hymn(id: 7, title: 'Hino 7', urlMusic: '/m7.mp3')];
+  Future<List<Hymn>> fetchAlbumHymns(int albumId) async => [
+    const Hymn(id: 7, title: 'Hino 7', urlMusic: '/m7.mp3'),
+  ];
   @override
   Future<Hymn> fetchMusic(int musicId) async =>
       Hymn(id: musicId, title: 'T', urlMusic: '/m.mp3');
@@ -39,8 +40,10 @@ class _FakeOfflineOk implements OfflineMusicPort {
   bool get isSupported => true;
 
   @override
-  Future<String?> localPathFor(int musicId, {bool instrumental = false}) async =>
-      stored.contains(musicId) ? '/tmp/off_$musicId.mp3' : null;
+  Future<String?> localPathFor(
+    int musicId, {
+    bool instrumental = false,
+  }) async => stored.contains(musicId) ? '/tmp/off_$musicId.mp3' : null;
 
   @override
   Future<String> download({
@@ -62,8 +65,9 @@ class _FakeOfflineOk implements OfflineMusicPort {
 }
 
 void main() {
-  testWidgets('download por faixa: OK marca como baixada e remove volta',
-      (tester) async {
+  testWidgets('download por faixa: OK marca como baixada e remove volta', (
+    tester,
+  ) async {
     final offline = _FakeOfflineOk();
     final repo = HymnRepositoryImpl(_MockApi(), CatalogCache.noop());
     final bloc = HymnsBloc(repo);
@@ -97,8 +101,9 @@ void main() {
     expect(find.byTooltip('Baixar'), findsOneWidget);
   });
 
-  testWidgets('download por faixa com falha: snack de erro e não marca',
-      (tester) async {
+  testWidgets('download por faixa com falha: snack de erro e não marca', (
+    tester,
+  ) async {
     final offline = _FakeOfflineOk()..failDownload = true;
     final repo = HymnRepositoryImpl(_MockApi(), CatalogCache.noop());
     final bloc = HymnsBloc(repo);

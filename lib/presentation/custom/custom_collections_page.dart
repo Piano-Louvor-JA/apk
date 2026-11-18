@@ -1,3 +1,5 @@
+import 'package:easy_localization/easy_localization.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'package:flutter/material.dart';
@@ -278,6 +280,10 @@ class _CustomCollectionsPageState extends State<CustomCollectionsPage> {
       appBar: AppBar(
         title: const Text('Coletâneas da Comunidade'),
         actions: [
+          TextButton(
+            onPressed: () => context.push('/hymns/custom/my-edits'),
+            child: Text('myEdits.title'.tr()),
+          ),
           AnimatedBuilder(
             animation: _auth,
             builder: (context, _) {

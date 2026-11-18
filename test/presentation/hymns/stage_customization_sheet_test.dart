@@ -56,15 +56,17 @@ Future<void> _pumpSheet(
   await tester.pump(const Duration(milliseconds: 50));
 }
 
-
 /// Tapa num widget que pode estar abaixo da dobra: rola até ele primeiro.
 Future<void> _tapScrollable(WidgetTester tester, Finder f) async {
-  await tester.scrollUntilVisible(f, 200, scrollable: find.byType(Scrollable).first);
+  await tester.scrollUntilVisible(
+    f,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.pump();
   await tester.tap(f, warnIfMissed: false);
   await tester.pump();
 }
-
 
 /// Aplica as mudanças e espera o `onApply` de verdade.
 ///
@@ -132,18 +134,11 @@ void main() {
     testWidgets('módulo bible mostra seção própria de tipografia', (
       tester,
     ) async {
-      await _pumpSheet(
-        tester,
-        module: StageModule.bible,
-        onApply: (_) {},
-      );
+      await _pumpSheet(tester, module: StageModule.bible, onApply: (_) {});
 
       expect(find.text('Personalizar Bíblia'), findsOneWidget);
       expect(find.text('Bíblia — aparência própria'), findsOneWidget);
-      expect(
-        find.text('Mostrar versão da Bíblia no rodapé'),
-        findsOneWidget,
-      );
+      expect(find.text('Mostrar versão da Bíblia no rodapé'), findsOneWidget);
       expect(find.text('Cor da referência (rodapé)'), findsOneWidget);
     });
 
@@ -166,7 +161,10 @@ void main() {
       StageSettings? applied;
       await _pumpSheet(tester, onApply: (s) => applied = s);
 
-      await _tapScrollable(tester, find.widgetWithText(InputChip, 'Amarelo suave').first);
+      await _tapScrollable(
+        tester,
+        find.widgetWithText(InputChip, 'Amarelo suave').first,
+      );
       await tester.pump();
 
       await _apply(tester, () => applied != null);
@@ -191,7 +189,9 @@ void main() {
       expect(applied, isNotNull);
     });
 
-    testWidgets('espessura via SegmentedButton muda fontWeight', (tester) async {
+    testWidgets('espessura via SegmentedButton muda fontWeight', (
+      tester,
+    ) async {
       StageSettings? applied;
       await _pumpSheet(tester, onApply: (s) => applied = s);
 
@@ -206,11 +206,7 @@ void main() {
     testWidgets('sombra: ligar mostra sliders de intensidade/espalhamento', (
       tester,
     ) async {
-      await _pumpSheet(
-        tester,
-        initial: _initial(),
-        onApply: (_) {},
-      );
+      await _pumpSheet(tester, initial: _initial(), onApply: (_) {});
 
       // default é sombra LIGADA — desligar esconde os sliders.
       expect(find.text('Intensidade da sombra'), findsOneWidget);
@@ -224,15 +220,23 @@ void main() {
       expect(find.text('Intensidade da sombra'), findsOneWidget);
     });
 
-    testWidgets('caixinha: ligar mostra opacidade e borda', (tester) async {
+    testWidgets('caixinha: já vem ligada; desligar/ligar alterna opacidade', (
+      tester,
+    ) async {
       StageSettings? applied;
       await _pumpSheet(tester, onApply: (s) => applied = s);
 
+      // Padrão novo: caixinha ligada.
+      expect(find.text('Opacidade da caixinha'), findsOneWidget);
+      expect(find.text('Borda na caixinha'), findsOneWidget);
+
+      await _tapScrollable(tester, find.text('Caixinha atrás da letra'));
+      await tester.pump();
       expect(find.text('Opacidade da caixinha'), findsNothing);
+
       await _tapScrollable(tester, find.text('Caixinha atrás da letra'));
       await tester.pump();
       expect(find.text('Opacidade da caixinha'), findsOneWidget);
-      expect(find.text('Borda na caixinha'), findsOneWidget);
 
       await _tapScrollable(tester, find.text('Borda na caixinha'));
       await tester.pump();
@@ -240,6 +244,19 @@ void main() {
       await _apply(tester, () => applied != null);
       expect(applied!.textBox, isTrue);
       expect(applied!.boxBorder, isFalse);
+    });
+
+    testWidgets('caixinha desligada é aplicada como textBox=false', (
+      tester,
+    ) async {
+      StageSettings? applied;
+      await _pumpSheet(tester, onApply: (s) => applied = s);
+
+      await _tapScrollable(tester, find.text('Caixinha atrás da letra'));
+      await tester.pump();
+
+      await _apply(tester, () => applied != null);
+      expect(applied!.textBox, isFalse);
     });
 
     testWidgets('alinhamento horizontal e vertical aplicam strings', (
@@ -302,7 +319,10 @@ void main() {
 
       await tester.tap(find.widgetWithText(InputChip, 'Dourado').last);
       await tester.pump();
-      await _tapScrollable(tester, find.text('Mostrar versão da Bíblia no rodapé'));
+      await _tapScrollable(
+        tester,
+        find.text('Mostrar versão da Bíblia no rodapé'),
+      );
       await tester.pump();
 
       await _apply(tester, () => applied != null);
@@ -330,24 +350,27 @@ void main() {
       expect(applied!.backgroundColor, const Color(0xFF000000));
     });
 
-    testWidgets('Aplicar persiste settings (repo global interno) e devolve pro onApply', (tester) async {
-      StageSettings? applied;
-      await _pumpSheet(
-        tester,
-        module: StageModule.liturgy,
-        initial: _initial(bg: const Color(0xFF2A1B1B)),
-        onApply: (s) => applied = s,
-      );
+    testWidgets(
+      'Aplicar persiste settings (repo global interno) e devolve pro onApply',
+      (tester) async {
+        StageSettings? applied;
+        await _pumpSheet(
+          tester,
+          module: StageModule.liturgy,
+          initial: _initial(bg: const Color(0xFF2A1B1B)),
+          onApply: (s) => applied = s,
+        );
 
-      await _apply(tester, () => applied != null);
+        await _apply(tester, () => applied != null);
 
-      expect(applied!.backgroundColor, const Color(0xFF2A1B1B));
-      // O sheet usa StageSettingsRepository() interno (scope global) e o
-      // onApply do consumidor decide persistir por módulo — aqui valida global.
-      final persisted = await tester.runAsync(
-        () => StageSettingsRepository().load(),
-      );
-      expect(persisted!.backgroundColor, const Color(0xFF2A1B1B));
-    });
+        expect(applied!.backgroundColor, const Color(0xFF2A1B1B));
+        // O sheet usa StageSettingsRepository() interno (scope global) e o
+        // onApply do consumidor decide persistir por módulo — aqui valida global.
+        final persisted = await tester.runAsync(
+          () => StageSettingsRepository().load(),
+        );
+        expect(persisted!.backgroundColor, const Color(0xFF2A1B1B));
+      },
+    );
   });
 }

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>LouvorJA Palco · YouTube</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}
+  #p,#p iframe{position:fixed;inset:0;width:100%!important;height:100%!important;border:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="p"></div>
+<script>
+// Player do YouTube para as TVs do Palco. O app da TV roda de arquivo local e
+// o embed recusa essa origem (erro 153); servido pelo transmissor (HTTP), o
+// player funciona. O receiver da TV o controla por postMessage.
+(function(){
+  var q=new URLSearchParams(location.search);
+  var id=q.get('v')||'';
+  if(!/^[\w-]{11}$/.test(id))return;
+  var player=null,ready=false,captionTrack=null;
+  var muted=q.get('muted')!=='0';
+  var captionsHidden=q.get('cc')==='0';
+  var pending={positionMs:Number(q.get('t'))||0,paused:q.get('paused')==='1'};
+  function post(m){try{parent.postMessage(Object.assign({louvorjaYoutube:true},m),'*')}catch(e){}}
+  function captions(){
+    if(!ready)return;
+    try{
+      if(captionsHidden){
+        var t=player.getOption&&player.getOption('captions','track');
+        if(t&&t.languageCode)captionTrack=t;
+        if(player.setOption)player.setOption('captions','track',{});
+        if(player.unloadModule)player.unloadModule('captions');
+      }else{
+        if(player.loadModule)player.loadModule('captions');
+        if(captionTrack&&player.setOption)player.setOption('captions','track',captionTrack);
+      }
+    }catch(e){}
+  }
+  function apply(){
+    if(!ready||!pending)return;
+    var m=pending;pending=null;
+    if(typeof m.positionMs==='number'){
+      var current=0;try{current=player.getCurrentTime()||0}catch(e){}
+      if(Math.abs(current-m.positionMs/1000)>0.8)player.seekTo(m.positionMs/1000,true);
+    }
+    if(m.paused)player.pauseVideo();else player.playVideo();
+  }
+  window.addEventListener('message',function(e){
+    var m=e.data;
+    if(!m||m.louvorjaYoutube!=='command')return;
+    if(m.action==='captions'){captionsHidden=m.captionsHidden===true;captions();return}
+    if(m.action==='mute'){
+      muted=m.muted!==false;
+      if(ready){try{muted?player.mute():player.unMute()}catch(err){}}
+      return;
+    }
+    pending={positionMs:m.positionMs,paused:m.paused===true};
+    apply();
+  });
+  window.onYouTubeIframeAPIReady=function(){
+    player=new YT.Player('p',{width:'100%',height:'100%',videoId:id,
+      playerVars:{autoplay:1,controls:0,rel:0,fs:0,iv_load_policy:3,disablekb:1,
+        modestbranding:1,playsinline:1,origin:location.origin,
+        start:Math.floor(pending.positionMs/1000)},
+      events:{
+        onReady:function(ev){
+          ready=true;
+          try{muted?ev.target.mute():ev.target.unMute()}catch(err){}
+          captions();apply();post({state:'ready'});
+        },
+        onApiChange:function(){if(captionsHidden)captions()},
+        onStateChange:function(ev){post({state:ev.data})},
+        onError:function(ev){post({error:ev.data})}
+      }});
+  };
+  var s=document.createElement('script');
+  s.src='https://www.youtube.com/iframe_api';
+  s.onerror=function(){post({error:'api'})};
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

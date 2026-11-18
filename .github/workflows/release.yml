@@ -76,13 +76,47 @@ jobs:
             --dart-define=API_TOKEN="$API_TOKEN"
           VERSION=${{ needs.resolve.outputs.version }}
           cp build/app/outputs/flutter-apk/app-release.apk \
-             louvorja-piano-${VERSION#v}.apk
+             louvorja-piano-${VERSION#v}-universal.apk
 
-      - name: Attach APK to release (cria se nao existir)
+      - name: Build APKs por ABI (split-per-abi)
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        # Mesmos dart-define do universal — releases só mudam de binário,
+        # nunca de configuração de API.
+        run: |
+          flutter build apk --release --no-tree-shake-icons --split-per-abi \
+            --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
+            --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
+            --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
+            --dart-define=API_TOKEN="$API_TOKEN"
+          VERSION=${{ needs.resolve.outputs.version }}
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+             louvorja-piano-${VERSION#v}-arm64-v8a.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+             louvorja-piano-${VERSION#v}-armeabi-v7a.apk
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk \
+             louvorja-piano-${VERSION#v}-x86_64.apk
+
+      # RF-01: release parcial é proibida — valida contagem ANTES do upload.
+      - name: Validar contrato dos 4 APKs
+        run: |
+          VERSION=${{ needs.resolve.outputs.version }}
+          EXPECTED="louvorja-piano-${VERSION#v}-universal.apk louvorja-piano-${VERSION#v}-arm64-v8a.apk louvorja-piano-${VERSION#v}-armeabi-v7a.apk louvorja-piano-${VERSION#v}-x86_64.apk"
+          for f in $EXPECTED; do
+            test -s "$f" || { echo "FALTANDO: $f"; exit 1; }
+          done
+          COUNT=$(ls louvorja-piano-*.apk | wc -l)
+          test "$COUNT" -eq 4 || { echo "ESPERADOS 4 APKs, ENCONTRADOS $COUNT"; ls -la louvorja-piano-*.apk; exit 1; }
+
+      - name: Attach APKs to release (cria se nao existir)
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.version }}
-          files: louvorja-piano-*.apk
+          files: |
+            louvorja-piano-*-universal.apk
+            louvorja-piano-*-arm64-v8a.apk
+            louvorja-piano-*-armeabi-v7a.apk
+            louvorja-piano-*-x86_64.apk
 
   ios-unsigned-ipa:
     name: iOS IPA (no codesign)
@@ -150,7 +184,11 @@ jobs:
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
             --dart-define=API_TOKEN="$API_TOKEN"
-          cd ios && pod install
+          # Com todos os plugins em Swift Package Manager o Flutter não gera
+          # Podfile; só roda o CocoaPods quando algum plugin ainda precisar.
+          if [ -f ios/Podfile ]; then
+            (cd ios && pod install)
+          fi
 
       - name: Restaurar chave da App Store Connect API
         env:

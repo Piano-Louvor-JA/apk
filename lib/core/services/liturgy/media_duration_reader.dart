@@ -2,23 +2,37 @@ library;
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 
-/// Lê a duração de mídia local sem plugin.
+/// Lê a duração local: container MP4 em Dart, demais codecs pelo Android.
 ///
 /// MP4/MOV/M4A: parse do atom `mvhd` (timescale + duration) — Dart puro.
-/// Outros formatos: 0 (best-effort). Nunca lança.
+/// Outros formatos: MediaMetadataRetriever, com fallback seguro para 0.
 abstract final class MediaDurationReader {
   /// Duração em ms; 0 se não conseguiu ler.
   static Future<int> readMs(String path) async {
     final file = File(path);
     if (!await file.exists()) return 0;
     final raf = await file.open();
+    var duration = 0;
     try {
-      return await _parseMp4(raf);
+      duration = await _parseMp4(raf);
     } catch (_) {
-      return 0;
+      /* tenta metadados nativos */
     } finally {
       await raf.close();
+    }
+    if (duration > 0) return duration;
+    try {
+      return (await const MethodChannel(
+            'app.louvorja/liturgy-media',
+          ).invokeMethod<num>('mediaDuration', {'path': path}))?.toInt().clamp(
+            0,
+            2147483647,
+          ) ??
+          0;
+    } catch (_) {
+      return 0;
     }
   }
 

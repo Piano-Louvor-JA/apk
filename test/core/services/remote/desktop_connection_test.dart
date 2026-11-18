@@ -206,6 +206,47 @@ void main() {
     await gotPong.future.timeout(const Duration(seconds: 2));
   });
 
+  group('desktop some sem fechar o WebSocket', () {
+    // Upgrade sem listen: o servidor nunca responde ao close do cliente.
+    void silentServer() {
+      server.listen((req) async {
+        serverSide = await WebSocketTransformer.upgrade(req);
+      });
+    }
+
+    test('disconnect termina mesmo sem resposta do outro lado', () async {
+      silentServer();
+      final conn = DesktopConnection(closeTimeout: const Duration(milliseconds: 50));
+      await conn.connect(host: '127.0.0.1', port: server.port, token: 'T');
+
+      await conn.disconnect().timeout(const Duration(seconds: 2));
+
+      expect(conn.isConnected, isFalse);
+    });
+
+    test('heartbeat sem resposta derruba e tenta reconectar', () async {
+      silentServer();
+      final conn = DesktopConnection(
+        heartbeat: const Duration(milliseconds: 40),
+        reconnectDelays: const [],
+        closeTimeout: const Duration(milliseconds: 50),
+      );
+      final statuses = <DesktopConnectionStatus>[];
+      conn.status.listen(statuses.add);
+      await conn.connect(host: '127.0.0.1', port: server.port, token: 'T');
+
+      await conn.status
+          .firstWhere((s) => s == DesktopConnectionStatus.closed)
+          .timeout(const Duration(seconds: 2));
+
+      expect(
+        statuses.where((s) => s == DesktopConnectionStatus.closed),
+        hasLength(1),
+      );
+      expect(conn.isConnected, isFalse);
+    });
+  });
+
   test('connect em porta morta → false sem exceção', () async {
     final conn = DesktopConnection();
     final deadPort = server.port; // server ainda não escuta (setup bindou em 0)

@@ -52,7 +52,7 @@ class StageSettingsRepository {
         textShadow: j['tsOn'] as bool? ?? true,
         shadowBlur: (j['tsBlur'] as num?)?.toDouble() ?? 2.2,
         shadowIntensity: (j['tsInt'] as num?)?.toDouble() ?? 0.8,
-        textBox: j['boxOn'] as bool? ?? false,
+        textBox: j['boxOn'] as bool? ?? true, // paridade desktop: caixa ligada
         boxOpacity: (j['boxBg'] as num?)?.toDouble() ?? 0.45,
         boxBorder: j['boxBorder'] as bool? ?? true,
         textAlign: j['tAlign'] as String? ?? 'center',

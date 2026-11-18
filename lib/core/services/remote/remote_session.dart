@@ -1,7 +1,11 @@
 library;
 
 import 'dart:async';
+import 'remote_connection_store.dart';
 
+import 'package:flutter/foundation.dart';
+
+import 'package:louvorja_piano_mobile/core/services/remote/remote_slide_gallery.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/desktop_connection.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_device_name.dart';
@@ -20,12 +24,34 @@ enum RemoteMode { idle, desktop, web }
 class RemoteSession {
   /// Público para testes injetarem instâncias isoladas; no app o canônico
   /// é [RemoteSession.instance] (padrão StageSession).
-  RemoteSession();
+  RemoteSession({RemoteConnectionStore? connectionStore}) : _connectionStore = connectionStore ?? RemoteConnectionStore();
+  final RemoteConnectionStore _connectionStore;
+  int _operation = 0;
+  bool _restoring = false;
+  StreamSubscription<RemoteAck>? _desktopAckSub;
+
+  Future<SavedRemoteConnection?> readLastDesktopConnection() => _connectionStore.read();
+
+  Future<bool> restoreLastDesktopConnection() async {
+    if (_restoring || _mode != RemoteMode.idle || _lastStatus == RemoteSessionStatus.connecting) return false;
+    _restoring = true;
+    final operation = _operation;
+    try {
+      final saved = await _connectionStore.read();
+      if (operation != _operation || saved == null || !saved.autoReconnect) return false;
+      return await connectDesktop(host: saved.host, port: saved.port, token: saved.token);
+    } finally { _restoring = false; }
+  }
   static final RemoteSession instance = RemoteSession();
 
   DesktopConnection? _desktop;
   WebLinkServer? _web;
   StreamSubscription<RemotePlayerState>? _desktopStateSub;
+  StreamSubscription<RemoteVideoFrame>? _desktopFrameSub;
+
+  /// Último quadro do vídeo/YouTube aberto no desktop, já decodificado: a
+  /// prévia troca só a imagem, sem reconstruir a barra a cada quadro.
+  final ValueNotifier<Uint8List?> videoFrame = ValueNotifier(null);
   StreamSubscription<DesktopConnectionStatus>? _desktopStatusSub;
   StreamSubscription<RemoteError>? _desktopErrorSub;
   RemoteMode _mode = RemoteMode.idle;
@@ -59,15 +85,24 @@ class RemoteSession {
     required int port,
     required String token,
   }) async {
+    final operation = ++_operation;
     await _teardown();
+    if (operation != _operation) return false;
     lastState = null;
     final conn = DesktopConnection();
+    final candidate = SavedRemoteConnection(host: host, port: port, token: token);
+    var remembered = false;
+    _desktopAckSub = conn.acks.listen((ack) {
+      if (ack.ok && !remembered && operation == _operation) {
+        remembered = true;
+        unawaited(_connectionStore.save(candidate));
+      }
+    });
 
     // Assina ANTES de abrir o socket. O desktop manda state imediatamente
     // no upgrade WS; assinar depois perde esse frame em Stream.broadcast.
     _desktopStateSub = conn.states.listen((s) {
-      lastState = s;
-      _statesCtrl.add(s);
+      _receive(s);
     });
     _desktopStatusSub = conn.status.listen((s) {
       if (s == DesktopConnectionStatus.closed) {
@@ -76,17 +111,29 @@ class RemoteSession {
       }
       _emitStatus(s.toSessionStatus());
     });
+    _desktopFrameSub = conn.frames.listen((frame) {
+      final bytes = RemoteSlideGallery.decode(frame.data);
+      if (bytes != null) videoFrame.value = bytes;
+    });
     _desktopErrorSub = conn.errors.listen((error) {
       // Fechamento normal do Electron: derruba UI remota imediatamente.
-      if (error.code == 'desktop_closed') unawaited(_dropDesktop());
+      if (error.code == 'bad_token') {
+        unawaited(_connectionStore.disableAutoReconnect(matching: candidate));
+      }
+      if (error.code == 'desktop_closed' || error.code == 'bad_token' || error.code == 'remote_busy') unawaited(_dropDesktop());
     });
 
     final ok = await conn.connect(host: host, port: port, token: token);
+    if (operation != _operation) { await conn.dispose(); return false; }
     if (!ok) {
+      await _desktopAckSub?.cancel();
+      _desktopAckSub = null;
       await _desktopStateSub?.cancel();
+      await _desktopFrameSub?.cancel();
       await _desktopStatusSub?.cancel();
       await _desktopErrorSub?.cancel();
       _desktopStateSub = null;
+      _desktopFrameSub = null;
       _desktopStatusSub = null;
       _desktopErrorSub = null;
       await conn.dispose();
@@ -98,6 +145,7 @@ class RemoteSession {
     // Identifica o aparelho para o desktop mostrar quem conectou.
     final device = await RemoteDeviceName.get() ?? 'Piano LouvorJA';
     final version = await RemoteDeviceName.appVersion();
+    if (operation != _operation) return false;
     conn.sendHello(device: device, appVersion: version);
     return true;
   }
@@ -105,6 +153,8 @@ class RemoteSession {
   /// Sobe o servidor WS para o web conectar. Retorna a URL `ws://…?t=…`
   /// (pra QR/link) ou null se não há rede.
   Future<String?> startWebLink({required String token}) async {
+    ++_operation;
+    unawaited(_connectionStore.disableAutoReconnect());
     await _teardown();
     final server = WebLinkServer();
     final url = await server.start(token: token);
@@ -115,8 +165,7 @@ class RemoteSession {
     _web = server;
     _mode = RemoteMode.web;
     server.states.listen((s) {
-      lastState = s;
-      _statesCtrl.add(s);
+      _receive(s);
     });
     server.clientEvents.listen((up) {
       _emitStatus(
@@ -152,6 +201,9 @@ class RemoteSession {
     required bool playing,
     bool canPrevious = false,
     bool canNext = false,
+    RemoteMediaState? mediaModule,
+    int volume = 80,
+    Duration duration = const Duration(minutes: 3),
   }) {
     final state = RemotePlayerState(
       hymnId: 1,
@@ -159,23 +211,39 @@ class RemoteSession {
       mode: 'audio',
       playing: playing,
       position: const Duration(seconds: 34),
-      duration: const Duration(minutes: 3),
+      duration: duration,
       slideIndex: 1,
       slideCount: 5,
-      volume: 80,
+      volume: volume,
       canPrevious: canPrevious,
       canNext: canNext,
+      mediaModule: mediaModule,
     );
+    _receive(state);
+  }
+
+  /// Todo estado do alvo passa por aqui: a galeria de miniaturas é guardada
+  /// mesmo sem nenhuma tela de player aberta.
+  void _receive(RemotePlayerState state) {
     lastState = state;
+    // Vídeo fechado: o quadro antigo não pode aparecer no próximo vídeo.
+    if (state.videoControls == null) videoFrame.value = null;
+    RemoteSlideGallery.remember(state);
     _statesCtrl.add(state);
   }
 
+  @visibleForTesting
+  void debugEmitStateForTest(RemotePlayerState state) => _receive(state);
+
   Future<void> disconnect() async {
+    ++_operation;
+    unawaited(_connectionStore.disableAutoReconnect());
     await _dropDesktop();
   }
 
   /// Limpa imediatamente UI/estado remoto quando o desktop encerra.
   Future<void> _dropDesktop() async {
+    ++_operation;
     await _teardown();
     lastState = null;
     _mode = RemoteMode.idle;
@@ -188,6 +256,11 @@ class RemoteSession {
   }
 
   Future<void> _teardown() async {
+    await _desktopAckSub?.cancel();
+    _desktopAckSub = null;
+    videoFrame.value = null;
+    await _desktopFrameSub?.cancel();
+    _desktopFrameSub = null;
     await _desktopStateSub?.cancel();
     await _desktopStatusSub?.cancel();
     await _desktopErrorSub?.cancel();
@@ -201,6 +274,7 @@ class RemoteSession {
   }
 
   Future<void> dispose() async {
+    ++_operation;
     // Singleton: controllers NÃO fecham (vivem com o app). Só derruba o
     // transporte — conexões podem ser refeitas depois.
     await _teardown();

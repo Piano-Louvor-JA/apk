@@ -10,7 +10,7 @@ void main() {
 
   test('defaults seguem design system', () {
     final settings = SettingsController();
-    expect(settings.themeMode, ThemeMode.system);
+    expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentKey.orange);
     expect(settings.interaction, InteractionKey.dynamic_);
     expect(settings.glassIntensity, 60);
@@ -31,6 +31,21 @@ void main() {
     expect(reloaded.glassIntensity, 78);
   });
 
+  test('sem tema salvo, loadSettings abre no tema escuro', () async {
+    final settings = SettingsController();
+    await settings.loadSettings();
+
+    expect(settings.themeMode, ThemeMode.dark);
+  });
+
+  test('tema escolhido pelo usuario tem prioridade sobre o padrao', () async {
+    SharedPreferences.setMockInitialValues({'themeMode': 'light'});
+    final settings = SettingsController();
+    await settings.loadSettings();
+
+    expect(settings.themeMode, ThemeMode.light);
+  });
+
   test('clamp intensidade glass entre 0 e 100', () async {
     final settings = SettingsController();
     await settings.setGlassIntensity(999);
@@ -49,7 +64,7 @@ void main() {
     final settings = SettingsController();
     await settings.loadSettings();
 
-    expect(settings.themeMode, ThemeMode.system);
+    expect(settings.themeMode, ThemeMode.dark);
     expect(settings.accent, AccentKey.orange);
     expect(settings.interaction, InteractionKey.dynamic_);
     expect(settings.glassIntensity, 42);

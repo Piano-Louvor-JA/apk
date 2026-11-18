@@ -1,6 +1,9 @@
 library;
 
 import 'dart:convert';
+import 'package:louvorja_piano_mobile/core/services/sync/operator_state_client.dart';
+import 'package:louvorja_piano_mobile/data/repositories/scheduled_repository.dart';
+import 'package:louvorja_piano_mobile/domain/entities/scheduled_item.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,13 +31,7 @@ class SyncAdapter {
   static const _timerPresetsKey = 'timer.countdown.presets.v1';
 
   /// Escopos de palco sincronizáveis (paridade com desktop t_c1ea317a).
-  static const _stageScopes = [
-    'global',
-    'hymns',
-    'bible',
-    'liturgy',
-    'timer',
-  ];
+  static const _stageScopes = ['global', 'hymns', 'bible', 'liturgy', 'timer'];
   static const _stagePrefix = 'stage.settings.';
 
   final SharedPreferences prefs;
@@ -59,11 +56,20 @@ class SyncAdapter {
         'notes': notes,
       };
     }
-    if (days.isNotEmpty) {
+    final state = repo.loadState();
+    final hasExtra =
+        (state['customLiturgies'] as List).isNotEmpty ||
+        (state['deletionLocks'] as Map).isNotEmpty ||
+        (state['daySessionTimes'] as Map).values.any(
+          (times) =>
+              times is Map &&
+              (times['startTime'] != null || times['endTime'] != null),
+        );
+    if (days.isNotEmpty || hasExtra) {
       entities['liturgy'] = SyncEntity(
         type: 'liturgy',
-        modified: SyncTimestamps.get('liturgy'),
-        data: days,
+        modified: _liturgyModified(repo.locale),
+        data: {...days, 'locale': repo.locale, 'state': state},
       );
     }
 
@@ -82,6 +88,20 @@ class SyncAdapter {
         type: 'settings',
         modified: SyncTimestamps.get('settings'),
         data: settings,
+      );
+    }
+
+    final agenda = ScheduledRepository(prefs);
+    final categories = agenda.loadCategories();
+    final scheduledItems = agenda.loadItems();
+    if (categories.isNotEmpty || scheduledItems.isNotEmpty) {
+      entities['scheduled'] = SyncEntity(
+        type: 'scheduled',
+        modified: SyncTimestamps.get('scheduled'),
+        data: ScheduledStatePayload(
+          categories: categories,
+          items: scheduledItems,
+        ).toJson(),
       );
     }
 
@@ -132,6 +152,16 @@ class SyncAdapter {
     );
   }
 
+  DateTime _liturgyModified(String locale) {
+    final scoped = DateTime.tryParse(
+      prefs.getString('sync.modified.v1.liturgy.$locale') ?? '',
+    );
+    if (scoped != null) return scoped;
+    if (locale == 'pt' && !prefs.containsKey('liturgy.state.pt'))
+      return SyncTimestamps.get('liturgy');
+    return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+  }
+
   /// Aplica o pacote com LWW por entidade.
   Future<SyncImportResult> importPackage(SyncPackage pkg) async {
     final applied = <String>[];
@@ -140,7 +170,16 @@ class SyncAdapter {
     for (final entry in pkg.entities.entries) {
       final name = entry.key;
       final remote = entry.value;
-      final localTs = SyncTimestamps.get(name);
+      final language = name == 'liturgy'
+          ? LiturgyRepository.languageOf(
+              remote.data['locale'] is String
+                  ? remote.data['locale'] as String
+                  : prefs.getString('locale') ?? 'pt',
+            )
+          : null;
+      final localTs = name == 'liturgy'
+          ? _liturgyModified(language!)
+          : SyncTimestamps.get(name);
 
       if (remote.modified.isAfter(localTs)) {
         final ok = await _apply(name, remote.data);
@@ -148,6 +187,11 @@ class SyncAdapter {
           // Timestamp local = modified do PACOTE (não "agora"): relógios de
           // dispositivos distintos não podem corromper a ordem LWW.
           await SyncTimestamps.set(name, remote.modified);
+          if (language != null)
+            await prefs.setString(
+              'sync.modified.v1.liturgy.$language',
+              remote.modified.toUtc().toIso8601String(),
+            );
           applied.add(name);
         } else {
           skipped.add(name);
@@ -162,6 +206,16 @@ class SyncAdapter {
   Future<bool> _apply(String name, Map<String, dynamic> data) async {
     switch (name) {
       case 'liturgy':
+        if (data['state'] is Map && (data['state'] as Map)['weekdays'] is Map) {
+          final locale = data['locale'] is String
+              ? data['locale'] as String
+              : null;
+          await LiturgyRepository(
+            prefs,
+            locale: locale,
+          ).saveState((data['state'] as Map).cast<String, dynamic>());
+          return true;
+        }
         final repo = LiturgyRepository(prefs);
         for (final day in LiturgyWeekday.values) {
           final dayData = data[day.name];
@@ -177,6 +231,29 @@ class SyncAdapter {
           final notes = dayData['notes'];
           await repo.saveNotes(day, notes is String ? notes : '');
         }
+        return true;
+
+      case 'scheduled':
+        if (!ScheduledStatePayload.isValid(data)) return false;
+        final agenda = ScheduledRepository(prefs);
+        await agenda.saveCategories(
+          (data['categories'] as List)
+              .map(
+                (row) => ScheduledCategory.fromJson(
+                  (row as Map).cast<String, dynamic>(),
+                ),
+              )
+              .toList(),
+        );
+        await agenda.saveItems(
+          (data['items'] as List)
+              .map(
+                (row) => ScheduledItem.fromJson(
+                  (row as Map).cast<String, dynamic>(),
+                ),
+              )
+              .toList(),
+        );
         return true;
 
       case 'settings':
@@ -237,37 +314,43 @@ class SyncAdapter {
     final raw = store.exportDb();
     return {
       'nextCollectionId':
-          (raw['nextCollectionId'] as num?)?.toInt() ?? _minId(raw['collections']) - 1,
+          (raw['nextCollectionId'] as num?)?.toInt() ??
+          _minId(raw['collections']) - 1,
       'nextMusicId':
           (raw['nextMusicId'] as num?)?.toInt() ?? _minId(raw['musics']) - 1,
       'nextLyricId': (raw['nextLyricId'] as num?)?.toInt() ?? -1,
       'collections': (raw['collections'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
-          .map((c) => {
-                'id': ((c['id'] as num?) ?? 0).toInt(),
-                'name': c['name'],
-                'description': c['description'] ?? c['author'],
-                'createdAt': c['createdAt'] ?? c['created_at'],
-              })
+          .map(
+            (c) => {
+              'id': ((c['id'] as num?) ?? 0).toInt(),
+              'name': c['name'],
+              'description': c['description'] ?? c['author'],
+              'createdAt': c['createdAt'] ?? c['created_at'],
+            },
+          )
           .toList(),
       'musics': (raw['musics'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
-          .map((m) => {
-                'id': ((m['id'] as num?) ?? 0).toInt(),
-                'collectionId': ((m['collectionId'] as num?) ??
-                        (m['collection_id'] as num?) ??
-                        0)
-                    .toInt(),
-                'name': m['name'],
-                'audio_url': m['audio_url'],
-                'image_url': m['image_url'],
-                'officialMusicId': m['officialMusicId'],
-                'audioBase64': null, // nunca sai do device
-                'audioName': null,
-                'durationMs': null,
-                'sljaHash': m['sljaHash'],
-                'lyrics': _slidesToLyrics(m['slides']),
-              })
+          .map(
+            (m) => {
+              'id': ((m['id'] as num?) ?? 0).toInt(),
+              'collectionId':
+                  ((m['collectionId'] as num?) ??
+                          (m['collection_id'] as num?) ??
+                          0)
+                      .toInt(),
+              'name': m['name'],
+              'audio_url': m['audio_url'],
+              'image_url': m['image_url'],
+              'officialMusicId': m['officialMusicId'],
+              'audioBase64': null, // nunca sai do device
+              'audioName': null,
+              'durationMs': null,
+              'sljaHash': m['sljaHash'],
+              'lyrics': _slidesToLyrics(m['slides']),
+            },
+          )
           .toList(),
     };
   }
@@ -280,27 +363,32 @@ class SyncAdapter {
     return {
       'collections': (db['collections'] as List<dynamic>? ?? const [])
           .whereType<Map>()
-          .map((c) => {
-                'id': ((c['id'] as num?) ?? 0).toInt(),
-                'name': c['name'],
-                'author': c['author'] ?? c['description'] ?? 'Sync',
-                'created_at': c['created_at'] ?? c['createdAt'],
-              })
+          .map(
+            (c) => {
+              'id': ((c['id'] as num?) ?? 0).toInt(),
+              'name': c['name'],
+              'author': c['author'] ?? c['description'] ?? 'Sync',
+              'created_at': c['created_at'] ?? c['createdAt'],
+            },
+          )
           .toList(),
       'musics': (db['musics'] as List<dynamic>? ?? const [])
           .whereType<Map>()
-          .map((m) => {
-                'id': ((m['id'] as num?) ?? 0).toInt(),
-                'collection_id': ((m['collection_id'] as num?) ??
-                        (m['collectionId'] as num?) ??
-                        0)
-                    .toInt(),
-                'name': m['name'],
-                'lyric': _lyricsToFullLyric(m['lyrics']),
-                'audio_path': null, // paths locais nunca chegam por pacote
-                'slides': _lyricsToSlides(m['lyrics']),
-                'created_at': m['createdAt'] ?? m['created_at'],
-              })
+          .map(
+            (m) => {
+              'id': ((m['id'] as num?) ?? 0).toInt(),
+              'collection_id':
+                  ((m['collection_id'] as num?) ??
+                          (m['collectionId'] as num?) ??
+                          0)
+                      .toInt(),
+              'name': m['name'],
+              'lyric': _lyricsToFullLyric(m['lyrics']),
+              'audio_path': null, // paths locais nunca chegam por pacote
+              'slides': _lyricsToSlides(m['lyrics']),
+              'created_at': m['createdAt'] ?? m['created_at'],
+            },
+          )
           .toList(),
     };
   }
@@ -312,8 +400,7 @@ class SyncAdapter {
         if (slides[i] is Map)
           {
             'id': -i - 1,
-            'lyric':
-                (slides[i] as Map)['text']?.toString() ?? '',
+            'lyric': (slides[i] as Map)['text']?.toString() ?? '',
             'time': (slides[i] as Map)['time']?.toString(),
             'order': ((slides[i] as Map)['order'] as num?)?.toInt() ?? i,
             'show_slide': true,

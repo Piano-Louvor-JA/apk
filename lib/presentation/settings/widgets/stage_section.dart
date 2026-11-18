@@ -10,7 +10,8 @@ import '../../../core/services/dlna/stage_session.dart';
 import '../../../core/services/palco/palco_controller.dart'
     show PalcoAudioRoute;
 
-/// Settings → Palco: configurações GERAIS da sessão de cast.
+/// Ferramentas › Palco: configurações GERAIS da sessão de cast (saiu de
+/// Mais › Configurações).
 ///
 /// RF-01 (spec palco-v2): rota de áudio mora AQUI (saiu do menu do caster).
 /// RF-02: BG padrão geral — vale pra todos os módulos sem override.
@@ -110,31 +111,8 @@ class _StageSectionState extends State<StageSection> {
               icon: TablerIcons.volume,
               title: 'Áudio do Palco',
               enabled: on,
-              hint: on
-                  ? null
-                  : 'Conecte o Palco (ícone de cast) para configurar o áudio',
-              child: SegmentedButton<PalcoAudioRoute>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                    value: PalcoAudioRoute.local,
-                    label: Text('Celular'),
-                  ),
-                  ButtonSegment(value: PalcoAudioRoute.tv, label: Text('TV')),
-                  ButtonSegment(
-                    value: PalcoAudioRoute.mirror,
-                    label: Text('Ambos'),
-                  ),
-                ],
-                selected: {session.audioRoute},
-                onSelectionChanged: on
-                    ? (sel) {
-                        session.audioRoute = sel.first;
-                        // Re-roteia a faixa corrente com o modo novo.
-                        session.rerouteCurrentAudio();
-                      }
-                    : null,
-              ),
+              hint: on ? null : 'Ligue uma transmissão para configurar o áudio',
+              child: const StageAudioRouteSelector(),
             ),
             const SizedBox(height: 12),
 
@@ -186,6 +164,39 @@ class _StageSectionState extends State<StageSection> {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+}
+
+/// Para onde vai o áudio do Palco: celular, TV ou ambos. Usado na página
+/// Palco e no painel Telas. Desligado sem transmissão no ar.
+class StageAudioRouteSelector extends StatelessWidget {
+  const StageAudioRouteSelector({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final session = StageSession.instance;
+    return ListenableBuilder(
+      listenable: session,
+      builder: (context, _) {
+        final on = session.isOn;
+        return SegmentedButton<PalcoAudioRoute>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(value: PalcoAudioRoute.local, label: Text('Celular')),
+            ButtonSegment(value: PalcoAudioRoute.tv, label: Text('TV')),
+            ButtonSegment(value: PalcoAudioRoute.mirror, label: Text('Ambos')),
+          ],
+          selected: {session.audioRoute},
+          onSelectionChanged: on
+              ? (sel) {
+                  session.audioRoute = sel.first;
+                  // Re-roteia a faixa corrente com o modo novo.
+                  session.rerouteCurrentAudio();
+                }
+              : null,
         );
       },
     );

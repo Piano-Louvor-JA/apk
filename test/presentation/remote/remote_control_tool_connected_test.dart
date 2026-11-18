@@ -14,6 +14,10 @@ void main() {
 
   testWidgets('conectado: tabs + player + comandos via web link real',
       (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final session = RemoteSession.instance;
     // receptor fake: aceita WS e registra comandos recebidos
     final received = <String>[];
@@ -50,14 +54,28 @@ void main() {
     // TabBar com 5 abas
     expect(find.byType(TabBar), findsOneWidget);
     expect(find.byType(Tab), findsNWidgets(5));
+    expect(tester.widget<TabBar>(find.byType(TabBar)).isScrollable, isFalse);
+    for (final tab in find.byType(Tab).evaluate()) {
+      final rect = tester.getRect(find.byWidget(tab.widget));
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(400));
+    }
+    expect(
+      tester.widgetList<Tab>(find.byType(Tab)).map((tab) => tab.text),
+      ['remote.tabHymns', 'remote.tabBible', 'remote.tabLiturgy',
+       'remote.tabPlaylist', 'remote.tabMore'],
+    );
+
+    // troca de aba (indexIsChanging listener); a barra fica em Hinos
+    await tester.ensureVisible(find.text('remote.tabHymns'));
+  await tester.tap(find.text('remote.tabHymns'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
 
     // título do player propagado
     expect(find.text('Hino 100'), findsOneWidget);
-
-    // troca de aba (indexIsChanging listener)
-    await tester.tap(find.text('remote.tabHymns'));
-    await tester.pump();
-    expect(tester.takeException(), isNull);
 
     // play/pause envia comando (play→pause pois playing=true)
     await tester.tap(find.byTooltip('remote.pause'));

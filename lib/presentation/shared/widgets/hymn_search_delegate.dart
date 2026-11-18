@@ -11,9 +11,12 @@ import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 /// Usado no HymnsPage (filtrar lista) e no LiturgyItemDialog (selecionar hino).
 class HymnSearchDelegate extends SearchDelegate<Hymn?> {
   final Future<List<Hymn>> Function() _loadHymns;
+
+  /// Busca própria (ex.: a da liturgia, igual ao desktop). Sem ela, [filter].
+  final List<Hymn> Function(List<Hymn> all, String query)? search;
   List<Hymn>? _cache;
 
-  HymnSearchDelegate(this._loadHymns);
+  HymnSearchDelegate(this._loadHymns, {this.search});
 
   /// Filtra hinos por numero, titulo ou trecho.
   static List<Hymn> filter(List<Hymn> all, String query) {
@@ -46,7 +49,10 @@ class HymnSearchDelegate extends SearchDelegate<Hymn?> {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final filtered = filter(snapshot.data!, query);
+        final all = snapshot.data!;
+        final filtered = query.trim().isEmpty || search == null
+            ? filter(all, query)
+            : search!(all, query);
         if (filtered.isEmpty) {
           return Center(
             child: Text(
@@ -72,9 +78,9 @@ class HymnSearchDelegate extends SearchDelegate<Hymn?> {
                     )
                   : null,
               title: Text(h.title ?? 'Hino ${h.id}'),
-              subtitle: h.durationMs != null && h.durationMs! > 0
-                  ? Text(h.formattedDuration, style: theme.textTheme.bodySmall)
-                  : null,
+              subtitle: _subtitle(h) == null
+                  ? null
+                  : Text(_subtitle(h)!, style: theme.textTheme.bodySmall),
               trailing: const Icon(Icons.chevron_right, size: 20),
               onTap: () => close(context, h),
             );
@@ -82,6 +88,15 @@ class HymnSearchDelegate extends SearchDelegate<Hymn?> {
         );
       },
     );
+  }
+
+  /// Coletânea e duração: diferencia músicas com o mesmo nome.
+  static String? _subtitle(Hymn h) {
+    final parts = [
+      if ((h.albumNames ?? '').trim().isNotEmpty) h.albumNames!.trim(),
+      if (h.durationMs != null && h.durationMs! > 0) h.formattedDuration,
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
   }
 
   @override

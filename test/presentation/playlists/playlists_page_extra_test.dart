@@ -10,7 +10,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('PlaylistsPage — rename e delete via popup', () {
+  group('PlaylistsPage — rename e delete pelos botões do card', () {
     testWidgets('renomeia playlist existente', (tester) async {
       final storage = PlaylistStorage();
       await storage.create('Antiga');
@@ -18,17 +18,22 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: PlaylistsPage()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.more_vert));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Renomear'));
+      await tester.tap(find.byTooltip('Renomear playlist'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField), 'Nova');
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        'Nova',
+      );
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
 
       expect(find.text('Nova'), findsOneWidget);
       expect(find.text('Antiga'), findsNothing);
+      expect(find.byType(PopupMenuButton), findsNothing);
     });
 
     testWidgets('exclui playlist após confirmar', (tester) async {
@@ -38,11 +43,10 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: PlaylistsPage()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.tap(find.byTooltip('Excluir playlist'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Excluir'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Excluir').last);
+      expect(find.text('Excluir playlist “Temp”?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Excluir playlist'));
       await tester.pumpAndSettle();
 
       expect(find.text('Temp'), findsNothing);
@@ -56,9 +60,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: PlaylistsPage()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.more_vert));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Excluir'));
+      await tester.tap(find.byTooltip('Excluir playlist'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancelar'));
       await tester.pumpAndSettle();
@@ -106,8 +108,22 @@ void main() {
 
       expect(find.text('Ao Pé da Cruz'), findsOneWidget);
       expect(find.text('1'), findsOneWidget);
+      expect(find.byTooltip('Adicionar músicas'), findsOneWidget);
+      expect(find.byTooltip('Tocar aleatório'), findsOneWidget);
+      expect(find.byTooltip('Tocar playlist'), findsOneWidget);
 
+      // Cancelar mantém o item.
       await tester.tap(find.byTooltip('Remover da playlist'));
+      await tester.pumpAndSettle();
+      expect(find.text('Remover da playlist?'), findsOneWidget);
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ao Pé da Cruz'), findsOneWidget);
+
+      // Confirmar remove.
+      await tester.tap(find.byTooltip('Remover da playlist'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remover'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Playlist vazia'), findsOneWidget);

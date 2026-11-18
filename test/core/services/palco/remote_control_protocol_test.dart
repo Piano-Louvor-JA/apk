@@ -107,7 +107,10 @@ void main() {
     await pumpEventQueue();
     expect(sender.roleCounts['desktop'], 1);
     await ws.close();
-    await pumpEventQueue();
+    // O servidor só percebe o fechamento do socket de forma assíncrona.
+    for (var i = 0; i < 40 && sender.roleCounts['desktop'] != null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+    }
     expect(sender.roleCounts['desktop'], isNull);
   });
 }

@@ -1,5 +1,7 @@
 library;
 
+import 'package:louvorja_piano_mobile/data/datasources/remote/edits_api_impl.dart';
+import 'package:louvorja_piano_mobile/core/services/music_search.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/catalog_cache.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
@@ -23,7 +25,15 @@ class HymnRepositoryImpl implements HymnRepository {
   List<AlbumCategory>? _categoriesCache;
   List<Album>? _flatAlbumsCache;
 
-  HymnRepositoryImpl(this._api, this._cache);
+  final EditsApiImpl? _editsApi;
+
+  HymnRepositoryImpl(this._api, this._cache, {EditsApiImpl? editsApi})
+    : _editsApi = editsApi;
+
+  factory HymnRepositoryImpl.withCommunity(
+    LouvorjaApiClient api,
+    CatalogCache cache,
+  ) => HymnRepositoryImpl(api, cache, editsApi: EditsApiImpl.production());
 
   @override
   Future<List<AlbumCategory>> getCategories() async {
@@ -148,16 +158,17 @@ class HymnRepositoryImpl implements HymnRepository {
   @override
   Future<List<Hymn>> searchHymns(String query) async {
     final hymns = await _api.fetchMusicIndex();
-    final q = query.toLowerCase().trim();
-    return hymns.where((h) {
-      final title = (h.title ?? '').toLowerCase();
-      final number = h.number?.toString() ?? '';
-      return title.contains(q) || number.contains(q);
-    }).toList();
+    return MusicSearch.search(hymns, query);
   }
 
   @override
-  Future<Hymn> getHymnDetails(int id) => _api.fetchMusic(id);
+  Future<Hymn> getHymnDetails(int id) async {
+    final official = await _api.fetchMusic(id);
+    // A API de edits faz fallback para o oficial quando estiver offline.
+    if (id <= 0 || id >= 1000000 || _editsApi == null) return official;
+    final edit = await _editsApi.fetchApplied(id);
+    return edit?.applyToHymn(official) ?? official;
+  }
 
   @override
   Future<Hymn?> getHymn(int id) async {

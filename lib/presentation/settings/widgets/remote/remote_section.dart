@@ -48,6 +48,12 @@ class _RemoteSectionState extends State<RemoteSection> {
   @override
   void initState() {
     super.initState();
+    _status = _session.currentStatus;
+    _session.readLastDesktopConnection().then((saved) {
+      if (!mounted || saved == null || _hostCtrl.text.isNotEmpty || _tokenCtrl.text.isNotEmpty) return;
+      _hostCtrl.text = '${saved.host}:${saved.port}';
+      _tokenCtrl.text = saved.token;
+    });
     _hostCtrl.addListener(_validateHost);
     _tokenCtrl.addListener(_validateToken);
     _statusSub = _session.status.listen((s) {
@@ -57,7 +63,7 @@ class _RemoteSectionState extends State<RemoteSection> {
 
   void _validateHost() {
     final raw = _hostCtrl.text.trim();
-    // Aceita: IP (ex: 192.168.1.192) ou IP:porta (ex: 192.168.1.192:7070)
+    // Aceita: IP (ex: 192.168.1.192) ou IP:porta (ex: 192.168.1.192:48080)
     final valid = RegExp(r'^\d{1,3}(\.\d{1,3}){3}(:\d{2,5})?$').hasMatch(raw);
     if (valid != _hostValid) setState(() => _hostValid = valid);
   }
@@ -128,7 +134,7 @@ class _RemoteSectionState extends State<RemoteSection> {
   Future<void> _connectDesktop() async {
     final parts = _hostCtrl.text.trim().split(':');
     final host = parts[0];
-    final port = parts.length > 1 ? int.parse(parts[1]) : 7071;
+    final port = parts.length > 1 ? int.parse(parts[1]) : remoteDesktopDefaultPort;
     setState(() => _busy = true);
     final ok = await _session.connectDesktop(
       host: host,

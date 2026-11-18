@@ -10,7 +10,7 @@ import 'palco_sender.dart';
 
 /// Alvo Palco descoberto na rede (mDNS ou manual).
 class PalcoTarget {
-  const PalcoTarget({required this.name, required this.ip, this.wsPort = 7081});
+  const PalcoTarget({required this.name, required this.ip, this.wsPort = 4981});
   final String name;
   final String ip;
   final int wsPort;
@@ -26,6 +26,7 @@ class PalcoController extends ChangeNotifier {
   PalcoController({PalcoSender? sender}) : _sender = sender ?? PalcoSender();
   final PalcoSender _sender;
   StreamSubscription<PalcoMessage>? _eventsSub;
+  StreamSubscription<void>? _clientsSub;
 
   /// Porta WS efetiva do sender (efêmera em teste).
   int get wsPort => _sender.effectiveWsPort;
@@ -39,6 +40,28 @@ class PalcoController extends ChangeNotifier {
   /// F3.3x: IP da TV conectada (visto pelo socket WS no momento do connect).
   String? get receiverIp => _sender.receiverIp;
   int get clientCount => _sender.clientCount;
+  List<PalcoClientInfo> get clients => _sender.clients;
+
+  /// Comandos para um palco específico (receivers com hello, v0.3.1+).
+  bool identifyClient(PalcoClientInfo c, {required String slotLabel}) =>
+      _sender.sendToClient(
+        c,
+        PalcoMessage(
+          type: 'identify',
+          fields: {'name': c.name, 'slotLabel': slotLabel},
+        ),
+      );
+  bool renameClient(PalcoClientInfo c, String name) =>
+      _sender.renameClient(c, name);
+  void applyMute(PalcoClientInfo c) => _sender.applyMute(c);
+  bool reloadClient(PalcoClientInfo c) =>
+      _sender.sendToClient(c, PalcoMessage(type: 'reload'));
+
+  /// Manda a TV conectar em outra transmissão (mesmo celular, outra porta).
+  bool moveClient(PalcoClientInfo c, int wsPort) => _sender.sendToClient(
+    c,
+    PalcoMessage(type: 'moveTo', fields: {'port': wsPort}),
+  );
 
   /// Eventos receiver→sender expostos (unlocked, ended, remote-key...).
   Stream<PalcoMessage> get events => _sender.events;
@@ -58,6 +81,9 @@ class PalcoController extends ChangeNotifier {
       _handleRemoteEvent(m);
       notifyListeners();
     }, onError: (_) {});
+    // Receiver entrou/saiu/se identificou: atualiza a lista do módulo Palco.
+    _clientsSub?.cancel();
+    _clientsSub = _sender.rolesChanged.listen((_) => notifyListeners());
     debugPrint('[PALCO] conectado (sender ativo, TV=$tv.ip)');
     notifyListeners();
     return true;
@@ -66,6 +92,8 @@ class PalcoController extends ChangeNotifier {
   Future<void> disconnect() async {
     await _eventsSub?.cancel();
     _eventsSub = null;
+    await _clientsSub?.cancel();
+    _clientsSub = null;
     await _sender.stop();
     _httpBase = null;
     target = null;
@@ -86,6 +114,19 @@ class PalcoController extends ChangeNotifier {
     _sender.serveMedia(name, bytes);
     return '$_httpBase/media/$name';
   }
+
+  /// Canal independente já suportado pelo receiver (metade da tela em share).
+  void sendLiturgyMessage(PalcoMessage message, {bool share = false}) =>
+      _sender.send(
+        PalcoMessage(
+          type: message.type,
+          fields: {...message.fields, 'obsPane': share},
+        ),
+      );
+
+  void setLiturgyShare(bool enabled) => _sender.send(
+    PalcoMessage(type: 'obsShare', fields: {'enabled': enabled}),
+  );
 
   void clearMedia() => _sender.clearMedia();
 
@@ -109,6 +150,9 @@ class PalcoController extends ChangeNotifier {
     String? textVerticalAlign,
     double? fontSize,
     int? fontWeight,
+    String? scope,
+    double? margin,
+    bool? isCover,
   }) {
     _sender.send(
       PalcoMessage.projection(
@@ -129,6 +173,9 @@ class PalcoController extends ChangeNotifier {
         textVerticalAlign: textVerticalAlign,
         fontSize: fontSize,
         fontWeight: fontWeight,
+        scope: scope,
+        margin: margin,
+        isCover: isCover,
       ),
     );
   }
@@ -165,6 +212,17 @@ class PalcoController extends ChangeNotifier {
       ),
     );
   }
+
+  /// Retorno de palco (/retorno, paridade desktop): trecho atual, próximo
+  /// e andamento — o receiver em modo retorno mostra o próximo embaixo.
+  void sendStageReturn(Map<String, dynamic> fields) => _sender.send(
+    PalcoMessage(type: 'stageReturn', version: 1, fields: fields),
+  );
+
+  /// Tela de espera com/sem logo.
+  void sendIdleStyle({required bool hideLogo}) => _sender.send(
+    PalcoMessage(type: 'idleStyle', fields: {'hideLogo': hideLogo}),
+  );
 
   void pauseAudio() => _sender.send(
     const PalcoMessage(type: 'audio', fields: {'action': 'pause'}),

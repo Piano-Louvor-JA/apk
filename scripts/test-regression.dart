@@ -59,10 +59,19 @@ Map<String, dynamic> collectResults() {
   final testResult = runProcess('flutter', ['test', '--machine']);
   Map<String, dynamic> testStats = {'passed': 0, 'failed': 0, 'skipped': 0};
   final lines = testResult['out'].split('\n');
+  final testNames = <int, String>{};
   for (final line in lines) {
     if (line.trim().isEmpty) continue;
     try {
       final data = jsonDecode(line) as Map<String, dynamic>;
+      if (data['type'] == 'testStart') {
+        final test = data['test'] as Map<String, dynamic>;
+        testNames[test['id'] as int] = test['name'] as String;
+      }
+      if (data['type'] == 'error') {
+        stderr.writeln('TEST ERROR: ${data['error']}');
+        stderr.writeln(data['stackTrace'] ?? '');
+      }
       if (data['type'] == 'testDone' && data['hidden'] != true) {
         if (data['skipped'] == true) {
           testStats['skipped'] = (testStats['skipped'] as int) + 1;
@@ -70,6 +79,7 @@ Map<String, dynamic> collectResults() {
           testStats['passed'] = (testStats['passed'] as int) + 1;
         } else {
           testStats['failed'] = (testStats['failed'] as int) + 1;
+          stderr.writeln('TEST FAILED: ${testNames[data['testID']] ?? data['testID']}');
         }
       }
     } catch (_) {}

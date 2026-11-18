@@ -1,5 +1,8 @@
 library;
 
+import 'package:louvorja_piano_mobile/data/datasources/local/playlist_storage.dart';
+import 'package:louvorja_piano_mobile/core/services/playlist_player.dart';
+import 'dart:math';
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -67,8 +70,41 @@ class AlbumDetailPage extends StatefulWidget {
   State<AlbumDetailPage> createState() => _AlbumDetailPageState();
 }
 
-class _AlbumDetailPageState extends State<AlbumDetailPage> {
+class _AlbumDetailPageState extends State<AlbumDetailPage>
+    with WidgetsBindingObserver {
   Future<List<Hymn>>? _hymnsFuture;
+  final _hymnNumberController = TextEditingController();
+  final _hymnNumberFocusNode = FocusNode();
+  bool _autoFocusRequested = false;
+  bool _inputVisible = false;
+
+  void _requestHymnNumberFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_inputVisible || _hymnNumberFocusNode.hasFocus) return;
+      final focused = FocusManager.instance.primaryFocus;
+      // Bloqueia roubo de foco apenas se OUTRO campo editável está ativo
+      // (RF-01/AC-4); FocusScope/auxiliares não são editáveis e não bloqueiam.
+      if (focused != null &&
+          focused != _hymnNumberFocusNode &&
+          focused.context?.widget is EditableText) {
+        return;
+      }
+      _autoFocusRequested = true;
+      _hymnNumberFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _requestHymnNumberFocus();
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
+    _requestHymnNumberFocus();
+  }
+
   int? _loadingMusicId;
   int? _expandedHymnId;
   int? _playingHymnId;
@@ -93,6 +129,8 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _hymnNumberFocusNode.addListener(_selectHymnNumberOnFocus);
     // Sincroniza o ícone quando a faixa termina, falha ou é pausada externamente.
     _playingSubscription = _player.playingStream.listen((playing) {
       if (!playing && mounted) {
@@ -105,6 +143,23 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     });
   }
 
+  void _selectHymnNumberOnFocus() {
+    if (!_hymnNumberFocusNode.hasFocus || !_autoFocusRequested) return;
+    _autoFocusRequested = false;
+    final text = _hymnNumberController.text;
+    _hymnNumberController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: text.length,
+    );
+  }
+
+  Future<void> _submitHymnNumber(List<Hymn> hymns) async {
+    final number = int.tryParse(_hymnNumberController.text.trim());
+    if (number == null) return;
+    final hymn = hymns.where((item) => item.number == number).firstOrNull;
+    if (hymn != null) await _togglePlay(hymn, instrumental: false);
+  }
+
   /// Avança para a próxima faixa da fila (Tocar tudo). Fim da fila encerra
   /// o modo fila silenciosamente.
   Future<void> _playNextInQueue() async {
@@ -115,19 +170,77 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   }
 
   /// Toca o álbum inteiro na ordem da tracklist (Tocar tudo).
-  Future<void> _playAll(List<Hymn> hymns) async {
+  Future<void> _playAll(List<Hymn> hymns, {bool shuffled = false}) async {
     if (hymns.isEmpty) return;
+    PlaylistPlayer.instance.stop();
     _playbackQueue = hymns.toList();
+    if (shuffled) _playbackQueue.shuffle(Random());
     await _playNextInQueue();
+  }
+
+  /// "Adicionar à fila" (paridade desktop): soma as faixas do álbum ao fim
+  /// do que está tocando (fila deste álbum ou playlist); sem fila, toca.
+  Future<void> _appendToQueue(List<Hymn> hymns) async {
+    if (hymns.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final appendedToPlaylist = PlaylistPlayer.instance.append([
+      for (final h in hymns)
+        PlaylistItem(
+          musicId: h.id,
+          albumId: widget.albumId,
+          title: h.title ?? 'Hino #${h.id}',
+        ),
+    ]);
+    if (!appendedToPlaylist) {
+      final albumQueueActive =
+          _playingHymnId != null || _playbackQueue.isNotEmpty;
+      if (albumQueueActive) {
+        _playbackQueue = [..._playbackQueue, ...hymns];
+      } else {
+        await _playAll(hymns);
+        return;
+      }
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('albums.appendedQueue'.tr(args: ['${hymns.length}'])),
+      ),
+    );
   }
 
   // Bloco depende de HymnAudioPlayer.instance (plataforma)
   // coverage:ignore-start
-  Future<void> _togglePlay(Hymn hymn, {required bool instrumental}) async {
+  /// Linha tocada = hino selecionado no miniplayer (pausado); o play do
+  /// miniplayer é quem começa a tocar.
+  int? _selectedHymnId;
+
+  Future<void> _selectHymn(Hymn hymn) async {
+    // Player fechado (faixa limpa): o toque volta a mostrar o player,
+    // mesmo que a linha ainda esteja marcada.
+    final inPlayer = nowPlaying.track?.hymnId == hymn.id;
+    if (inPlayer && (_selectedHymnId == hymn.id || _playingHymnId == hymn.id)) {
+      // Já selecionado: o toque abre/fecha a letra, como antes.
+      setState(
+        () => _expandedHymnId = _expandedHymnId == hymn.id ? null : hymn.id,
+      );
+      return;
+    }
+    await _togglePlay(hymn, instrumental: false, autoplay: false);
+  }
+
+  Future<void> _togglePlay(
+    Hymn hymn, {
+    required bool instrumental,
+    bool autoplay = true,
+  }) async {
     final player = _player;
 
     // Retomar a faixa pausada não deve consultar a API nem recarregar a fonte.
     final track = nowPlaying.track;
+    if (!autoplay && track?.hymnId == hymn.id) {
+      if (mounted) setState(() => _selectedHymnId = hymn.id);
+      return;
+    }
     if (!player.isPlaying &&
         track?.hymnId == hymn.id &&
         track?.instrumental == instrumental &&
@@ -189,6 +302,14 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       Hymn? fullDetail;
       if (local != null) {
         source = local;
+        // Faixa baixada: o áudio vem do disco, mas a letra e o fundo vêm do
+        // detalhe (bundle/cache/API). Sem ele a prévia e a tela cheia ficam
+        // só com o título e sem imagem. Falha/sem rede = segue como antes.
+        try {
+          fullDetail = await _repository()
+              .getHymnDetails(hymn.id)
+              .timeout(const Duration(seconds: 4));
+        } catch (_) {}
       } else {
         final detail = await _repository().getHymnDetails(hymn.id);
         fullDetail = detail;
@@ -221,10 +342,15 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       // Atualiza o ícone imediatamente no clique. O evento onPlay do browser
       // pode chegar após alguns frames, mas a intenção do usuário é inequívoca.
       _playingInstrumental = instrumental;
-      if (mounted) setState(() => _playingHymnId = hymn.id);
+      if (mounted) {
+        setState(() {
+          _selectedHymnId = hymn.id;
+          if (autoplay) _playingHymnId = hymn.id;
+        });
+      }
       // F3.4: roteia áudio ao Palco também no play direto da lista
       // (antes só roteava abrindo o NowPlayingPage — bug 2026-08-18).
-      if (StageSession.instance.isOn) {
+      if (autoplay && StageSession.instance.isOn) {
         StageSession.instance.playHymnAudio(
           source,
           title: hymn.title ?? '',
@@ -252,6 +378,12 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         audioSource: source,
         audioIsLocal: local != null,
       );
+      if (!autoplay) {
+        // Selecionado e pronto: o play do miniplayer começa a tocar.
+        if (player.isPlaying) await player.pause();
+        nowPlaying.setPlaying(false);
+        return;
+      }
       await player.playUrl(source);
     } catch (error, stackTrace) {
       // Não ocultar falha de streaming/local: logcat deve mostrar a causa
@@ -500,7 +632,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         apiToken: const String.fromEnvironment('API_TOKEN', defaultValue: ''),
         languagePrefix: _languageCode(context),
       );
-      return HymnRepositoryImpl(api, CatalogCache.noop());
+      return HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
     }
   }
 
@@ -538,6 +670,11 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   void dispose() {
     _playingSubscription?.cancel();
     _completionSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _hymnNumberFocusNode
+      ..removeListener(_selectHymnNumberOnFocus)
+      ..dispose();
+    _hymnNumberController.dispose();
     super.dispose();
   }
 
@@ -592,10 +729,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
     HymnRepository repo;
     if (kIsWeb) {
-      repo = HymnRepositoryImpl(api, CatalogCache.noop());
+      repo = HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
     } else {
       // Mobile: importa path_provider condicionalmente
-      repo = HymnRepositoryImpl(api, CatalogCache.noop());
+      repo = HymnRepositoryImpl.withCommunity(api, CatalogCache.noop());
     }
 
     return repo.getHymnsByAlbum(widget.albumId);
@@ -622,26 +759,42 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         ),
         // coverage:ignore-start
         actions: [
-          // Tocar tudo: paridade com web/Electron (botão de play da tracklist).
-          // FilledButton com ícone + label, estilo primário do tema.
+          // Paridade desktop: aleatório, tocar e "Adicionar à fila".
           if (!_batchDownloading)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FutureBuilder<List<Hymn>>(
-                future: _hymnsFuture,
-                builder: (context, snapshot) {
-                  final hymns = snapshot.data;
-                  final canPlay = hymns != null && hymns.isNotEmpty;
-                  return Tooltip(
-                    message: 'albums.playAll'.tr(),
-                    child: FilledButton.tonalIcon(
-                      onPressed: canPlay ? () => _playAll(hymns) : null,
-                      icon: const Icon(TablerIcons.playerPlayFilled, size: 18),
-                      label: Text('albums.playAll'.tr()),
+            FutureBuilder<List<Hymn>>(
+              future: _hymnsFuture,
+              builder: (context, snapshot) {
+                final hymns = snapshot.data;
+                final canPlay = hymns != null && hymns.isNotEmpty;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      key: const Key('album-shuffle'),
+                      tooltip: 'albums.shuffle'.tr(),
+                      icon: const Icon(TablerIcons.arrowsShuffle),
+                      onPressed: canPlay
+                          ? () => _playAll(hymns, shuffled: true)
+                          : null,
                     ),
-                  );
-                },
-              ),
+                    IconButton(
+                      key: const Key('album-play-all'),
+                      tooltip: 'albums.playAll'.tr(),
+                      icon: const Icon(TablerIcons.playerPlay),
+                      onPressed: canPlay ? () => _playAll(hymns) : null,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: OutlinedButton.icon(
+                        key: const Key('album-append-queue'),
+                        onPressed: canPlay ? () => _appendToQueue(hymns) : null,
+                        icon: const Icon(TablerIcons.playlistAdd, size: 18),
+                        label: Text('albums.appendQueue'.tr()),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           if (_batchDownloading)
             Padding(
@@ -795,13 +948,21 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             );
           }
 
+          _inputVisible = true;
+          _requestHymnNumberFocus();
           return Column(
             children: [
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.s4),
                 child: TextField(
+                  key: const Key('hymn-number-input'),
+                  controller: _hymnNumberController,
+                  focusNode: _hymnNumberFocusNode,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
                   decoration: InputDecoration(
-                    hintText: 'hymns.searchPlaceholder'.tr(),
+                    hintText: 'Número do hino',
                     prefixIcon: const Icon(TablerIcons.search),
                     border: OutlineInputBorder(
                       borderRadius: const BorderRadius.only(
@@ -810,129 +971,141 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                       ),
                     ),
                   ),
-                  onChanged: (query) {
-                    // TODO: filtro local com debounce
-                  },
+                  onSubmitted: (value) => _submitHymnNumber(hymns),
                 ),
               ),
+
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.s4,
                   ),
                   itemCount: hymns.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final hymn = hymns[index];
                     final isExpanded = _expandedHymnId == hymn.id;
                     final isPlaying = _isThisPlaying(hymn);
                     final isLoading = _loadingMusicId == hymn.id;
 
+                    // Linha da música carregada no miniplayer fica marcada.
+                    final isSelected =
+                        nowPlaying.track?.hymnId == hymn.id ||
+                        _selectedHymnId == hymn.id;
                     return Column(
                       children: [
-                        HymnListTile(
-                          number:
-                              hymn.number?.toString().padLeft(3, '0') ?? '---',
-                          title: hymn.title ?? 'Sem titulo',
-                          subtitle: hymn.formattedDuration.isEmpty
-                              ? null
-                              : hymn.formattedDuration,
-                          trailing: isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                        Container(
+                          decoration: isSelected
+                              ? BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: theme.colorScheme.primary,
+                                      width: 4,
+                                    ),
+                                  ),
+                                  borderRadius: const BorderRadius.only(
+                                    topRight: Radius.circular(8),
+                                    bottomRight: Radius.circular(8),
                                   ),
                                 )
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      tooltip: isPlaying
-                                          ? 'Pausar'
-                                          : 'Reproduzir',
-                                      icon: Icon(
-                                        isPlaying
-                                            ? TablerIcons.playerPauseFilled
-                                            : TablerIcons.playerPlayFilled,
-                                        color: isPlaying
-                                            ? theme.colorScheme.primary
-                                            : null,
+                              : null,
+                          // Camada transparente: o ListTile desenha o toque nela
+                          // e não reclama do fundo colorido do Container.
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: HymnListTile(
+                              number:
+                                  hymn.number?.toString().padLeft(3, '0') ??
+                                  '---',
+                              title: hymn.title ?? 'Sem titulo',
+                              subtitle: hymn.formattedDuration.isEmpty
+                                  ? null
+                                  : hymn.formattedDuration,
+                              trailing: isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
                                       ),
-                                      // coverage:ignore-line
-                                      onPressed: () => _togglePlay(
-                                        hymn,
-                                        instrumental: false,
-                                      ),
+                                    )
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (hymn.hasInstrumental)
+                                          IconButton(
+                                            tooltip:
+                                                isPlaying &&
+                                                    _playingInstrumental
+                                                ? 'Voltar ao cantado'
+                                                : 'Playback instrumental',
+                                            icon: Icon(
+                                              TablerIcons.piano,
+                                              color:
+                                                  isPlaying &&
+                                                      _playingInstrumental
+                                                  ? theme.colorScheme.primary
+                                                  : null,
+                                            ),
+                                            // coverage:ignore-line
+                                            onPressed: () => _togglePlay(
+                                              hymn,
+                                              instrumental:
+                                                  !(isPlaying &&
+                                                      _playingInstrumental),
+                                            ),
+                                          ),
+                                        // Modo vídeo (slides sincronizados)
+                                        IconButton(
+                                          tooltip: 'Modo vídeo',
+                                          icon: const Icon(
+                                            TablerIcons.slideshow,
+                                            size: 20,
+                                          ),
+                                          onPressed: () =>
+                                              _openNowPlaying(hymn),
+                                        ),
+                                        // coverage:ignore-start
+                                        // Download por faixa (APK apenas)
+                                        if (_downloadingIds.contains(hymn.id))
+                                          const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        else if (_downloadedIds.contains(
+                                          hymn.id,
+                                        ))
+                                          IconButton(
+                                            tooltip: 'Remover download',
+                                            icon: Icon(
+                                              TablerIcons.checks,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                            onPressed: () => _removeTrack(hymn),
+                                          )
+                                        else
+                                          IconButton(
+                                            tooltip: 'Baixar',
+                                            icon: const Icon(
+                                              TablerIcons.cloudDownload,
+                                              size: 20,
+                                            ),
+                                            onPressed: () =>
+                                                _downloadTrack(hymn),
+                                          ),
+                                        // coverage:ignore-end
+                                      ],
                                     ),
-                                    if (hymn.hasInstrumental)
-                                      IconButton(
-                                        tooltip:
-                                            isPlaying && _playingInstrumental
-                                            ? 'Voltar ao cantado'
-                                            : 'Playback instrumental',
-                                        icon: Icon(
-                                          TablerIcons.piano,
-                                          color:
-                                              isPlaying && _playingInstrumental
-                                              ? theme.colorScheme.primary
-                                              : null,
-                                        ),
-                                        // coverage:ignore-line
-                                        onPressed: () => _togglePlay(
-                                          hymn,
-                                          instrumental:
-                                              !(isPlaying &&
-                                                  _playingInstrumental),
-                                        ),
-                                      ),
-                                    // Modo vídeo (slides sincronizados)
-                                    IconButton(
-                                      tooltip: 'Modo vídeo',
-                                      icon: const Icon(
-                                        TablerIcons.slideshow,
-                                        size: 20,
-                                      ),
-                                      onPressed: () => _openNowPlaying(hymn),
-                                    ),
-                                    // coverage:ignore-start
-                                    // Download por faixa (APK apenas)
-                                    if (_downloadingIds.contains(hymn.id))
-                                      const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    else if (_downloadedIds.contains(hymn.id))
-                                      IconButton(
-                                        tooltip: 'Remover download',
-                                        icon: Icon(
-                                          TablerIcons.checks,
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                        onPressed: () => _removeTrack(hymn),
-                                      )
-                                    else
-                                      IconButton(
-                                        tooltip: 'Baixar',
-                                        icon: const Icon(
-                                          TablerIcons.cloudDownload,
-                                          size: 20,
-                                        ),
-                                        onPressed: () => _downloadTrack(hymn),
-                                      ),
-                                    // coverage:ignore-end
-                                  ],
-                                ),
-                          // coverage:ignore-line
-                          onTap: () {
-                            setState(() {
-                              _expandedHymnId = isExpanded ? null : hymn.id;
-                            });
-                          },
+                              // coverage:ignore-line
+                              onTap: () => _selectHymn(hymn),
+                            ),
+                          ),
                         ),
                         // Letra expansivel
                         if (isExpanded &&

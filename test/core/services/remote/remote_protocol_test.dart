@@ -19,6 +19,34 @@ void main() {
       expect(json['action'], 'player.play');
     });
 
+    test('encode site.navigate carrega o endereco', () {
+      final json =
+          jsonDecode(
+                RemoteCommand(
+                  id: 's1',
+                  action: RemoteAction.siteNavigate,
+                  url: 'https://x.org/imoveis',
+                ).encode(),
+              )
+              as Map<String, dynamic>;
+      expect(json['action'], 'site.navigate');
+      expect(json['url'], 'https://x.org/imoveis');
+    });
+
+    test('encode site.scroll carrega a proporcao', () {
+      final json =
+          jsonDecode(
+                RemoteCommand(
+                  id: 's2',
+                  action: RemoteAction.siteScroll,
+                  ratio: 0.25,
+                ).encode(),
+              )
+              as Map<String, dynamic>;
+      expect(json['action'], 'site.scroll');
+      expect(json['ratio'], 0.25);
+    });
+
     test('encode setVolume carrega value 0-100', () {
       final json =
           jsonDecode(
@@ -442,11 +470,12 @@ void main() {
         '{"index":0,"type":"hymn","title":"Hino 1","done":true,'
         '"subtitle":"Harpa","isCategory":false,"accentColor":"#FF0000"},'
         '{"index":1,"type":"category","isCategory":true},'
+        '{"index":2,"type":"site","title":"Site","url":"https://x.org"},'
         '{"index":"x"},'
         '"não-é-map"]}}',
       )! as RemotePlayerState;
       expect(msg.liturgySelectedIndex, 2);
-      expect(msg.liturgyItems.length, 2);
+      expect(msg.liturgyItems.length, 3);
       expect(msg.liturgyItems[0].index, 0);
       expect(msg.liturgyItems[0].type, 'hymn');
       expect(msg.liturgyItems[0].title, 'Hino 1');
@@ -456,6 +485,8 @@ void main() {
       expect(msg.liturgyItems[0].accentColor, '#FF0000');
       expect(msg.liturgyItems[1].isCategory, isTrue);
       expect(msg.liturgyItems[1].title, isNull);
+      expect(msg.liturgyItems[0].url, isNull);
+      expect(msg.liturgyItems[2].url, 'https://x.org');
     });
 
     test('liturgy: ausente → lista vazia e seleção null', () {
@@ -647,6 +678,148 @@ void main() {
       if (msg != null) {
         expect((msg as RemoteCommand).token, isNull);
       }
+    });
+  });
+
+  test('conexoes sem video vem em videoTargets.tvs', () {
+    final state = RemoteProtocol.parse(
+      jsonEncode({
+        'v': 1,
+        'type': 'state',
+        'player': {
+          'playing': false,
+          'positionMs': 0,
+          'durationMs': 0,
+          'volume': 60,
+          'canPrevious': false,
+          'canNext': false,
+        },
+        'videoTargets': {
+          'monitors': <Object>[],
+          'tvs': [
+            {'id': 'tv:5', 'label': 'Tv Frontal', 'selected': true},
+          ],
+        },
+      }),
+    );
+
+    expect((state as RemotePlayerState).idleVideoTvs.single.id, 'tv:5');
+  });
+
+  test('liturgia informa os dias e qual esta aberto', () {
+    final state = RemoteProtocol.parse(
+      jsonEncode({
+        'v': 1,
+        'type': 'state',
+        'player': {
+          'playing': false,
+          'positionMs': 0,
+          'durationMs': 0,
+          'volume': 60,
+          'canPrevious': false,
+          'canNext': false,
+        },
+        'liturgy': {
+          'items': <Object>[],
+          'days': [
+            {'key': 'saturday', 'count': 11, 'selected': true},
+            {'key': 'custom', 'count': 0, 'selected': false},
+            {'key': 7},
+          ],
+        },
+      }),
+    );
+
+    final days = (state as RemotePlayerState).liturgyDays;
+    expect(days.map((d) => d.key), ['saturday', 'custom']);
+    expect(days.first.count, 11);
+    expect(days.first.selected, isTrue);
+  });
+
+  test('trocar dia vai no campo mode', () {
+    final json = jsonDecode(
+      RemoteCommand(
+        id: 'd1',
+        action: RemoteAction.liturgySelectDay,
+        mode: 'custom',
+      ).encode(),
+    );
+
+    expect(json['action'], 'liturgy.selectDay');
+    expect(json['mode'], 'custom');
+  });
+
+  test('liturgia informa as avulsas', () {
+    final state = RemoteProtocol.parse(
+      jsonEncode({
+        'v': 1,
+        'type': 'state',
+        'player': {
+          'playing': false,
+          'positionMs': 0,
+          'durationMs': 0,
+          'volume': 60,
+          'canPrevious': false,
+          'canNext': false,
+        },
+        'liturgy': {
+          'items': <Object>[],
+          'customs': [
+            {'index': 1, 'name': 'teste2', 'count': 18, 'selected': true},
+            {'name': 'sem indice'},
+          ],
+        },
+      }),
+    );
+
+    final customs = (state as RemotePlayerState).liturgyCustoms;
+    expect(customs.single.name, 'teste2');
+    expect(customs.single.index, 1);
+    expect(customs.single.count, 18);
+    expect(customs.single.selected, isTrue);
+  });
+
+  test('slide traz a previa da imagem em base64', () {
+    final state = RemoteProtocol.parse(
+      jsonEncode({
+        'v': 1,
+        'type': 'state',
+        'player': {
+          'playing': false,
+          'positionMs': 0,
+          'durationMs': 0,
+          'volume': 60,
+          'canPrevious': false,
+          'canNext': false,
+        },
+        'slide': {
+          'index': 1,
+          'total': 3,
+          'preview': 'AQID',
+          'galleryKey': 'g1',
+          'previews': ['AQ', 'Ag', 'Aw'],
+          'lyrics': ['Capa', 'Verso'],
+        },
+      }),
+    );
+
+    final parsed = state as RemotePlayerState;
+    expect(parsed.slidePreview, 'AQID');
+    expect(parsed.slideGalleryKey, 'g1');
+    expect(parsed.slidePreviews, ['AQ', 'Ag', 'Aw']);
+    expect(parsed.slideLyrics, ['Capa', 'Verso']);
+  });
+
+  group('frame (previa do video)', () {
+    test('quadro com dados vira RemoteVideoFrame', () {
+      final msg = RemoteProtocol.parse('{"v":1,"type":"frame","data":"AAA"}');
+      expect(msg, isA<RemoteVideoFrame>());
+      expect((msg! as RemoteVideoFrame).data, 'AAA');
+    });
+
+    test('quadro sem dados e ignorado', () {
+      expect(RemoteProtocol.parse('{"v":1,"type":"frame"}'), isNull);
+      expect(RemoteProtocol.parse('{"v":1,"type":"frame","data":""}'), isNull);
     });
   });
 }

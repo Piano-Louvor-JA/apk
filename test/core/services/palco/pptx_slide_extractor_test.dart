@@ -2,6 +2,7 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -20,6 +21,48 @@ File _makePptx(String path, Map<String, List<int>> media) {
 }
 
 void main() {
+  test('modo fiel aceita slide inteiro com uma imagem na ordem declarada', () {
+    final archive = Archive();
+    void xml(String path, String value) {
+      final bytes = utf8.encode(value);
+      archive.addFile(ArchiveFile(path, bytes.length, bytes));
+    }
+
+    xml(
+      'ppt/presentation.xml',
+      '<presentation xmlns:r="r"><sldIdLst><sldId r:id="r1"/></sldIdLst><sldSz cx="100" cy="80"/></presentation>',
+    );
+    xml(
+      'ppt/_rels/presentation.xml.rels',
+      '<Relationships><Relationship Id="r1" Target="slides/slide1.xml"/></Relationships>',
+    );
+    xml(
+      'ppt/slides/slide1.xml',
+      '<sld><pic><xfrm><off x="0" y="0"/><ext cx="100" cy="80"/></xfrm></pic></sld>',
+    );
+    xml(
+      'ppt/slides/_rels/slide1.xml.rels',
+      '<Relationships><Relationship Id="img" Target="../media/image1.png"/></Relationships>',
+    );
+    final bytes = _fakeImage(40 * 1024);
+    archive.addFile(ArchiveFile('ppt/media/image1.png', bytes.length, bytes));
+    final f = File('/tmp/liturgy-complete.pptx')
+      ..writeAsBytesSync(ZipEncoder().encode(archive));
+    expect(
+      PptxSlideExtractor.extract(f.path, requireCompleteSlides: true),
+      hasLength(1),
+    );
+  });
+  test('modo fiel não trata imagens soltas como slides completos', () {
+    final f = _makePptx('/tmp/liturgy-partial.pptx', {
+      'image1.png': _fakeImage(40 * 1024),
+    });
+    expect(
+      PptxSlideExtractor.extract(f.path, requireCompleteSlides: true),
+      isEmpty,
+    );
+  });
+
   test('extrai imagens grandes em ordem numérica, ignora ícones pequenos', () {
     final f = _makePptx('/tmp/test_slides.pptx', {
       'image10.png': _fakeImage(30 * 1024),

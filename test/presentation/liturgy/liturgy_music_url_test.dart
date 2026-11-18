@@ -5,10 +5,21 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
+import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/services/liturgy_item_executor.dart';
 
 void main() {
+  test('áudio é executável como no desktop', () {
+    expect(LiturgyItemExecutor.isExecutable(LiturgyItemType.audio), isTrue);
+  });
+  test('modo instrumental resolve a faixa instrumental', () {
+    const hymn = Hymn(id: 1, urlMusic: '/vocal.mp3', urlInstrumental: '/instrumental.mp3');
+    const item = LiturgyItem(id: '1', type: LiturgyItemType.music, name: 'Hino', musicMode: 'instrumental');
+    expect(resolveLiturgyMusicPath(hymn, item), '/instrumental.mp3');
+    expect(resolveLiturgyMusicPath(hymn, item.copyWith(musicMode: 'audio')), '/vocal.mp3');
+  });
   group('buildLiturgyMusicUrl', () {
     test('encoda path relativo com espaco e acento por segmento', () {
       final url = buildLiturgyMusicUrl(

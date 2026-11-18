@@ -1,6 +1,7 @@
 library;
 
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/services.dart';
@@ -133,6 +134,33 @@ void main() {
   });
   tearDown(() {
     binding.defaultBinaryMessenger.setMockMessageHandler(wakeChannel, null);
+  });
+
+  testWidgets('fundo absoluto permanece válido na tela cheia', (tester) async {
+    final player = _FakePlayer();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingPage(
+          detail: const Hymn(
+            id: 2318,
+            title: 'Tu És Digno',
+            imageUrl: 'https://files.louvorja.com.br/images/hasd_599.jpg',
+          ),
+          instrumental: false,
+          player: player,
+          offlineService: _FakeOffline(),
+          filesUrl: 'http://10.0.2.2:3100/file',
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<CachedNetworkImage>(find.byType(CachedNetworkImage).first)
+          .imageUrl,
+      'https://files.louvorja.com.br/images/hasd_599.jpg',
+    );
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('troca de slide automática pelo tempo do áudio', (tester) async {

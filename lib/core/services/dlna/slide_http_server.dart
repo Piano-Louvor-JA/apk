@@ -1,5 +1,6 @@
 library;
 
+import '../net/local_ipv4.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -106,34 +107,7 @@ class SlideHttpServer {
   }
 
   static Future<String?> _localIp() async {
-    try {
-      final hint = rendererSubnetHint;
-      final prefix = hint?.split('.').take(3).join('.');
-      final interfaces = await NetworkInterface.list();
-      // 1) IP na mesma sub-rede da TV (preferência absoluta)
-      if (prefix != null) {
-        for (final it in interfaces) {
-          for (final addr in it.addresses) {
-            if (addr.type == InternetAddressType.IPv4 &&
-                !addr.isLoopback &&
-                addr.address.startsWith('$prefix.')) {
-              return addr.address;
-            }
-          }
-        }
-      }
-      // 2) Fallback: primeiro IPv4 privado de LAN (não VPN 100.64/10,
-      //    não loopback) — mesma heurística anterior, agora por último.
-      for (final it in interfaces) {
-        for (final addr in it.addresses) {
-          if (addr.type == InternetAddressType.IPv4 &&
-              !addr.isLoopback &&
-              addr.address.startsWith('192.168.')) {
-            return addr.address;
-          }
-        }
-      }
-    } catch (_) {}
-    return null;
+    final hint = rendererSubnetHint;
+    return pickLocalIpv4(preferPrefix: hint?.split('.').take(3).join('.'));
   }
 }

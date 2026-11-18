@@ -12,7 +12,8 @@ import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'palco_models.dart';
 import 'palco_proxy.dart';
 
-/// Sender do Palco: HTTP (:7080, proxy + mídia local) + WS (:7081) no celular.
+/// Sender do Palco: HTTP (:4980, proxy + mídia local) + WS (:4981) no celular.
+/// Faixa 4980+ para não colidir com o desktop (47080+) na mesma máquina/rede.
 ///
 /// Reimplementação Dart do sender.py validado no spike ~/palco-spike
 /// (LG UM7510, 2026-08-17). Mesmo protocolo — a TV (receiver webOS) conecta
@@ -34,6 +35,14 @@ class PalcoSender {
   /// 'web'). Receivers que não declaram ficam como 'tv' (comportamento
   /// atual das TVs).
   final Map<WebSocket, String> _clientRoles = {};
+
+  /// Identificação de cada receiver conectado (IP, plataforma, nome),
+  /// exibida no módulo Palco. Vem do socket + User-Agent e é completada
+  /// pelo `hello` do receiver.
+  final Map<WebSocket, PalcoClientInfo> _clientInfo = {};
+
+  /// Receivers conectados agora, na ordem de chegada.
+  List<PalcoClientInfo> get clients => _clientInfo.values.toList();
 
   /// Eventos receiver→sender (unlocked, ended, remote-key, ...).
   Stream<PalcoMessage> get events => _events.stream;
@@ -57,8 +66,48 @@ class PalcoSender {
   /// Sub-rede da TV (hint para anunciar o IP certo — igual DLNA).
   String? rendererSubnetHint;
 
-  static const int httpPort = 7080;
-  static const int wsPort = 7081;
+  /// Arquivos extras do receiver do desktop servidos pelo celular.
+  static const _receiverAssetTypes = {
+    '/network-mirror.js': 'application/javascript; charset=utf-8',
+    '/splash.jpg': 'image/jpeg',
+    '/appinfo.json': 'application/json',
+  };
+
+  /// Tela de espera sem logo (opção global, painel do botão de TV):
+  /// reenviada a cada receiver que conecta.
+  static bool hideIdleLogo = false;
+
+  /// TVs desmarcadas no Palco (chave de [muteKey]): ficam na tela de espera
+  /// e não recebem nada da transmissão. Compartilhado entre transmissões,
+  /// então a TV continua desmarcada se mudar de transmissão ou reconectar.
+  static final Set<String> mutedTvs = {};
+
+  static String muteKey(PalcoClientInfo c) =>
+      (c.id != null && c.id!.isNotEmpty) ? c.id! : '${c.ip}|${c.platform}';
+
+  bool _isMuted(WebSocket ws) {
+    final i = _clientInfo[ws];
+    return i != null && i.isTv && mutedTvs.contains(muteKey(i));
+  }
+
+  /// Última cena enviada a todos (texto, relógio, espera, fundo): a TV
+  /// remarcada recebe na hora, sem esperar o próximo slide.
+  PalcoMessage? _lastScene;
+  static const _sceneTypes = {'projection', 'clock', 'idle', 'bgPalco'};
+
+  /// Aplica a marca da TV [c] agora: desmarcada vai para a espera (o idle
+  /// também para vídeo e áudio nela); remarcada recebe a última cena.
+  void applyMute(PalcoClientInfo c) {
+    final muted = mutedTvs.contains(muteKey(c));
+    if (muted) {
+      sendToClient(c, const PalcoMessage(type: 'idle'));
+    } else if (_lastScene != null) {
+      sendToClient(c, _lastScene!);
+    }
+  }
+
+  static const int httpPort = 4980;
+  static const int wsPort = 4981;
 
   PalcoSender({
     this.httpPortFixed = httpPort,
@@ -72,13 +121,14 @@ class PalcoSender {
   /// assets/palco/receiver.html — servido em / e /receiver.html.
   /// Testes injetam bytes direto (rootBundle não funciona em unit test).
   Uint8List? _receiverPage;
+  Uint8List? _youtubePage;
 
   /// Portas fixas em produção; 0 (efêmera) em teste.
   final int httpPortFixed;
   final int wsPortFixed;
 
   /// Teste: faz bind em porta efêmera (0) mesmo quando o sender tem porta
-  /// fixa configurada (ex.: slots do orchestrator, 7080+2n). `flutter test`
+  /// fixa configurada (ex.: slots do orchestrator, 4980+2n). `flutter test`
   /// roda arquivos em processos paralelos e portas fixas colidem
   /// (`Address already in use`). A porta configurada segue como identidade
   /// enquanto o sender está parado; a real fica em [effectiveHttpPort] /
@@ -93,7 +143,7 @@ class PalcoSender {
   int get effectiveHttpPort => _http?.port ?? httpPortFixed;
   int get effectiveWsPort => _ws?.port ?? wsPortFixed;
 
-  /// Sobe os servidores. Retorna a base HTTP (ex: http://192.168.1.5:7080)
+  /// Sobe os servidores. Retorna a base HTTP (ex: http://192.168.1.5:4980)
   /// ou null se falhou (sem IP LAN).
   Future<String?> start() async {
     final ip = await _localIp();
@@ -133,6 +183,8 @@ class PalcoSender {
     }
     _clients.clear();
     _clientRoles.clear();
+    _clientInfo.clear();
+    notifyRoleChange();
     await _http?.close(force: true);
     await _ws?.close(force: true);
     _http = null;
@@ -153,6 +205,11 @@ class PalcoSender {
               _receiverIp = remoteIp;
               debugPrint('[PALCO] receiver IP: $remoteIp');
             }
+            _clientInfo[ws] = PalcoClientInfo.fromUserAgent(
+              ip: remoteIp ?? '',
+              userAgent: req.headers.value('user-agent') ?? '',
+            );
+            notifyRoleChange();
             debugPrint('[PALCO] receiver conectado (${_clients.length})');
             // F3.3x: diz à TV qual o IP DELA (visto pelo socket) — o receiver
             // exibe discretamente no idle (debug/ares).
@@ -172,6 +229,16 @@ class PalcoSender {
                 );
               } catch (_) {}
             }
+            try {
+              ws.add(
+                jsonEncode(
+                  PalcoMessage(
+                    type: 'idleStyle',
+                    fields: {'hideLogo': hideIdleLogo},
+                  ).toJson(),
+                ),
+              );
+            } catch (_) {}
             ws.listen(
               (data) {
                 try {
@@ -181,6 +248,11 @@ class PalcoSender {
                   // hello: registra o role do receiver (desktop/web/tv).
                   if (m.type == 'hello' && m.helloRole != null) {
                     _clientRoles[ws] = m.helloRole!;
+                    final info = _clientInfo[ws]?.withHello(m.fields);
+                    if (info != null) {
+                      _clientInfo[ws] = info;
+                      _dropStaleTwin(ws, info);
+                    }
                     debugPrint('[PALCO] receiver role: ${m.helloRole}');
                     notifyRoleChange();
                   }
@@ -190,12 +262,14 @@ class PalcoSender {
               onDone: () {
                 _clients.remove(ws);
                 _clientRoles.remove(ws);
+                _clientInfo.remove(ws);
                 debugPrint('[PALCO] receiver saiu (${_clients.length})');
                 notifyRoleChange();
               },
               onError: (_) {
                 _clients.remove(ws);
                 _clientRoles.remove(ws);
+                _clientInfo.remove(ws);
                 notifyRoleChange();
               },
               // SEM ping: webOS 4.x não responde (lição do spike).
@@ -206,6 +280,30 @@ class PalcoSender {
     } else {
       req.response.statusCode = 404;
       req.response.close();
+    }
+  }
+
+  /// A mesma TV reconectou (Wi-Fi caiu, app reaberto, TV tirada da tomada)
+  /// e a conexão antiga ficou meio aberta (sem ping, ver abaixo): fecha a
+  /// antiga para não aparecer em dobro. Mesma TV = mesmo id do hello, ou
+  /// mesmo IP e mesma plataforma quando falta id em um dos lados. Ids
+  /// diferentes são TVs diferentes, mesmo com o mesmo IP (NAT, adb forward):
+  /// sem isso duas TVs atrás do mesmo IP se derrubavam em loop.
+  void _dropStaleTwin(WebSocket current, PalcoClientInfo info) {
+    if (!info.isTv) return;
+    bool hasId(PalcoClientInfo c) => c.id != null && c.id!.isNotEmpty;
+    bool same(PalcoClientInfo o) {
+      if (hasId(info) && hasId(o)) return o.id == info.id;
+      return o.ip == info.ip && o.platform == info.platform;
+    }
+
+    for (final e in _clientInfo.entries.toList()) {
+      if (e.key != current && same(e.value)) {
+        _clients.remove(e.key);
+        _clientRoles.remove(e.key);
+        _clientInfo.remove(e.key);
+        e.key.close().catchError((_) {});
+      }
     }
   }
 
@@ -222,7 +320,7 @@ class PalcoSender {
   /// Retorna false se nenhum receiver desse role está conectado.
   bool sendToRole(String role, PalcoMessage msg) {
     final targets = _clients
-        .where((c) => (_clientRoles[c] ?? 'tv') == role)
+        .where((c) => (_clientRoles[c] ?? 'tv') == role && !_isMuted(c))
         .toList();
     if (targets.isEmpty) return false;
     final data = jsonEncode(msg.toJson());
@@ -234,11 +332,60 @@ class PalcoSender {
     return true;
   }
 
+  /// Socket do receiver [c]. A UI pode estar com uma cópia antiga (o hello
+  /// troca o objeto), então cai para id e depois IP + plataforma.
+  WebSocket? _socketFor(PalcoClientInfo c) {
+    for (final e in _clientInfo.entries) {
+      if (identical(e.value, c)) return e.key;
+    }
+    for (final e in _clientInfo.entries) {
+      final o = e.value;
+      if (c.id != null && c.id!.isNotEmpty && o.id == c.id) return e.key;
+    }
+    for (final e in _clientInfo.entries) {
+      final o = e.value;
+      if (o.ip == c.ip && o.platform == c.platform) return e.key;
+    }
+    return null;
+  }
+
+  /// Envia [msg] só para o receiver [c]. False se ele já saiu.
+  bool sendToClient(PalcoClientInfo c, PalcoMessage msg) {
+    final ws = _socketFor(c);
+    if (ws == null) return false;
+    try {
+      ws.add(jsonEncode(msg.toJson()));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Dá um nome à TV: ela guarda e repete no próximo hello. Atualiza a lista
+  /// na hora, sem esperar a resposta.
+  bool renameClient(PalcoClientInfo c, String name) {
+    final n = name.trim();
+    final ws = _socketFor(c);
+    if (ws == null || n.isEmpty) return false;
+    final ok = sendToClient(
+      c,
+      PalcoMessage(type: 'rename', fields: {'name': n}),
+    );
+    final cur = _clientInfo[ws];
+    if (cur != null) {
+      _clientInfo[ws] = cur.withHello({'name': n});
+      notifyRoleChange();
+    }
+    return ok;
+  }
+
   /// Broadcast de mensagem para todos os receivers conectados.
   void send(PalcoMessage msg) {
+    if (_sceneTypes.contains(msg.type)) _lastScene = msg;
     if (_clients.isEmpty) return;
     final data = jsonEncode(msg.toJson());
     for (final c in _clients.toList()) {
+      if (_isMuted(c)) continue;
       try {
         c.add(data);
       } catch (_) {
@@ -262,7 +409,13 @@ class PalcoSender {
     final res = req.response;
     try {
       final path = req.uri.path;
-      if (path == '/' || path == '/receiver.html' || path == '/index.html') {
+      // Paridade desktop: /espelho replica a TV; /retorno vira o retorno de
+      // palco (mesmo receiver, o modo vem do caminho).
+      if (path == '/' ||
+          path == '/receiver.html' ||
+          path == '/index.html' ||
+          path == '/espelho' ||
+          path == '/retorno') {
         _receiverPage ??= (await rootBundle.load(
           'assets/palco/receiver.html',
         )).buffer.asUint8List();
@@ -321,9 +474,53 @@ class PalcoSender {
           res.statusCode = 404;
         }
         await res.close();
+      } else if (_receiverAssetTypes.containsKey(path)) {
+        // Arquivos do receiver do desktop (mesma página servida aqui).
+        try {
+          final bytes = (await rootBundle.load(
+            'assets/palco${path}',
+          )).buffer.asUint8List();
+          res.headers.contentType = ContentType.parse(
+            _receiverAssetTypes[path]!,
+          );
+          res.headers.set('Access-Control-Allow-Origin', '*');
+          res.add(bytes);
+        } catch (_) {
+          res.statusCode = 404;
+        }
+        await res.close();
+      } else if (path == '/youtube') {
+        // Player do YouTube das TVs: o app da TV roda de arquivo local e o
+        // embed recusa essa origem (erro 153); daqui ele tem origem HTTP.
+        _youtubePage ??= (await rootBundle.load(
+          'assets/palco/youtube.html',
+        )).buffer.asUint8List();
+        res.headers.contentType = ContentType.html;
+        res.headers.set('Cache-Control', 'no-store');
+        res.add(_youtubePage!);
+        await res.close();
+      } else if (path == '/legenda' || path == '/purify.min.js') {
+        // Transmissão (paridade desktop): legenda para a fonte de navegador
+        // do OBS. Mesmo overlay.html do app; conecta no WS deste slot
+        // (porta HTTP + 1) e recebe projection/timer/idle.
+        final asset = path == '/legenda'
+            ? 'assets/palco/overlay.html'
+            : 'assets/palco/purify.min.js';
+        try {
+          final bytes = (await rootBundle.load(asset)).buffer.asUint8List();
+          res.headers.contentType = path == '/legenda'
+              ? ContentType.html
+              : ContentType.parse('application/javascript; charset=utf-8');
+          res.headers.set('Cache-Control', 'no-store');
+          res.headers.set('Access-Control-Allow-Origin', '*');
+          res.add(bytes);
+        } catch (_) {
+          res.statusCode = 404;
+        }
+        await res.close();
       } else if (path == '/status') {
         res.headers.contentType = ContentType.json;
-        // CORS obrigatório: o receiver usa fetch(:7080/status) na
+        // CORS obrigatório: o receiver usa fetch(:4980/status) na
         // auto-descoberta — sem isso o scan é bloqueado (F3.3).
         res.headers.set('Access-Control-Allow-Origin', '*');
         res.write('{"unlocked":true,"clients":${_clients.length}}');
@@ -335,7 +532,7 @@ class PalcoSender {
       } else if (path.startsWith('/images/')) {
         // /images/... proxy para API (receiver pede covers/backgrounds).
         // Bug 2026-08-18: o receiver resolve covers relativos contra a
-        // origem (http://host:7080/images/generico_116.jpg) — sem query
+        // origem (http://host:4980/images/generico_116.jpg) — sem query
         // ?url=, o _serveProxy devolvia 400/404 e a capa ficava quebrada.
         // Monta a URL da API a partir do path e proxya.
         final rel = path.substring(1); // images/... ou covers/...
@@ -477,4 +674,76 @@ class PalcoSender {
 class Uint8ListListEntry {
   Uint8ListListEntry(this.bytes);
   final List<int> bytes;
+}
+
+/// Um receiver (TV, navegador, OBS) conectado a um sender do palco.
+class PalcoClientInfo {
+  const PalcoClientInfo({
+    required this.ip,
+    required this.platform,
+    required this.name,
+    required this.connectedAt,
+    this.version,
+    this.id,
+  });
+
+  final String ip;
+
+  /// 'webos' | 'tizen' | 'androidtv' | 'obs' | 'browser'.
+  final String platform;
+
+  /// TV com o app Palco (não navegador/OBS).
+  bool get isTv => platform != 'obs' && platform != 'browser';
+  final String name;
+  final String? version;
+
+  /// Identificador estável do receiver (vem do hello; nulo em receivers antigos).
+  final String? id;
+  final DateTime connectedAt;
+
+  static String platformFromUserAgent(String ua) {
+    if (RegExp('Web0S|webOS', caseSensitive: false).hasMatch(ua)) {
+      return 'webos';
+    }
+    if (ua.contains('Tizen')) return 'tizen';
+    if (ua.contains('OBS')) return 'obs';
+    if (ua.contains('Android') && !ua.contains('Mobile')) return 'androidtv';
+    return 'browser';
+  }
+
+  static String defaultName(String platform) => switch (platform) {
+    'webos' => 'TV LG (webOS)',
+    'tizen' => 'TV Samsung (Tizen)',
+    'androidtv' => 'Android TV',
+    'obs' => 'OBS',
+    _ => 'Navegador',
+  };
+
+  factory PalcoClientInfo.fromUserAgent({
+    required String ip,
+    required String userAgent,
+  }) {
+    final platform = platformFromUserAgent(userAgent);
+    return PalcoClientInfo(
+      ip: ip,
+      platform: platform,
+      name: defaultName(platform),
+      connectedAt: DateTime.now(),
+    );
+  }
+
+  /// Completa com o `hello` do receiver: {platform, name, version, id}.
+  PalcoClientInfo withHello(Map<String, dynamic> f) {
+    var p = (f['platform'] as String?)?.replaceFirst('palco-', '');
+    if (p == null || p.isEmpty) p = platform;
+    final n = (f['name'] as String?)?.trim();
+    return PalcoClientInfo(
+      ip: ip,
+      platform: p,
+      name: (n == null || n.isEmpty) ? defaultName(p) : n,
+      version: f['version'] as String? ?? version,
+      id: f['id'] as String? ?? id,
+      connectedAt: connectedAt,
+    );
+  }
 }

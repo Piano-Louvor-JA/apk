@@ -18,6 +18,22 @@ import 'package:louvorja_piano_mobile/data/datasources/local/custom_session_stor
 
 abstract final class OperatorStateBoot {
   static OperatorStateClient? _client;
+  static Timer? _flushTimer;
+  static void scheduleFlush(SharedPreferences prefs) {
+    _flushTimer?.cancel();
+    _flushTimer = Timer(const Duration(milliseconds: 500), () {
+      _flushTimer = null;
+      unawaited(flushOnBoot(prefs));
+    });
+  }
+
+  static Future<void> flushOnResume() async {
+    try {
+      await flushOnBoot(await SharedPreferences.getInstance());
+    } catch (_) {
+      /* fila permanece local */
+    }
+  }
 
   /// Cliente com Dio default e sessão do secure storage. Construção lazy:
   /// o boot só monta quando o primeiro uso acontece (flush/hook).
@@ -126,5 +142,10 @@ abstract final class OperatorStateBoot {
   static StreamSubscription<bool>? _retrySub;
 
   /// Testes: descarta o singleton (SharedPreferences mockado por teste).
-  static void resetForTest() => _client = null;
+  static void resetForTest() {
+    _client = null;
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    OperatorStateClient.onEnqueued = null;
+  }
 }

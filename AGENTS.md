@@ -32,8 +32,9 @@
 2. **TDD é obrigatório.** Escreva o teste ANTES da implementação.
    Red → Green → Refactor. Sem exceções.
 
-3. **Qualidade de teste completa.** Nas PRs com base **staging**, a cobertura
-   de **linhas** deve ser de pelo menos **50%**. Nos demais destinos e em push,
+3. **Qualidade de teste completa.** Nas PRs com base **staging** e nos pushes
+   para **staging**, a cobertura de **linhas** deve ser de pelo menos **50%**.
+   Nos demais destinos,
    o CI usa o **ratchet** de `scripts/coverage_ratchet.py`: a cobertura não pode
    cair abaixo de `.coverage-baseline` (ou 55,46% quando o arquivo não existe).
    O job de testes também executa `scripts/coverage-ratchet.dart`, com baseline
@@ -267,8 +268,9 @@ e [.github/workflows/security.yml](.github/workflows/security.yml).
   `dart scripts/coverage-ratchet.dart`, com o mesmo seletor de piso por destino.
 - **Coverage (ratchet):** `flutter test --coverage` e
   `python3 scripts/coverage_ratchet.py`. O workflow define `COVERAGE_MIN=50`
-  somente quando o evento é `pull_request` e a base real é `staging`;
-  em push e nos demais destinos, preserva o ratchet do baseline.
+  quando o evento é `pull_request` com base real `staging`, ou `push`
+  para a ref exata `refs/heads/staging`. Nos demais destinos, inclusive main
+  e tags, preserva o ratchet do baseline.
 - **Build Android** e **Build iOS:** builds debug; iOS sem codesign.
 - **Regression Gate:** compara a PR com staging; só executa em pull request.
 - **Quality Gate:** exige lint, testes e ambos os builds aprovados;
