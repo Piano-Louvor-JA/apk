@@ -113,9 +113,10 @@ void main() {
         'tag_name': 'v1.0.1',
         'assets': [
           {
-            'name': 'louvorja-piano-1.0.1.apk',
+            // Release com APKs por ABI: o updater baixa só o universal.
+            'name': 'louvorja-piano-1.0.1-universal.apk',
             'browser_download_url':
-                'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1.apk',
+                'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1-universal.apk',
             'size': 10,
             'digest': 'sha256:$_sha',
           },
