@@ -7,6 +7,13 @@
     return Array.from(bytes, function (value) { return value.toString(16).padStart(2, '0') }).join('')
   }
   function peer() { return new RTCPeerConnection({ iceServers: [] }) }
+  /* Rede local: mostra cada quadro assim que chega, sem o estoque padrão do
+     WebRTC (que atrasa a tela em relação ao aparelho). */
+  function lowLatency(receiver) {
+    if (!receiver) return
+    try { if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0 } catch (e) {}
+    try { if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0 } catch (e) {}
+  }
   function createSender(options) {
     var sessionId = id(), stream = null, pending = null, generation = 0
     var slots = new Set(), peers = new Map()
@@ -98,6 +105,7 @@
           if (pc) pc.close()
           var current = peer(), attachedStream = null; pc = current
           current.ontrack = function (event) {
+            lowLatency(event.receiver)
             if (pc === current && event.streams[0] && event.streams[0] !== attachedStream) {
               attachedStream = event.streams[0]; options.attach(attachedStream)
             }
