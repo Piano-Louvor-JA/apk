@@ -236,39 +236,45 @@ class _SettingsPageState extends State<SettingsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Verifique se há uma nova versão disponível.',
+                          UpdateService.inAppUpdateSupported
+                              ? 'Verifique se há uma nova versão disponível.'
+                              // iPhone/iPad: só a App Store atualiza o app.
+                              : 'No iPhone e no iPad, as atualizações chegam '
+                                    'pela App Store.',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        OutlinedButton.icon(
-                          onPressed: _checkingUpdate
-                              ? null
-                              : _handleCheckUpdate,
-                          icon: Icon(
-                            _checkingUpdate
-                                ? TablerIcons.loader2
-                                : TablerIcons.cloudDownload,
-                          ),
-                          label: Text(
-                            _checkingUpdate
-                                ? 'Verificando...'
-                                : 'Verificar atualização',
-                          ),
-                        ),
-                        if (_updateStatus != null) ...[
+                        if (UpdateService.inAppUpdateSupported) ...[
                           const SizedBox(height: 8),
-                          // coverage:ignore-line
-                          Text(
-                            // coverage:ignore-line
-                            _updateStatus!,
-                            // coverage:ignore-line
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              // coverage:ignore-line
-                              color: theme.colorScheme.primary,
+                          OutlinedButton.icon(
+                            onPressed: _checkingUpdate
+                                ? null
+                                : _handleCheckUpdate,
+                            icon: Icon(
+                              _checkingUpdate
+                                  ? TablerIcons.loader2
+                                  : TablerIcons.cloudDownload,
+                            ),
+                            label: Text(
+                              _checkingUpdate
+                                  ? 'Verificando...'
+                                  : 'Verificar atualização',
                             ),
                           ),
+                          if (_updateStatus != null) ...[
+                            const SizedBox(height: 8),
+                            // coverage:ignore-line
+                            Text(
+                              // coverage:ignore-line
+                              _updateStatus!,
+                              // coverage:ignore-line
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                // coverage:ignore-line
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
                         ],
                       ],
                     ),

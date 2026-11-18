@@ -5,7 +5,11 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
+
+import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 
 /// Motivo pelo qual a verificacao ficou indisponivel (distinto de
 /// "esta atualizado").
@@ -55,11 +59,21 @@ class UpdateCheckResult {
   bool get isUnavailable => failure != null;
 }
 
-/// Servico de auto-update via GitHub Releases.
+/// Auto-update do apk Android.
 ///
-/// Consulta a API do GitHub por tras. O usuario nunca ve o GitHub --
-/// apenas um banner com "Nova versao disponivel" e um botao "Atualizar".
+/// 1º pergunta à nossa API (`GET /v1/app/version`), que serve o manifesto e
+/// o apk publicados pelo CLI fetch-apk: sem o limite de 60 consultas/hora
+/// por IP da API anônima do GitHub. Se a API não tiver nada publicado ou
+/// estiver fora, cai no GitHub Releases (caminho de reserva).
+/// O usuario so ve um banner "Nova versao" com o botao "Atualizar".
+///
+/// So existe no Android: no iPhone/iPad a atualizacao e pela App Store, e
+/// o servico nem consulta (o banner nunca aparece).
 class UpdateService {
+  /// Atualizar pelo proprio app (baixar e instalar o apk) so no Android.
+  static bool get inAppUpdateSupported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
   final Dio _dio;
   final String _repo;
   final Future<PackageInfo> Function() _packageInfoProvider;
@@ -81,11 +95,16 @@ class UpdateService {
 
   UpdateService({
     Dio? dio,
-    String repo = 'pianolouvorja/apk',
+    String repo = 'Piano-Louvor-JA/apk',
     String? updateApiBase,
+    String? apiHost,
     Future<PackageInfo> Function()? packageInfoProvider,
   }) : _dio = dio ?? Dio(),
        _repo = repo,
+       _apiHost = (apiHost ?? ApiConfig.primaryHost ?? '').replaceAll(
+         RegExp(r'/+$'),
+         '',
+       ),
        _updateBase = (updateApiBase ?? _updateApiBase).replaceAll(
          RegExp(r'/+$'),
          '',
@@ -94,9 +113,62 @@ class UpdateService {
 
   final String _updateBase;
 
-  /// Verifica se existe uma versao mais recente no GitHub Releases.
-  /// Retorna [UpdateCheckResult.none] se nao houver update ou se falhar.
+  /// Origem da nossa API (ex.: https://api.pianolouvorja.com.br).
+  final String _apiHost;
+
+  /// Verifica se existe uma versao mais recente: na nossa API e, se ela
+  /// nao responder com uma versao publicada, no GitHub Releases.
   Future<UpdateCheckResult> checkForUpdates() async {
+    if (!inAppUpdateSupported) return UpdateCheckResult.none;
+    if (_apiHost.isNotEmpty) {
+      final fromApi = await _checkApi();
+      if (fromApi != null) return fromApi;
+    }
+    return _checkGithub();
+  }
+
+  /// Manifesto da nossa API. Null = nada publicado (404), API fora ou
+  /// resposta estranha: quem chama tenta o GitHub.
+  Future<UpdateCheckResult?> _checkApi() async {
+    try {
+      final response = await _dio.get<dynamic>(
+        '$_apiHost/v1/app/version',
+        cancelToken: _cancelToken,
+        options: Options(
+          headers: {'Accept': 'application/json'},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+      final version = (data['version'] ?? '').toString();
+      final apkUrl = (data['apk_url'] ?? '').toString();
+      if (version.isEmpty || apkUrl.isEmpty) return null;
+
+      final current = (await _packageInfoProvider()).version;
+      if (current.isEmpty) return UpdateCheckResult.none;
+      if (!_isNewer(version, current)) return UpdateCheckResult.none;
+
+      final sha = data['sha256']?.toString().toLowerCase();
+      return UpdateCheckResult(
+        hasUpdate: true,
+        latestVersion: version,
+        downloadUrl: Uri.parse(_apiHost).resolve(apkUrl).toString(),
+        releaseNotes: data['notes']?.toString(),
+        apkSize: (data['size'] as num?)?.toInt(),
+        apkSha256: sha != null && RegExp(r'^[0-9a-f]{64}$').hasMatch(sha)
+            ? sha
+            : null,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Caminho de reserva: GitHub Releases (API anonima, 60/h por IP).
+  Future<UpdateCheckResult> _checkGithub() async {
     try {
       final response = await _dio.get<dynamic>(
         _updateBase.isNotEmpty
@@ -142,7 +214,7 @@ class UpdateService {
       String? apkSha256;
       for (final asset in assets.whereType<Map>()) {
         final name = (asset['name'] ?? '').toString().toLowerCase();
-        if (name.endsWith('.apk')) {
+        if (name.endsWith('.apk') && name.contains('-universal.')) {
           apkUrl = asset['browser_download_url']?.toString();
           apkSize = asset['size'] as int?;
           final digest = asset['digest']?.toString();
