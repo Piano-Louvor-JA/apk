@@ -16,7 +16,7 @@
 | **Repo** | `github.com/pianolouvorja/mobile` (a criar) |
 | **Stack** | Flutter 3.22+ / Dart 3.4+ |
 | **Arquitetura** | Clean Architecture (data/domain/presentation) + BLoC |
-| **Licença** | MIT (alinhado com OSS) |
+| **Licença** | GPL-3.0 (por causa do `youtubedl-android`; código anterior sob MIT, ver `NOTICE`) |
 | **Autor** | Ezequias Fonseca (mantenedor original) |
 | **Colaborador** | Rafael Zendron |
 | **AppId** | `com.louvorja.piano.mobile` |

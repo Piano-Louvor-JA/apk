@@ -1,0 +1,34 @@
+Piano LouvorJA (apk)
+Copyright (c) 2026 Piano Louvor JA (github.com/Piano-Louvor-JA)
+
+Este programa é distribuído sob a GNU General Public License, versão 3
+(arquivo LICENSE). Você pode redistribuí-lo e/ou modificá-lo nos termos
+dessa licença. Ele é fornecido SEM NENHUMA GARANTIA.
+
+Por que GPL-3.0
+---------------
+O download de vídeos online no Android usa a biblioteca youtubedl-android
+(github.com/JunkFood02/youtubedl-android), licenciada sob GPL-3.0. Um apk
+que a inclui precisa ser distribuído sob uma licença compatível; por isso o
+projeto passou de MIT para GPL-3.0.
+
+Código anterior sob MIT
+-----------------------
+O código publicado antes desta mudança foi licenciado sob MIT. O aviso de
+copyright e de permissão original está em LICENSE-MIT e continua valendo
+para esse código. A MIT permite redistribuí-lo dentro de uma obra GPL-3.0.
+
+Componentes de terceiros embutidos no apk Android
+-------------------------------------------------
+- youtubedl-android (GPL-3.0)
+- yt-dlp (Unlicense), baixado e atualizado pela biblioteca acima
+- Python (Python Software Foundation License)
+- QuickJS (MIT)
+
+As demais dependências Dart/Flutter mantêm as próprias licenças (veja
+pubspec.yaml e pubspec.lock).
+
+Código-fonte
+------------
+O código-fonte correspondente a cada versão publicada fica em
+github.com/Piano-Louvor-JA/apk (tag vX.Y.Z da versão).

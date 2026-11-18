@@ -17,3 +17,8 @@
 # Widget 4x2
 -keep class com.louvorja.louvorja_piano_mobile.LiturgyWidgetLargeProvider { *; }
 -keep class com.louvorja.louvorja_piano_mobile.LiturgyWidgetLargeProvider$** { *; }
+
+# yt-dlp (youtubedl-android): o resultado vem de JSON (Jackson) por reflexão.
+-keep class com.yausername.** { *; }
+-keep class com.fasterxml.jackson.** { *; }
+-dontwarn com.fasterxml.jackson.**

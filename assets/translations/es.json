@@ -695,5 +695,117 @@
     "statusApproved": "Aprobada",
     "statusRejected": "Rechazada",
     "statusPublished": "Publicada"
+  },
+  "youtube": {
+    "title": "YouTube",
+    "subtitle": "Buscar y reproducir videos",
+    "open": "YouTube: buscar y reproducir videos",
+    "tabs": {
+      "search": "Buscar",
+      "history": "Historial",
+      "favorites": "Favoritos",
+      "collections": "Colecciones"
+    },
+    "search": {
+      "placeholder": "Buscar en YouTube o pegar un enlace…",
+      "submit": "Buscar",
+      "recent": "Búsquedas recientes",
+      "forget": "Quitar “{query}” de las búsquedas recientes",
+      "empty": "Escribe el nombre de un himno, cantante o coro para buscar.",
+      "noResults": "No se encontraron videos para “{query}”.",
+      "error": "No se pudo buscar ahora. Revisa internet e inténtalo de nuevo.",
+      "loading": "Buscando…",
+      "live": "EN VIVO"
+    },
+    "actions": {
+      "play": "Reproducir",
+      "more": "Más opciones",
+      "remove": "Quitar del historial",
+      "failed": "No se pudo abrir el video."
+    },
+    "favorites": {
+      "add": "Agregar a favoritos",
+      "remove": "Quitar de favoritos",
+      "filter": "Filtrar favoritos…",
+      "empty": "Aún no hay favoritos. Toca el corazón de un video para guardarlo aquí."
+    },
+    "history": {
+      "filter": "Filtrar historial…",
+      "empty": "Aún no se reprodujo ningún video. Los videos que reproduzcas aparecen aquí.",
+      "noMatch": "No se encontró nada para “{query}”.",
+      "count": "{n} video(s)",
+      "plays": "reproducido {n}×",
+      "clear": "Limpiar historial",
+      "clearTitle": "¿Limpiar el historial de YouTube?",
+      "clearMessage": "Todos los videos reproducidos salen de la lista. No se puede deshacer.",
+      "clearConfirm": "Limpiar"
+    },
+    "collections": {
+      "newPlaceholder": "Nombre de la nueva colección…",
+      "create": "Crear",
+      "createAndAdd": "Crear y agregar",
+      "empty": "Aún no hay colecciones. Ponle un nombre arriba y crea la primera; luego usa el botón + en los videos para agregarlos.",
+      "emptyVideos": "Colección vacía. Busca un video y usa el botón + para agregarlo aquí.",
+      "rename": "Renombrar",
+      "delete": "Eliminar",
+      "deleteTitle": "¿Eliminar la colección “{name}”?",
+      "deleteMessage": "La colección y su lista de videos se eliminarán. Los videos siguen en el historial y en favoritos.",
+      "deleteConfirm": "Eliminar",
+      "backToList": "Volver a las colecciones",
+      "addTo": "Agregar a la colección",
+      "pickerEmpty": "Aún no tienes colecciones. Crea una abajo.",
+      "videoCount": "{n} video(s)",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "removeVideo": "Quitar de la colección",
+      "added": "Agregado a “{name}”",
+      "removed": "Quitado de “{name}”"
+    },
+    "playlist": {
+      "open": "Pegar una playlist de YouTube",
+      "title": "Colección a partir de una playlist",
+      "urlHint": "Pega el enlace de una playlist de YouTube (pública o no listada). La app lee los videos y crea la colección.",
+      "urlPlaceholder": "https://www.youtube.com/playlist?list=…",
+      "paste": "Pegar",
+      "next": "Continuar",
+      "loading": "Leyendo la playlist…",
+      "invalid": "Ese enlace no es de una playlist de YouTube (necesita “list=”).",
+      "empty": "La playlist está vacía o es privada.",
+      "error": "No se pudo leer la playlist ahora. Revisa internet e inténtalo de nuevo.",
+      "found": "{n} video(s) encontrado(s)",
+      "defaultName": "Playlist de YouTube",
+      "nameLabel": "Nombre de la colección",
+      "back": "Volver",
+      "create": "Crear colección",
+      "created": "Colección “{name}” creada con {n} video(s)"
+    },
+    "download": {
+      "action": "Descargar",
+      "progress": "Descargando… {n}%",
+      "queued": "En la cola de descarga",
+      "cancel": "Toca para cancelar",
+      "done": "Descargado: se reproduce sin internet",
+      "failed": "No se pudo descargar. Toca para intentarlo de nuevo.",
+      "remove": "Borrar video descargado",
+      "removeTitle": "¿Borrar el video descargado?",
+      "removeMessage": "La copia de “{title}” sale del dispositivo. El video sigue en el historial, en favoritos y en las colecciones, y se puede descargar de nuevo.",
+      "removeConfirm": "Borrar",
+      "removeFailed": "No se pudo borrar el video ahora.",
+      "all": "Descargar todos ({n})",
+      "allBusy": "Descargando {n}…",
+      "allDone": "Todos descargados",
+      "stop": "Detener"
+    },
+    "storage": {
+      "hint": "Espacio usado por los videos descargados",
+      "title": "Videos descargados en el dispositivo",
+      "total": "{n} video(s) · {size}",
+      "where": "Los videos quedan en el almacenamiento de la app, en la misma carpeta de los videos online de la Liturgia, y se reproducen sin internet. Para liberar espacio, toca la papelera del video arriba (o su ✓ en la lista).",
+      "empty": "Ningún video de YouTube descargado.",
+      "removeAll": "Borrar todos",
+      "removeAllTitle": "¿Borrar todos los videos descargados?",
+      "removeAllMessage": "Las copias de {n} video(s) de YouTube saldrán del dispositivo. Siguen en el historial, en favoritos y en las colecciones, y se pueden descargar de nuevo.",
+      "others": "Además, {n} video(s) de la Liturgia guardados en esta carpeta."
+    }
   }
 }
