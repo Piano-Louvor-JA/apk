@@ -142,7 +142,7 @@ class UpdateService {
       String? apkSha256;
       for (final asset in assets.whereType<Map>()) {
         final name = (asset['name'] ?? '').toString().toLowerCase();
-        if (name.endsWith('.apk')) {
+        if (name.endsWith('.apk') && name.contains('-universal.')) {
           apkUrl = asset['browser_download_url']?.toString();
           apkSize = asset['size'] as int?;
           final digest = asset['digest']?.toString();
