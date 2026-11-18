@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
@@ -370,9 +369,7 @@ class LocalLiturgyMediaImpl implements LocalLiturgyMedia {
   }
 
   Future<LiturgyVideoCache> _videoCache() async => LiturgyVideoCache(
-    Directory(
-      '${(await getApplicationSupportDirectory()).path}/liturgy-videos',
-    ),
+    await LiturgyVideoCache.defaultDirectory(),
     LiturgyLinkRepositoryImpl(),
   );
 

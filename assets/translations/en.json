@@ -703,5 +703,117 @@
     "statusApproved": "Approved",
     "statusRejected": "Rejected",
     "statusPublished": "Published"
+  },
+  "youtube": {
+    "title": "YouTube",
+    "subtitle": "Search and play videos",
+    "open": "YouTube: search and play videos",
+    "tabs": {
+      "search": "Search",
+      "history": "History",
+      "favorites": "Favorites",
+      "collections": "Collections"
+    },
+    "search": {
+      "placeholder": "Search YouTube or paste a link…",
+      "submit": "Search",
+      "recent": "Recent searches",
+      "forget": "Remove “{query}” from recent searches",
+      "empty": "Type the name of a hymn, singer or choir to search.",
+      "noResults": "No videos found for “{query}”.",
+      "error": "Couldn't search right now. Check your internet and try again.",
+      "loading": "Searching…",
+      "live": "LIVE"
+    },
+    "actions": {
+      "play": "Play",
+      "more": "More options",
+      "remove": "Remove from history",
+      "failed": "Couldn't open the video."
+    },
+    "favorites": {
+      "add": "Add to favorites",
+      "remove": "Remove from favorites",
+      "filter": "Filter favorites…",
+      "empty": "No favorites yet. Tap a video's heart to keep it here."
+    },
+    "history": {
+      "filter": "Filter history…",
+      "empty": "No videos played yet. Videos you play show up here.",
+      "noMatch": "Nothing found for “{query}”.",
+      "count": "{n} video(s)",
+      "plays": "played {n}×",
+      "clear": "Clear history",
+      "clearTitle": "Clear YouTube history?",
+      "clearMessage": "All played videos leave the list. This can't be undone.",
+      "clearConfirm": "Clear"
+    },
+    "collections": {
+      "newPlaceholder": "New collection name…",
+      "create": "Create",
+      "createAndAdd": "Create and add",
+      "empty": "No collections yet. Name one above and create it; then use the + button on videos to add them.",
+      "emptyVideos": "Empty collection. Search for a video and use the + button to add it here.",
+      "rename": "Rename",
+      "delete": "Delete",
+      "deleteTitle": "Delete the collection “{name}”?",
+      "deleteMessage": "The collection and its video list will be deleted. The videos stay in history and favorites.",
+      "deleteConfirm": "Delete",
+      "backToList": "Back to collections",
+      "addTo": "Add to collection",
+      "pickerEmpty": "You don't have collections yet. Create one below.",
+      "videoCount": "{n} video(s)",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeVideo": "Remove from collection",
+      "added": "Added to “{name}”",
+      "removed": "Removed from “{name}”"
+    },
+    "playlist": {
+      "open": "Paste a YouTube playlist",
+      "title": "Collection from a playlist",
+      "urlHint": "Paste a YouTube playlist link (public or unlisted). The app reads the videos and creates the collection.",
+      "urlPlaceholder": "https://www.youtube.com/playlist?list=…",
+      "paste": "Paste",
+      "next": "Continue",
+      "loading": "Reading the playlist…",
+      "invalid": "That isn't a YouTube playlist link (it needs “list=”).",
+      "empty": "The playlist is empty or private.",
+      "error": "Couldn't read the playlist right now. Check your internet and try again.",
+      "found": "{n} video(s) found",
+      "defaultName": "YouTube playlist",
+      "nameLabel": "Collection name",
+      "back": "Back",
+      "create": "Create collection",
+      "created": "Collection “{name}” created with {n} video(s)"
+    },
+    "download": {
+      "action": "Download",
+      "progress": "Downloading… {n}%",
+      "queued": "Waiting to download",
+      "cancel": "Tap to cancel",
+      "done": "Downloaded: plays offline",
+      "failed": "Couldn't download. Tap to try again.",
+      "remove": "Delete downloaded video",
+      "removeTitle": "Delete the downloaded video?",
+      "removeMessage": "The copy of “{title}” leaves the device. The video stays in history, favorites and collections, and can be downloaded again.",
+      "removeConfirm": "Delete",
+      "removeFailed": "Couldn't delete the video right now.",
+      "all": "Download all ({n})",
+      "allBusy": "Downloading {n}…",
+      "allDone": "All downloaded",
+      "stop": "Stop"
+    },
+    "storage": {
+      "hint": "Space used by downloaded videos",
+      "title": "Videos downloaded on this device",
+      "total": "{n} video(s) · {size}",
+      "where": "Videos are kept in the app storage, in the same folder as the Liturgy online videos, and play without internet. To free up space, tap the video's trash icon above (or its ✓ in the list).",
+      "empty": "No YouTube videos downloaded.",
+      "removeAll": "Delete all",
+      "removeAllTitle": "Delete all downloaded videos?",
+      "removeAllMessage": "The copies of {n} YouTube video(s) will be removed from the device. They stay in history, favorites and collections, and can be downloaded again.",
+      "others": "Plus {n} Liturgy video(s) kept in this folder."
+    }
   }
 }

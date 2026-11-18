@@ -17,6 +17,7 @@ import '../../core/services/sync/sync_file_service.dart';
 import '../../core/services/update_service.dart';
 import 'widgets/remote/remote_section.dart';
 import 'widgets/sync_section.dart';
+import 'package:louvorja_piano_mobile/presentation/settings/widgets/settings_group.dart';
 
 /// SettingsPage — tela de configuracoes (tab "Mais").
 ///
@@ -57,234 +58,262 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // --- Aparencia ---
-            _SectionHeader(
-              icon: TablerIcons.palette,
-              title: 'settings.appearance'.tr(),
-            ),
-            const SizedBox(height: 12),
-
-            // Tema — controle orbital: claro ↔ sistema ↔ escuro.
-            _SettingsCard(
-              icon: TablerIcons.sunMoon,
-              title: 'settings.theme'.tr(),
-              child: _ThemeOrbitalControl(
-                mode: settings.themeMode,
-                onChanged: settings.setThemeMode,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Cor de acento
-            _SettingsCard(
-              icon: TablerIcons.colorSwatch,
-              title: 'settings.accentColor'.tr(),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: AccentKey.values.map((key) {
-                  final accent = AppAccents.byId(key.name);
-                  final isSelected = settings.accent == key;
-                  return GestureDetector(
-                    key: Key('accent-${key.name}'),
-                    onTap: () => settings.setAccent(key),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: accent.primary,
-                        shape: BoxShape.circle,
-                        border: isSelected
-                            ? Border.all(
-                                color: theme.colorScheme.onSurface,
-                                width: 3,
-                              )
-                            : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Perfil de interacao
-            _SettingsCard(
-              icon: TablerIcons.keyframes,
-              title: 'settings.animationProfile'.tr(),
-              child: Wrap(
-                spacing: 8,
-                children: InteractionKey.values.map((key) {
-                  final labels = {
-                    InteractionKey.dynamic_: 'settings.interactionDynamic'.tr(),
-                    InteractionKey.soft: 'settings.interactionSoft'.tr(),
-                    InteractionKey.mist: 'settings.interactionMist'.tr(),
-                  };
-                  return _ChoiceChip<InteractionKey>(
-                    key: Key('interaction-${key.name}'),
-                    label: labels[key]!,
-                    selected: settings.interaction == key,
-                    onTap: () => settings.setInteraction(key),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Intensidade do glass
-            _SettingsCard(
-              icon: TablerIcons.blur,
-              title: 'settings.glassIntensity'.tr(),
-              child: Row(
+            SettingsGroup(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Slider(
-                      key: const Key('glass-intensity'),
-                      value: settings.glassIntensity.toDouble(),
-                      min: 0,
-                      max: 100,
-                      divisions: 20,
-                      label: '${settings.glassIntensity}%',
-                      onChanged: (v) => settings.setGlassIntensity(v.round()),
+                  _SectionHeader(
+                    icon: TablerIcons.palette,
+                    title: 'settings.appearance'.tr(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Tema — controle orbital: claro ↔ sistema ↔ escuro.
+                  _SettingsCard(
+                    icon: TablerIcons.sunMoon,
+                    title: 'settings.theme'.tr(),
+                    child: _ThemeOrbitalControl(
+                      mode: settings.themeMode,
+                      onChanged: settings.setThemeMode,
                     ),
                   ),
-                  Text('${settings.glassIntensity}%'),
+                  const SizedBox(height: 12),
+
+                  // Cor de acento
+                  _SettingsCard(
+                    icon: TablerIcons.colorSwatch,
+                    title: 'settings.accentColor'.tr(),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: AccentKey.values.map((key) {
+                        final accent = AppAccents.byId(key.name);
+                        final isSelected = settings.accent == key;
+                        return GestureDetector(
+                          key: Key('accent-${key.name}'),
+                          onTap: () => settings.setAccent(key),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: accent.primary,
+                              shape: BoxShape.circle,
+                              border: isSelected
+                                  ? Border.all(
+                                      color: theme.colorScheme.onSurface,
+                                      width: 3,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Perfil de interacao
+                  _SettingsCard(
+                    icon: TablerIcons.keyframes,
+                    title: 'settings.animationProfile'.tr(),
+                    child: Wrap(
+                      spacing: 8,
+                      children: InteractionKey.values.map((key) {
+                        final labels = {
+                          InteractionKey.dynamic_: 'settings.interactionDynamic'
+                              .tr(),
+                          InteractionKey.soft: 'settings.interactionSoft'.tr(),
+                          InteractionKey.mist: 'settings.interactionMist'.tr(),
+                        };
+                        return _ChoiceChip<InteractionKey>(
+                          key: Key('interaction-${key.name}'),
+                          label: labels[key]!,
+                          selected: settings.interaction == key,
+                          onTap: () => settings.setInteraction(key),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Intensidade do glass
+                  _SettingsCard(
+                    icon: TablerIcons.blur,
+                    title: 'settings.glassIntensity'.tr(),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            key: const Key('glass-intensity'),
+                            value: settings.glassIntensity.toDouble(),
+                            min: 0,
+                            max: 100,
+                            divisions: 20,
+                            label: '${settings.glassIntensity}%',
+                            onChanged: (v) =>
+                                settings.setGlassIntensity(v.round()),
+                          ),
+                        ),
+                        Text('${settings.glassIntensity}%'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
             // --- Geral ---
-            _SectionHeader(
-              icon: TablerIcons.adjustments,
-              title: 'settings.sectionGeneral'.tr(),
-            ),
-            const SizedBox(height: 12),
-
-            // Idioma
-            _SettingsCard(
-              icon: TablerIcons.language,
-              title: 'settings.language'.tr(),
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  _ChoiceChip(
-                    label: 'settings.languagePortuguese'.tr(),
-                    selected: locale == const Locale('pt', 'BR'),
-                    onTap: () => EasyLocalization.of(
-                      context,
-                      // coverage:ignore-line
-                    )?.setLocale(const Locale('pt', 'BR')),
-                  ),
-                  _ChoiceChip(
-                    label: 'settings.languageEnglish'.tr(),
-                    selected: locale == const Locale('en'),
-                    // API nao possui catalogo em ingles (apenas PT e ES).
-                    enabled: false,
-                    onTap: null,
-                  ),
-                  _ChoiceChip(
-                    label: 'settings.languageSpanish'.tr(),
-                    selected: locale == const Locale('es'),
-                    // coverage:ignore-line
-                    onTap: () => EasyLocalization.of(
-                      context,
-                      // coverage:ignore-line
-                    )?.setLocale(const Locale('es')),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Versao
-            FutureBuilder<String>(
-              future: AppVersion.displayVersion,
-              builder: (context, snapshot) {
-                return _SettingsCard(
-                  icon: TablerIcons.infoCircle,
-                  title: 'settings.version'.tr(),
-                  child: Text(
-                    snapshot.data ?? '',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Verificar atualizacoes (manual)
-            _SettingsCard(
-              icon: TablerIcons.refreshDot,
-              title: 'Atualizações',
+            SettingsGroup(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Verifique se há uma nova versão disponível.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  _SectionHeader(
+                    icon: TablerIcons.adjustments,
+                    title: 'settings.sectionGeneral'.tr(),
                   ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _checkingUpdate ? null : _handleCheckUpdate,
-                    icon: Icon(
-                      _checkingUpdate
-                          ? TablerIcons.loader2
-                          : TablerIcons.cloudDownload,
-                    ),
-                    label: Text(
-                      _checkingUpdate
-                          ? 'Verificando...'
-                          : 'Verificar atualização',
-                    ),
-                  ),
-                  if (_updateStatus != null) ...[
-                    const SizedBox(height: 8),
-                    // coverage:ignore-line
-                    Text(
-                      // coverage:ignore-line
-                      _updateStatus!,
-                      // coverage:ignore-line
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        // coverage:ignore-line
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-            // Limpar dados (reset de fabrica)
-            _SettingsCard(
-              icon: TablerIcons.database,
-              title: 'Dados locais',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Remove todos os dados do app: cache, configurações, '
-                    'liturgia salva e músicas baixadas.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  // Idioma
+                  _SettingsCard(
+                    icon: TablerIcons.language,
+                    title: 'settings.language'.tr(),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        _ChoiceChip(
+                          label: 'settings.languagePortuguese'.tr(),
+                          selected: locale == const Locale('pt', 'BR'),
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('pt', 'BR')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageEnglish'.tr(),
+                          selected: locale == const Locale('en'),
+                          // API nao possui catalogo em ingles (apenas PT e ES).
+                          enabled: false,
+                          onTap: null,
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageSpanish'.tr(),
+                          selected: locale == const Locale('es'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('es')),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  FilledButton.tonalIcon(
-                    onPressed: _isClearing ? null : _handleClearData,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: theme.colorScheme.errorContainer,
-                      foregroundColor: theme.colorScheme.onErrorContainer,
+                  const SizedBox(height: 12),
+
+                  // Versao
+                  FutureBuilder<String>(
+                    future: AppVersion.displayVersion,
+                    builder: (context, snapshot) {
+                      return _SettingsCard(
+                        icon: TablerIcons.infoCircle,
+                        title: 'settings.version'.tr(),
+                        child: Text(
+                          snapshot.data ?? '',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Verificar atualizacoes (manual)
+                  _SettingsCard(
+                    icon: TablerIcons.refreshDot,
+                    title: 'Atualizações',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          UpdateService.inAppUpdateSupported
+                              ? 'Verifique se há uma nova versão disponível.'
+                              // iPhone/iPad: só a App Store atualiza o app.
+                              : 'No iPhone e no iPad, as atualizações chegam '
+                                    'pela App Store.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (UpdateService.inAppUpdateSupported) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: _checkingUpdate
+                                ? null
+                                : _handleCheckUpdate,
+                            icon: Icon(
+                              _checkingUpdate
+                                  ? TablerIcons.loader2
+                                  : TablerIcons.cloudDownload,
+                            ),
+                            label: Text(
+                              _checkingUpdate
+                                  ? 'Verificando...'
+                                  : 'Verificar atualização',
+                            ),
+                          ),
+                          if (_updateStatus != null) ...[
+                            const SizedBox(height: 8),
+                            // coverage:ignore-line
+                            Text(
+                              // coverage:ignore-line
+                              _updateStatus!,
+                              // coverage:ignore-line
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                // coverage:ignore-line
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
                     ),
-                    icon: Icon(
-                      _isClearing ? TablerIcons.loader2 : TablerIcons.trash,
-                    ),
-                    label: Text(
-                      _isClearing ? 'Limpando...' : 'Apagar todos os dados',
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Limpar dados (reset de fabrica)
+                  _SettingsCard(
+                    icon: TablerIcons.database,
+                    title: 'Dados locais',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Remove todos os dados do app: cache, configurações, '
+                          'liturgia salva e músicas baixadas.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: _isClearing ? null : _handleClearData,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: theme.colorScheme.errorContainer,
+                            foregroundColor: theme.colorScheme.onErrorContainer,
+                          ),
+                          icon: Icon(
+                            _isClearing
+                                ? TablerIcons.loader2
+                                : TablerIcons.trash,
+                          ),
+                          label: Text(
+                            _isClearing
+                                ? 'Limpando...'
+                                : 'Apagar todos os dados',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -293,35 +322,43 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 24),
 
             // --- Sincronizacao (pacote .louvorja) ---
-            SyncSection(
-              busy: _syncBusy,
-              onExport: _handleSyncExport,
-              onImport: _handleSyncImport,
+            SettingsGroup(
+              child: SyncSection(
+                busy: _syncBusy,
+                onExport: _handleSyncExport,
+                onImport: _handleSyncImport,
+              ),
             ),
             const SizedBox(height: 24),
 
             // --- Controle remoto (APK → Desktop/Web) ---
-            const RemoteSection(),
+            const SettingsGroup(child: RemoteSection()),
             const SizedBox(height: 24),
 
             // Termos e Privacidade (link)
-            ListTile(
-              leading: Icon(
-                TablerIcons.shieldCheck,
-                color: theme.colorScheme.primary,
+            SettingsGroup(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      TablerIcons.shieldCheck,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: Text('settings.termsOfUse'.tr()),
+                    trailing: const Icon(TablerIcons.chevronRight),
+                    onTap: () => context.push('/settings/terms'),
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      TablerIcons.shieldLock,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: Text('settings.privacyPolicy'.tr()),
+                    trailing: const Icon(TablerIcons.chevronRight),
+                    onTap: () => context.push('/settings/privacy'),
+                  ),
+                ],
               ),
-              title: Text('settings.termsOfUse'.tr()),
-              trailing: const Icon(TablerIcons.chevronRight),
-              onTap: () => context.push('/settings/terms'),
-            ),
-            ListTile(
-              leading: Icon(
-                TablerIcons.shieldLock,
-                color: theme.colorScheme.primary,
-              ),
-              title: Text('settings.privacyPolicy'.tr()),
-              trailing: const Icon(TablerIcons.chevronRight),
-              onTap: () => context.push('/settings/privacy'),
             ),
           ],
         ),

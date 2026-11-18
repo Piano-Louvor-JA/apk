@@ -373,6 +373,13 @@ class _HymnsViewState extends State<_HymnsView> {
               )
             : Text('hymns.title'.tr()),
         actions: [
+          // Módulo YouTube (buscar, tocar e projetar vídeos)
+          IconButton(
+            key: const Key('hymns-youtube'),
+            icon: const Icon(TablerIcons.brandYoutube),
+            tooltip: 'youtube.open'.tr(),
+            onPressed: () => context.push('/hymns/youtube'),
+          ),
           // Playlists (seleção de hinos do acervo, local)
           IconButton(
             icon: const Icon(Icons.queue_music),

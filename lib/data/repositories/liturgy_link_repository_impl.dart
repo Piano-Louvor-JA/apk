@@ -8,11 +8,15 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_link_info.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_target.dart';
+import 'package:louvorja_piano_mobile/core/services/youtube/yt_dlp_downloader.dart';
 import 'package:louvorja_piano_mobile/domain/repositories/liturgy_link_repository.dart';
 
 class LiturgyLinkRepositoryImpl implements LiturgyLinkRepository {
-  LiturgyLinkRepositoryImpl({Dio? dio})
-    : _http =
+  LiturgyLinkRepositoryImpl({Dio? dio, YtDlpDownloader? ytDlp})
+    : _ytDlp =
+          ytDlp ??
+          (YtDlpDownloader.supported ? YtDlpDownloader.instance : null),
+      _http =
           dio ??
           Dio(
             BaseOptions(
@@ -33,6 +37,7 @@ class LiturgyLinkRepositoryImpl implements LiturgyLinkRepository {
     );
   }
   final Dio _http;
+  final YtDlpDownloader? _ytDlp;
   @override
   Future<LiturgyLinkInfo> info(String raw) async {
     final target = LiturgyWebTarget.parse(raw);
@@ -104,6 +109,12 @@ class LiturgyLinkRepositoryImpl implements LiturgyLinkRepository {
   }) async {
     final target = LiturgyWebTarget.parse(raw);
     if (target == null) throw const FormatException('url');
+    if (target.kind == 'youtube' && _ytDlp != null) {
+      // Android: yt-dlp (mesmo motor do desktop). O caminho antigo
+      // (youtube_explode) hoje leva 403 do YouTube depois do começo.
+      await _ytDlp.download(target.url, destination, onProgress: onProgress);
+      return;
+    }
     if (target.kind == 'youtube') {
       final yt = YoutubeExplode(
         httpClient: _IdentifiedYoutubeHttpClient(await AppVersion.version),
