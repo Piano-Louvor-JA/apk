@@ -63,13 +63,13 @@ class CustomAuthApiImpl {
     }
   }
 
-  /// Valida o token atual na API. 401 → limpa sessão.
+  /// Valida o token atual na API (GET /auth/me). 401 → limpa sessão.
   Future<CustomSession?> me() async {
     final session = await sessionStore.read();
     if (session == null) return null;
     try {
       final res = await _fetch(
-        'POST',
+        'GET',
         _authUrl('/me'),
         bearerToken: session.token,
       );
