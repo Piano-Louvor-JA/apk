@@ -8,6 +8,8 @@ import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/youtube/youtube_downloads.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
 
+import 'youtube_rename_dialog.dart';
+
 /// Ação extra do menu "⋮" do card.
 class YoutubeTileAction {
   const YoutubeTileAction({
@@ -33,6 +35,7 @@ class YoutubeVideoTile extends StatelessWidget {
     required this.onFavorite,
     required this.onAddToCollection,
     this.subtitle,
+    this.detail,
     this.leading,
     this.extraActions = const [],
   });
@@ -43,6 +46,9 @@ class YoutubeVideoTile extends StatelessWidget {
 
   /// Linha extra (ex.: "3× tocado").
   final String? subtitle;
+
+  /// Linha em destaque (ex.: "Arquivo renomeado: …" na aba Baixados).
+  final String? detail;
 
   /// Antes da capa (ex.: setas de reordenar na coletânea).
   final Widget? leading;
@@ -110,13 +116,40 @@ class YoutubeVideoTile extends StatelessWidget {
                               ),
                             ),
                           ),
+                        if (detail != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              key: Key('youtube-detail-${video.videoId}'),
+                              children: [
+                                Icon(
+                                  TablerIcons.filePencil,
+                                  size: 14,
+                                  color: scheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    detail!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: scheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              // Wrap: baixado ganha lixeira e renomear; em tela estreita
+              // os botões descem de linha em vez de estourar.
+              Wrap(
+                alignment: WrapAlignment.end,
                 children: [
                   IconButton(
                     key: Key('youtube-play-${video.videoId}'),
@@ -251,8 +284,9 @@ class _Thumb extends StatelessWidget {
   }
 }
 
-/// Baixar: anel de progresso enquanto baixa (toque cancela), ✓ quando
-/// baixado e aviso de erro (toque tenta de novo). Apagar fica no ✓.
+/// Baixar: anel de progresso enquanto baixa (toque cancela), aviso de erro
+/// (toque tenta de novo) e, baixado, os botões na ordem do desktop:
+/// lixeira, ✓ (também apaga) e renomear.
 class YoutubeDownloadButton extends StatelessWidget {
   const YoutubeDownloadButton({super.key, required this.video, this.downloads});
   final YoutubeVideo video;
@@ -326,12 +360,30 @@ class YoutubeDownloadButton extends StatelessWidget {
               ),
             );
           case YoutubeDownloadPhase.done:
-            return IconButton(
-              key: Key('youtube-download-${video.videoId}'),
-              tooltip:
-                  '${'youtube.download.done'.tr()} · ${'youtube.download.remove'.tr()}',
-              onPressed: () => _confirmRemove(context, d),
-              icon: Icon(TablerIcons.circleCheck, color: scheme.primary),
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  key: Key('youtube-download-remove-${video.videoId}'),
+                  tooltip: 'youtube.download.remove'.tr(),
+                  onPressed: () => _confirmRemove(context, d),
+                  icon: const Icon(TablerIcons.trash),
+                ),
+                IconButton(
+                  key: Key('youtube-download-${video.videoId}'),
+                  tooltip:
+                      '${'youtube.download.done'.tr()} · ${'youtube.download.remove'.tr()}',
+                  onPressed: () => _confirmRemove(context, d),
+                  icon: Icon(TablerIcons.circleCheck, color: scheme.primary),
+                ),
+                IconButton(
+                  key: Key('youtube-download-rename-${video.videoId}'),
+                  tooltip: 'youtube.download.rename'.tr(),
+                  onPressed: () =>
+                      showYoutubeRenameDialog(context, video, downloads: d),
+                  icon: const Icon(TablerIcons.pencil),
+                ),
+              ],
             );
           case YoutubeDownloadPhase.failed:
             return IconButton(

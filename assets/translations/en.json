@@ -712,7 +712,8 @@
       "search": "Search",
       "history": "History",
       "favorites": "Favorites",
-      "collections": "Collections"
+      "collections": "Collections",
+      "downloads": "Downloaded"
     },
     "search": {
       "placeholder": "Search YouTube or paste a link…",
@@ -729,13 +730,20 @@
       "play": "Play",
       "more": "More options",
       "remove": "Remove from history",
-      "failed": "Couldn't open the video."
+      "failed": "Couldn't open the video.",
+      "dragHint": "Touch and hold to drag and change the position"
     },
     "favorites": {
       "add": "Add to favorites",
       "remove": "Remove from favorites",
       "filter": "Filter favorites…",
       "empty": "No favorites yet. Tap a video's heart to keep it here."
+    },
+    "downloads": {
+      "filter": "Filter downloads…",
+      "empty": "No downloaded videos yet. Use the download button on a video to play it without internet.",
+      "renamedAs": "File renamed: {name}",
+      "count": "{n} video(s) · {size}"
     },
     "history": {
       "filter": "Filter history…",
@@ -802,7 +810,15 @@
       "all": "Download all ({n})",
       "allBusy": "Downloading {n}…",
       "allDone": "All downloaded",
-      "stop": "Stop"
+      "stop": "Stop",
+      "rename": "Rename downloaded file",
+      "renameTitle": "Rename downloaded file",
+      "renameLabel": "File name",
+      "renameHint": "Accents and symbols are removed and the name is cut to {n} characters. The video code goes at the end.",
+      "renamePreview": "It will look like this:",
+      "renameConfirm": "Rename",
+      "renamed": "File renamed: {name}",
+      "renameFailed": "Could not rename: the video is downloading now."
     },
     "storage": {
       "hint": "Space used by downloaded videos",

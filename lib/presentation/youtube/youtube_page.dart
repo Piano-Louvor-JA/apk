@@ -27,6 +27,7 @@ import 'package:louvorja_piano_mobile/presentation/shared/widgets/empty_state.da
 
 import 'bloc/youtube_cubit.dart';
 import 'widgets/youtube_collections_tab.dart';
+import 'widgets/youtube_reorder.dart';
 import 'widgets/youtube_sheets.dart';
 import 'widgets/youtube_video_tile.dart';
 
@@ -109,10 +110,16 @@ class _YoutubeView extends StatefulWidget {
 
 class _YoutubeViewState extends State<_YoutubeView>
     with SingleTickerProviderStateMixin {
+  static const _collectionsIndex = 3;
   late final TabController _tabs = TabController(length: 4, vsync: this);
+
+  /// Lista "Baixados" aberta (botão ao lado do espaço usado, só no
+  /// Android): ocupa o lugar das abas até voltar.
+  bool _downloadsOpen = false;
   final _searchField = TextEditingController();
   final _historyFilter = TextEditingController();
   final _favoritesFilter = TextEditingController();
+  final _downloadsFilter = TextEditingController();
   final _scroll = ScrollController();
   final _openedCollection = ValueNotifier<String?>(null);
   Timer? _typing;
@@ -126,6 +133,7 @@ class _YoutubeViewState extends State<_YoutubeView>
     _scroll.addListener(_onScroll);
     if (YoutubeDownloads.supported) {
       unawaited(YoutubeDownloads.instance.measure());
+      unawaited(YoutubeDownloads.instance.loadIndex());
     }
   }
 
@@ -135,6 +143,7 @@ class _YoutubeViewState extends State<_YoutubeView>
     _searchField.dispose();
     _historyFilter.dispose();
     _favoritesFilter.dispose();
+    _downloadsFilter.dispose();
     _scroll.dispose();
     _openedCollection.dispose();
     _typing?.cancel();
@@ -149,6 +158,35 @@ class _YoutubeViewState extends State<_YoutubeView>
   }
 
   YoutubeCubit get _cubit => context.read<YoutubeCubit>();
+
+  /// Vídeos que o módulo conhece (busca, histórico, favoritos, coletâneas).
+  List<YoutubeVideo> _knownVideos(YoutubeState state) => [
+    ...state.results,
+    ...state.favorites.map((v) => v.toVideo()),
+    ...state.history.map((v) => v.toVideo()),
+    for (final c in state.collections) ...c.videos.map((v) => v.toVideo()),
+  ];
+
+  /// Aba "Baixados": confere no disco e registra os baixados que o módulo
+  /// conhece (inclusive os de antes do registro existir).
+  void _openDownloads() {
+    FocusScope.of(context).unfocus();
+    setState(() => _downloadsOpen = true);
+    unawaited(_syncDownloads());
+  }
+
+  void _closeDownloads() => setState(() => _downloadsOpen = false);
+
+  Future<void> _syncDownloads() async {
+    final downloads = YoutubeDownloads.instance;
+    await downloads.loadIndex();
+    final known = _knownVideos(_cubit.state);
+    await downloads.refresh([
+      ...downloads.indexedIds,
+      ...known.map((v) => v.videoId),
+    ]);
+    await downloads.adopt(known);
+  }
 
   Future<void> _play(YoutubeVideo video) async {
     FocusScope.of(context).unfocus();
@@ -218,7 +256,7 @@ class _YoutubeViewState extends State<_YoutubeView>
   Future<void> _importPlaylist() async {
     final created = await showYoutubePlaylistImport(context);
     if (created == null || !mounted) return;
-    _tabs.animateTo(3);
+    _tabs.animateTo(_collectionsIndex);
     _openedCollection.value = created.id;
     showYoutubeToast(
       context,
@@ -232,11 +270,17 @@ class _YoutubeViewState extends State<_YoutubeView>
     YoutubeVideo video,
     YoutubeState state, {
     String? subtitle,
+    String? detail,
+    bool draggable = false,
     List<YoutubeTileAction> extra = const [],
   }) => YoutubeVideoTile(
     video: video,
     favorite: state.isFavorite(video.videoId),
     subtitle: subtitle,
+    detail: detail,
+    leading: draggable
+        ? YoutubeGrip(hint: 'youtube.actions.dragHint'.tr())
+        : null,
     onPlay: () => _play(video),
     onFavorite: () => _cubit.toggleFavorite(video),
     onAddToCollection: () => showYoutubeCollectionPicker(context, video),
@@ -267,17 +311,13 @@ class _YoutubeViewState extends State<_YoutubeView>
               _StorageChip(
                 onTap: () {
                   final state = _cubit.state;
-                  showYoutubeStorageSheet(
-                    context,
-                    known: [
-                      ...state.results,
-                      ...state.favorites.map((v) => v.toVideo()),
-                      ...state.history.map((v) => v.toVideo()),
-                      for (final c in state.collections)
-                        ...c.videos.map((v) => v.toVideo()),
-                    ],
-                  );
+                  showYoutubeStorageSheet(context, known: _knownVideos(state));
                 },
+              ),
+            if (YoutubeDownloads.supported)
+              _DownloadsButton(
+                open: _downloadsOpen,
+                onTap: _downloadsOpen ? _closeDownloads : _openDownloads,
               ),
             IconButton(
               key: const Key('youtube-playlist-import'),
@@ -286,7 +326,9 @@ class _YoutubeViewState extends State<_YoutubeView>
               icon: const Icon(TablerIcons.clipboardList),
             ),
           ],
-          bottom: TabBar(
+          bottom: _downloadsOpen
+              ? null
+              : TabBar(
             controller: _tabs,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
@@ -304,7 +346,17 @@ class _YoutubeViewState extends State<_YoutubeView>
         body: LayoutBuilder(
           builder: (context, constraints) => Column(
             children: [
-              Expanded(child: _tabViews()),
+              Expanded(
+                child: _downloadsOpen
+                    ? PopScope(
+                        canPop: false,
+                        onPopInvokedWithResult: (didPop, _) {
+                          if (!didPop) _closeDownloads();
+                        },
+                        child: _downloadsView(state),
+                      )
+                    : _tabViews(),
+              ),
               // O mesmo player da Liturgia (visual do controle remoto).
               BlocBuilder<LocalLiturgyPlayer, RemotePlayerState>(
                 bloc: localLiturgyPlayer,
@@ -334,8 +386,8 @@ class _YoutubeViewState extends State<_YoutubeView>
         _historyTab(state),
         _favoritesTab(state),
         YoutubeCollectionsTab(
-          tile: (video, collectionState, {extra = const []}) =>
-              _tile(video, collectionState, extra: extra),
+          tile: (video, collectionState, {extra = const [], draggable = false}) =>
+              _tile(video, collectionState, extra: extra, draggable: draggable),
           opened: _openedCollection,
           onImportPlaylist: _importPlaylist,
           onOpenSearch: () => _tabs.animateTo(0),
@@ -454,22 +506,21 @@ class _YoutubeViewState extends State<_YoutubeView>
         title: 'youtube.search.noResults'.tr(namedArgs: {'query': state.query}),
       );
     } else if (state.results.isNotEmpty) {
-      body = ListView.builder(
+      // Arrastar reordena só esta busca (uma busca nova traz a ordem do
+      // YouTube).
+      body = youtubeReorderableList<YoutubeVideo>(
         key: const Key('youtube-results'),
         controller: _scroll,
-        padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-        itemCount: state.results.length + 1,
-        itemBuilder: (context, i) {
-          if (i == state.results.length) {
-            return state.continuation == null
-                ? const SizedBox(height: AppSpacing.s4)
-                : const Padding(
-                    padding: EdgeInsets.all(AppSpacing.s4),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-          }
-          return _tile(state.results[i], state);
-        },
+        items: state.results,
+        idOf: (v) => v.videoId,
+        onMove: _cubit.reorderResults,
+        footer: state.continuation == null
+            ? const SizedBox(height: AppSpacing.s4)
+            : const Padding(
+                padding: EdgeInsets.all(AppSpacing.s4),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+        itemBuilder: (context, video) => _tile(video, state, draggable: true),
       );
     } else {
       body = ListView(
@@ -598,14 +649,16 @@ class _YoutubeViewState extends State<_YoutubeView>
                     namedArgs: {'query': query},
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                  itemCount: list.length,
-                  itemBuilder: (context, i) {
-                    final entry = list[i];
+              : youtubeReorderableList<YoutubeSavedVideo>(
+                  key: const Key('youtube-history-list'),
+                  items: list,
+                  idOf: (e) => e.videoId,
+                  onMove: _cubit.reorderHistory,
+                  itemBuilder: (context, entry) {
                     return _tile(
                       entry.toVideo(),
                       state,
+                      draggable: true,
                       subtitle: 'youtube.history.plays'.tr(
                         namedArgs: {'n': '${entry.playCount}'},
                       ),
@@ -622,6 +675,120 @@ class _YoutubeViewState extends State<_YoutubeView>
                 ),
         ),
       ],
+    );
+  }
+
+  /// Aba "Baixados" (paridade com o desktop): vídeos baixados no aparelho,
+  /// com tamanho e o nome do arquivo quando o operador o renomeou.
+  /// Lista "Baixados" aberta pelo botão da barra, com voltar para as abas.
+  Widget _downloadsView(YoutubeState state) => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s1,
+          AppSpacing.s2,
+          AppSpacing.s1,
+          0,
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              key: const Key('youtube-downloads-back'),
+              tooltip: 'common.back'.tr(),
+              onPressed: _closeDownloads,
+              icon: const Icon(TablerIcons.arrowLeft),
+            ),
+            Icon(
+              TablerIcons.download,
+              size: 20,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: AppSpacing.s2),
+            Text(
+              'youtube.tabs.downloads'.tr(),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ],
+        ),
+      ),
+      Expanded(child: _downloadsTab(state)),
+    ],
+  );
+
+  Widget _downloadsTab(YoutubeState state) {
+    final downloads = YoutubeDownloads.instance;
+    return ListenableBuilder(
+      listenable: downloads,
+      builder: (context, _) {
+        final all = downloads.downloaded;
+        if (all.isEmpty) {
+          return EmptyState(
+            icon: TablerIcons.download,
+            title: 'youtube.downloads.empty'.tr(),
+          );
+        }
+        final query = _downloadsFilter.text;
+        final list = filterYoutubeVideos(
+          all,
+          query,
+          (e) => '${e.video.title} ${e.video.channel} ${e.fileName}',
+        );
+        final bytes = all.fold<int>(
+          0,
+          (sum, e) => sum + downloads.statusOf(e.videoId).bytes,
+        );
+        return Column(
+          children: [
+            _filterField(_downloadsFilter, 'youtube.downloads.filter'.tr()),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.s4,
+                vertical: AppSpacing.s1,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'youtube.downloads.count'.tr(
+                    namedArgs: {
+                      'n': '${all.length}',
+                      'size': formatYoutubeBytes(bytes),
+                    },
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ),
+            Expanded(
+              child: list.isEmpty
+                  ? EmptyState(
+                      icon: TablerIcons.search,
+                      title: 'youtube.history.noMatch'.tr(
+                        namedArgs: {'query': query},
+                      ),
+                    )
+                  : youtubeReorderableList(
+                      key: const Key('youtube-downloads-list'),
+                      items: list,
+                      idOf: (e) => e.videoId,
+                      onMove: downloads.reorder,
+                      itemBuilder: (context, entry) => _tile(
+                        entry.video,
+                        state,
+                        draggable: true,
+                        subtitle: formatYoutubeBytes(
+                          downloads.statusOf(entry.videoId).bytes,
+                        ),
+                        detail: entry.renamed
+                            ? 'youtube.downloads.renamedAs'.tr(
+                                namedArgs: {'name': entry.fileName},
+                              )
+                            : null,
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -649,13 +816,57 @@ class _YoutubeViewState extends State<_YoutubeView>
                     namedArgs: {'query': query},
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                  itemCount: list.length,
-                  itemBuilder: (context, i) => _tile(list[i].toVideo(), state),
+              : youtubeReorderableList<YoutubeSavedVideo>(
+                  key: const Key('youtube-favorites-list'),
+                  items: list,
+                  idOf: (e) => e.videoId,
+                  onMove: _cubit.reorderFavorites,
+                  itemBuilder: (context, entry) =>
+                      _tile(entry.toVideo(), state, draggable: true),
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// "Baixados": ao lado do espaço usado, abre (ou fecha) a lista dos vídeos
+/// baixados, com o número deles.
+class _DownloadsButton extends StatelessWidget {
+  const _DownloadsButton({required this.open, required this.onTap});
+  final bool open;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final downloads = YoutubeDownloads.instance;
+    final scheme = Theme.of(context).colorScheme;
+    return ListenableBuilder(
+      listenable: downloads,
+      builder: (context, _) {
+        final count = downloads.downloaded.length;
+        return IconButton(
+          key: const Key('youtube-downloads-open'),
+          tooltip: 'youtube.tabs.downloads'.tr(),
+          onPressed: onTap,
+          isSelected: open,
+          style: open
+              ? IconButton.styleFrom(
+                  backgroundColor: scheme.primary.withValues(alpha: 0.16),
+                )
+              : null,
+          icon: Badge(
+            isLabelVisible: count > 0,
+            label: Text('$count'),
+            backgroundColor: scheme.primary,
+            textColor: scheme.onPrimary,
+            child: Icon(
+              TablerIcons.download,
+              color: open ? scheme.primary : null,
+            ),
+          ),
+        );
+      },
     );
   }
 }
