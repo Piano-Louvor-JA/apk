@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_video_cache.dart';
+import 'package:louvorja_piano_mobile/core/services/youtube/youtube_download_index.dart';
+import 'package:louvorja_piano_mobile/core/utils/reorder.dart';
 import 'package:louvorja_piano_mobile/core/services/youtube/yt_dlp_downloader.dart';
 import 'package:louvorja_piano_mobile/data/repositories/liturgy_link_repository_impl.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
@@ -32,13 +34,16 @@ class _Cancelled implements Exception {
 /// No celular não há escolha de pasta (fica no armazenamento do app);
 /// quem libera espaço é o operador, apagando os vídeos.
 class YoutubeDownloads extends ChangeNotifier {
-  YoutubeDownloads({Future<LiturgyVideoCache> Function()? cache})
-    : _cacheFactory =
-          cache ??
-          (() async => LiturgyVideoCache(
-            await LiturgyVideoCache.defaultDirectory(),
-            LiturgyLinkRepositoryImpl(),
-          ));
+  YoutubeDownloads({
+    Future<LiturgyVideoCache> Function()? cache,
+    YoutubeDownloadIndex? index,
+  }) : _index = index ?? YoutubeDownloadIndex(),
+       _cacheFactory =
+           cache ??
+           (() async => LiturgyVideoCache(
+             await LiturgyVideoCache.defaultDirectory(),
+             LiturgyLinkRepositoryImpl(),
+           ));
 
   static final instance = YoutubeDownloads();
 
@@ -52,6 +57,12 @@ class YoutubeDownloads extends ChangeNotifier {
   static bool? supportedOverride;
 
   final Future<LiturgyVideoCache> Function() _cacheFactory;
+  final YoutubeDownloadIndex _index;
+
+  /// Registro dos baixados (títulos, nome do arquivo) e ordem da aba.
+  List<YoutubeDownloadEntry> _entries = const [];
+  List<String> _order = const [];
+  bool _indexLoaded = false;
   LiturgyVideoCache? _cache;
   Future<LiturgyVideoCache> _getCache() async =>
       _cache ??= await _cacheFactory();
@@ -145,6 +156,104 @@ class YoutubeDownloads extends ChangeNotifier {
     if (changed && notify) notifyListeners();
   }
 
+  /* ---------- Aba "Baixados" e nome do arquivo ---------- */
+
+  /// Lê o registro dos baixados (uma vez; [reloadIndex] força).
+  Future<void> loadIndex() async {
+    if (_indexLoaded) return;
+    await reloadIndex();
+  }
+
+  Future<void> reloadIndex() async {
+    try {
+      _entries = await _index.entries();
+      _order = await _index.order();
+      _indexLoaded = true;
+      notifyListeners();
+    } catch (_) {
+      /* sem armazenamento (testes): fica vazio */
+    }
+  }
+
+  /// Vídeos baixados, na ordem do operador (baixados novos no topo).
+  List<YoutubeDownloadEntry> get downloaded => applyOrder(
+    _entries
+        .where((e) => statusOf(e.videoId).phase == YoutubeDownloadPhase.done)
+        .toList(),
+    (e) => e.videoId,
+    _order,
+  );
+
+  /// IDs registrados (para conferir no disco ao abrir a aba).
+  Iterable<String> get indexedIds => _entries.map((e) => e.videoId);
+
+  YoutubeDownloadEntry? entryOf(String videoId) =>
+      _entries.where((e) => e.videoId == videoId).firstOrNull;
+
+  /// Nome do arquivo do vídeo baixado (`<título>_<id>.mp4`).
+  String fileNameOf(YoutubeVideo video) =>
+      entryOf(video.videoId)?.fileName ??
+      YoutubeDownloadEntry(video: video, at: 0).fileName;
+
+  /// Vídeos que o módulo conhece e já estão baixados, mas ainda não estão
+  /// no registro (baixados antes dele existir): entram com o nome
+  /// automático.
+  Future<void> adopt(Iterable<YoutubeVideo> videos) async {
+    await loadIndex();
+    final known = {for (final e in _entries) e.videoId};
+    var added = false;
+    for (final video in videos) {
+      if (known.contains(video.videoId)) continue;
+      if (statusOf(video.videoId).phase != YoutubeDownloadPhase.done) continue;
+      known.add(video.videoId);
+      try {
+        _entries = await _index.remember(video);
+        added = true;
+      } catch (_) {
+        return;
+      }
+    }
+    if (added) notifyListeners();
+  }
+
+  /// "Renomear": devolve o nome novo do arquivo, ou nulo se o vídeo não
+  /// está baixado ou está baixando agora.
+  Future<String?> rename(YoutubeVideo video, String name) async {
+    if (isBusy(video.videoId) ||
+        statusOf(video.videoId).phase != YoutubeDownloadPhase.done) {
+      return null;
+    }
+    try {
+      await loadIndex();
+      if (entryOf(video.videoId) == null) {
+        _entries = await _index.remember(video);
+      }
+      final fileName = await _index.rename(video.videoId, name);
+      _entries = await _index.entries();
+      notifyListeners();
+      return fileName;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Arrastar e soltar na aba "Baixados".
+  Future<void> reorder(String fromId, String toId) async {
+    final ids = moveById(
+      downloaded,
+      (e) => e.videoId,
+      fromId,
+      toId,
+    ).map((e) => e.videoId).toList();
+    _order = ids;
+    notifyListeners();
+    try {
+      await _index.saveOrder(ids);
+    } catch (_) {
+      /* sem armazenamento: a ordem vale até fechar */
+    }
+  }
+
   /// Coloca na fila os que ainda não estão baixados nem na fila.
   void download(Iterable<YoutubeVideo> videos) {
     var added = false;
@@ -200,6 +309,12 @@ class YoutubeDownloads extends ChangeNotifier {
     final cache = await _getCache();
     final removed = await cache.remove(_url(videoId));
     _status.remove(videoId);
+    try {
+      await _index.forget(videoId);
+      _entries = _entries.where((e) => e.videoId != videoId).toList();
+    } catch (_) {
+      /* sem armazenamento */
+    }
     await _measure(cache, notify: false);
     notifyListeners();
     return removed;
@@ -256,6 +371,11 @@ class YoutubeDownloads extends ChangeNotifier {
             YoutubeDownloadPhase.done,
             bytes: await File(path).length(),
           );
+          try {
+            _entries = await _index.remember(video);
+          } catch (_) {
+            /* sem armazenamento: some só da aba Baixados */
+          }
         } on _Cancelled {
           _status.remove(video.videoId);
         } catch (e) {

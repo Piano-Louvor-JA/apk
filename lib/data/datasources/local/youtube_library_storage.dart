@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:louvorja_piano_mobile/core/utils/reorder.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
 
 /// Vídeo guardado (histórico, favorito ou item de coletânea).
@@ -167,7 +168,8 @@ class YoutubeLibraryStorage {
 
   /* ---------- Histórico ---------- */
 
-  /// Do mais recente para o mais antigo; inválidos e repetidos saem.
+  /// Na ordem salva: o que tocou por último entra no topo, e o operador
+  /// pode arrastar para reordenar. Inválidos e repetidos saem.
   Future<List<YoutubeSavedVideo>> history() async {
     final seen = <String>{};
     final list = <YoutubeSavedVideo>[];
@@ -175,9 +177,15 @@ class YoutubeLibraryStorage {
       final entry = YoutubeSavedVideo.fromJson(item);
       if (entry != null && seen.add(entry.videoId)) list.add(entry);
     }
-    list.sort((a, b) => b.at.compareTo(a.at));
     return list;
   }
+
+  /// Arrastar e soltar: `fromId` vai para a posição de `toId`.
+  Future<List<YoutubeSavedVideo>> reorderHistory(
+    String fromId,
+    String toId,
+  ) async =>
+      _saveHistory(moveById(await history(), (e) => e.videoId, fromId, toId));
 
   Future<List<YoutubeSavedVideo>> _saveHistory(
     List<YoutubeSavedVideo> list,
@@ -264,6 +272,14 @@ class YoutubeLibraryStorage {
     ]);
     return trimmed;
   }
+
+  /// Arrastar e soltar: `fromId` vai para a posição de `toId`.
+  Future<List<YoutubeSavedVideo>> reorderFavorites(
+    String fromId,
+    String toId,
+  ) async => _saveFavorites(
+    moveById(await favorites(), (e) => e.videoId, fromId, toId),
+  );
 
   /// Liga/desliga; ao favoritar, entra no topo.
   Future<List<YoutubeSavedVideo>> toggleFavorite(YoutubeVideo video) async {
@@ -386,6 +402,28 @@ class YoutubeLibraryStorage {
               )
             : null,
       );
+
+  /// Arrastar e soltar a coletânea na lista.
+  Future<List<YoutubeCollection>> reorderCollections(
+    String fromId,
+    String toId,
+  ) async => _saveCollections(
+    moveById(await collections(), (c) => c.id, fromId, toId),
+  );
+
+  /// Arrastar e soltar um vídeo dentro da coletânea.
+  Future<List<YoutubeCollection>> reorderVideos(
+    String id,
+    String fromVideoId,
+    String toVideoId,
+  ) => _update(id, (c) {
+    final videos = moveById(c.videos, (v) => v.videoId, fromVideoId, toVideoId);
+    var same = true;
+    for (var i = 0; i < videos.length; i++) {
+      if (!identical(videos[i], c.videos[i])) same = false;
+    }
+    return same ? null : c.copyWith(videos: videos);
+  });
 
   /// Move uma posição para cima (-1) ou para baixo (+1).
   Future<List<YoutubeCollection>> moveVideo(String id, String videoId, int delta) =>

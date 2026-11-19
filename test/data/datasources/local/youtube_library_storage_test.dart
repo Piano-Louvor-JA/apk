@@ -49,6 +49,20 @@ void main() {
       expect(await storage.clearHistory(), isEmpty);
     });
 
+    test('arrastar reordena; a ordem sobrevive a reabrir; tocar de novo volta ao topo', () async {
+      await storage.recordPlay(a);
+      now = 2000;
+      await storage.recordPlay(b);
+      now = 3000;
+      await storage.recordPlay(c);
+      expect((await storage.history()).map((e) => e.videoId), [c.videoId, b.videoId, a.videoId]);
+      await storage.reorderHistory(c.videoId, a.videoId);
+      expect((await YoutubeLibraryStorage().history()).map((e) => e.videoId), [b.videoId, a.videoId, c.videoId]);
+      now = 4000;
+      await storage.recordPlay(a);
+      expect((await storage.history()).map((e) => e.videoId), [a.videoId, b.videoId, c.videoId]);
+    });
+
     test('dado salvo inválido ou corrompido é descartado', () async {
       SharedPreferences.setMockInitialValues({
         YoutubeLibraryStorage.historyKey: jsonEncode([
@@ -144,5 +158,25 @@ void main() {
     expect(filterYoutubeVideos(list, 'arautos pástor', text), [a]);
     expect(filterYoutubeVideos(list, '  ', text), list);
     expect(filterYoutubeVideos(list, 'nada', text), isEmpty);
+  });
+
+  test('arrastar reordena favoritos, coletâneas e vídeos da coletânea', () async {
+    await storage.toggleFavorite(a);
+    await storage.toggleFavorite(b);
+    expect((await storage.reorderFavorites(b.videoId, a.videoId)).map((e) => e.videoId), [a.videoId, b.videoId]);
+    expect((await YoutubeLibraryStorage().favorites()).map((e) => e.videoId), [a.videoId, b.videoId]);
+
+    final one = (await storage.createCollection('Um')).created!;
+    final two = (await storage.createCollection('Dois')).created!;
+    expect((await storage.reorderCollections(two.id, one.id)).map((c) => c.name), ['Dois', 'Um']);
+
+    await storage.addVideos(one.id, [a, b, c]);
+    now = 9000;
+    final moved = (await storage.reorderVideos(one.id, a.videoId, c.videoId)).firstWhere((x) => x.id == one.id);
+    expect(moved.videos.map((v) => v.videoId), [b.videoId, c.videoId, a.videoId]);
+    expect(moved.updatedAt, 9000);
+    now = 9999;
+    final same = (await storage.reorderVideos(one.id, a.videoId, a.videoId)).firstWhere((x) => x.id == one.id);
+    expect(same.updatedAt, 9000);
   });
 }

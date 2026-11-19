@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:louvorja_piano_mobile/core/utils/reorder.dart';
+
 import 'package:louvorja_piano_mobile/data/datasources/local/youtube_library_storage.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
 import 'package:louvorja_piano_mobile/domain/repositories/youtube_search_repository.dart';
@@ -204,6 +206,23 @@ class YoutubeCubit extends Cubit<YoutubeState> {
     if (!isClosed) emit(state.copyWith(history: list));
   }
 
+  /// Arrastar e soltar nos resultados da busca: vale só para esta busca.
+  void reorderResults(String fromId, String toId) => emit(
+    state.copyWith(
+      results: moveById(state.results, (v) => v.videoId, fromId, toId),
+    ),
+  );
+
+  Future<void> reorderHistory(String fromId, String toId) async {
+    final list = await _storage.reorderHistory(fromId, toId);
+    if (!isClosed) emit(state.copyWith(history: list));
+  }
+
+  Future<void> reorderFavorites(String fromId, String toId) async {
+    final list = await _storage.reorderFavorites(fromId, toId);
+    if (!isClosed) emit(state.copyWith(favorites: list));
+  }
+
   Future<void> toggleFavorite(YoutubeVideo video) async {
     final list = await _storage.toggleFavorite(video);
     if (!isClosed) emit(state.copyWith(favorites: list));
@@ -228,6 +247,15 @@ class YoutubeCubit extends Cubit<YoutubeState> {
 
   Future<void> removeFromCollection(String id, String videoId) async =>
       _setCollections(await _storage.removeVideo(id, videoId));
+
+  Future<void> reorderCollections(String fromId, String toId) async =>
+      _setCollections(await _storage.reorderCollections(fromId, toId));
+
+  Future<void> reorderInCollection(
+    String id,
+    String fromId,
+    String toId,
+  ) async => _setCollections(await _storage.reorderVideos(id, fromId, toId));
 
   Future<void> moveInCollection(String id, String videoId, int delta) async =>
       _setCollections(await _storage.moveVideo(id, videoId, delta));
