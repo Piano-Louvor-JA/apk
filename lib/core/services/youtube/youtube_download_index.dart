@@ -89,6 +89,19 @@ class YoutubeDownloadIndex {
   static const entriesKey = 'louvorja-youtube-downloads-v1';
   static const orderKey = 'louvorja-youtube-downloads-order-v1';
 
+  // O registro é compartilhado: download, renomear e excluir podem chegar
+  // juntos. Serializa o ciclo inteiro ler→alterar→salvar, inclusive entre
+  // instâncias, para uma gravação não apagar os dados salvos pela outra.
+  static Future<void> _writes = Future<void>.value();
+
+  Future<T> _write<T>(Future<T> Function() change) {
+    final result = _writes.then((_) => change());
+    // A falha continua no Future devolvido ao chamador; só libera a fila
+    // para que uma operação posterior ainda possa ser executada.
+    _writes = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
+
   Future<List<Object?>> _readList(String key) async {
     final raw = (await _prefs()).getString(key);
     if (raw == null) return const [];
@@ -115,36 +128,39 @@ class YoutubeDownloadIndex {
 
   /// Registra (ou atualiza os dados de) um vídeo baixado; o nome dado
   /// pelo operador é mantido.
-  Future<List<YoutubeDownloadEntry>> remember(YoutubeVideo video) async {
-    final list = await entries();
-    final previous = list.where((e) => e.videoId == video.videoId).firstOrNull;
-    final entry = YoutubeDownloadEntry(
-      video: YoutubeVideo(
-        videoId: video.videoId,
-        title: video.title.trim().isEmpty
-            ? (previous?.video.title ?? video.videoId)
-            : video.title.trim(),
-        channel: video.channel.isEmpty
-            ? (previous?.video.channel ?? '')
-            : video.channel,
-        thumbnail: video.thumbnail.isEmpty
-            ? (previous?.video.thumbnail ?? '')
-            : video.thumbnail,
-        durationText: video.durationText.isEmpty
-            ? (previous?.video.durationText ?? '')
-            : video.durationText,
-      ),
-      at: previous?.at ?? _clock(),
-      name: previous?.name,
-    );
-    final next = [entry, ...list.where((e) => e.videoId != video.videoId)];
-    await _save(next);
-    return next;
-  }
+  Future<List<YoutubeDownloadEntry>> remember(YoutubeVideo video) =>
+      _write(() async {
+        final list = await entries();
+        final previous = list
+            .where((e) => e.videoId == video.videoId)
+            .firstOrNull;
+        final entry = YoutubeDownloadEntry(
+          video: YoutubeVideo(
+            videoId: video.videoId,
+            title: video.title.trim().isEmpty
+                ? (previous?.video.title ?? video.videoId)
+                : video.title.trim(),
+            channel: video.channel.isEmpty
+                ? (previous?.video.channel ?? '')
+                : video.channel,
+            thumbnail: video.thumbnail.isEmpty
+                ? (previous?.video.thumbnail ?? '')
+                : video.thumbnail,
+            durationText: video.durationText.isEmpty
+                ? (previous?.video.durationText ?? '')
+                : video.durationText,
+          ),
+          at: previous?.at ?? _clock(),
+          name: previous?.name,
+        );
+        final next = [entry, ...list.where((e) => e.videoId != video.videoId)];
+        await _save(next);
+        return next;
+      });
 
   /// Renomeia: devolve o nome novo do arquivo (com `.mp4`), ou nulo se o
   /// vídeo não está registrado.
-  Future<String?> rename(String videoId, String name) async {
+  Future<String?> rename(String videoId, String name) => _write(() async {
     final list = await entries();
     final index = list.indexWhere((e) => e.videoId == videoId);
     if (index < 0) return null;
@@ -154,18 +170,19 @@ class YoutubeDownloadIndex {
     list[index] = entry.copyWith(name: () => base == automatic ? null : base);
     await _save(list);
     return '$base.mp4';
-  }
+  });
 
-  Future<void> forget(String videoId) async {
+  Future<void> forget(String videoId) => _write(() async {
     final list = await entries();
     final next = list.where((e) => e.videoId != videoId).toList();
     if (next.length != list.length) await _save(next);
-  }
+  });
 
   /// Ordem da aba "Baixados" (IDs).
   Future<List<String>> order() async =>
       (await _readList(orderKey)).whereType<String>().toList();
 
-  Future<void> saveOrder(List<String> ids) async =>
-      (await _prefs()).setString(orderKey, jsonEncode(ids));
+  Future<void> saveOrder(List<String> ids) => _write(() async {
+    await (await _prefs()).setString(orderKey, jsonEncode(ids));
+  });
 }

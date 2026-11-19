@@ -75,6 +75,27 @@ void main() {
     expect(await make().order(), [b.videoId, a.videoId]);
   });
 
+  test(
+    'download concluído junto de renomear preserva os dois dados ao reabrir',
+    () async {
+      final index = make();
+      await index.remember(a);
+      await Future.wait([
+        index.rename(a.videoId, 'Abertura do culto'),
+        index.remember(b),
+      ]);
+      final reopened = await make().entries();
+      expect(
+        reopened.map((e) => e.videoId),
+        containsAll([a.videoId, b.videoId]),
+      );
+      expect(
+        reopened.singleWhere((e) => e.videoId == a.videoId).fileName,
+        'Abertura do culto_${a.videoId}.mp4',
+      );
+    },
+  );
+
   test('dado salvo inválido ou corrompido é descartado', () async {
     SharedPreferences.setMockInitialValues({
       YoutubeDownloadIndex.entriesKey: jsonEncode([
