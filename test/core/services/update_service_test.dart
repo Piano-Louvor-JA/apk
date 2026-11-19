@@ -61,6 +61,11 @@ void main() {
           'body': 'notas',
           'assets': [
             {
+              'name': 'fake-universal.apk',
+              'browser_download_url': 'https://attacker.invalid/fake-universal.apk',
+              'size': 1,
+            },
+            {
               'name': 'louvorja-piano-1.0.1-arm64-v8a.apk',
               'browser_download_url':
                   'https://github.com/Piano-Louvor-JA/apk/releases/download/v1.0.1/louvorja-piano-1.0.1-arm64-v8a.apk',
