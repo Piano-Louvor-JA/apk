@@ -89,17 +89,26 @@ class YoutubeDownloadIndex {
   static const entriesKey = 'louvorja-youtube-downloads-v1';
   static const orderKey = 'louvorja-youtube-downloads-order-v1';
 
-  // O registro é compartilhado: download, renomear e excluir podem chegar
-  // juntos. Serializa o ciclo inteiro ler→alterar→salvar, inclusive entre
-  // instâncias, para uma gravação não apagar os dados salvos pela outra.
-  static Future<void> _writes = Future<void>.value();
+  // Download, renomear e excluir usam o mesmo índice e podem chegar juntos.
+  // Serializa o ciclo inteiro ler→alterar→salvar para uma gravação não
+  // apagar os dados salvos pela outra. A fila acompanha a vida do índice.
+  Future<void>? _writes;
 
   Future<T> _write<T>(Future<T> Function() change) {
-    final result = _writes.then((_) => change());
+    final previous = _writes;
+    final result = previous == null
+        ? Future<T>.sync(change)
+        : previous.then((_) => change());
     // A falha continua no Future devolvido ao chamador; só libera a fila
     // para que uma operação posterior ainda possa ser executada.
-    _writes = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
-    return result;
+    final tail = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _writes = tail;
+    return result.whenComplete(() {
+      if (identical(_writes, tail)) _writes = null;
+    });
   }
 
   Future<List<Object?>> _readList(String key) async {
