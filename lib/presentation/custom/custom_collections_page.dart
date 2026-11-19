@@ -13,6 +13,10 @@ import 'package:louvorja_piano_mobile/domain/entities/custom_collection.dart';
 import 'package:louvorja_piano_mobile/presentation/custom/custom_collection_edit_page.dart';
 import 'package:louvorja_piano_mobile/presentation/custom/auth/custom_auth_controller.dart';
 import 'package:louvorja_piano_mobile/presentation/custom/auth/custom_auth_sheet.dart';
+import 'package:louvorja_piano_mobile/presentation/custom/auth/custom_delete_account_sheet.dart';
+import 'package:louvorja_piano_mobile/presentation/custom/moderation/blocked_authors_page.dart';
+import 'package:louvorja_piano_mobile/presentation/custom/moderation/collection_moderation.dart';
+import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 /// Coletâneas Custom da comunidade (v1 — leitura).
 ///
@@ -179,6 +183,59 @@ class _CustomCollectionsPageState extends State<CustomCollectionsPage> {
     }
   }
 
+  /// Denunciar / bloquear autor (App Store 1.2). Exige conta: sem sessão,
+  /// abre o login antes.
+  Future<void> _moderate(CustomCollection collection, String action) async {
+    if (!_auth.isAuthenticated) {
+      final ok = await CustomAuthSheet.show(context, _auth);
+      if (!ok || !mounted) return;
+    }
+    final token = _auth.session!.token;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (action == 'report') {
+        final reason = await showReportCollectionDialog(
+          context,
+          collectionName: collection.name,
+        );
+        if (reason == null) return;
+        await _api.reportCollection(
+          collection.id,
+          reason: reason,
+          bearerToken: token,
+        );
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Denúncia enviada. A coletânea fica oculta até a revisão.',
+            ),
+          ),
+        );
+      } else {
+        final author = collection.authorName ?? 'este autor';
+        final confirmed = await showBlockAuthorDialog(
+          context,
+          authorName: author,
+        );
+        if (!confirmed) return;
+        await _api.blockAuthor(collection.id, bearerToken: token);
+        messenger.showSnackBar(SnackBar(content: Text('$author bloqueado.')));
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            action == 'report'
+                ? 'Falha ao enviar a denúncia. Tente novamente.'
+                : 'Falha ao bloquear o autor. Tente novamente.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (mounted) await _load();
+  }
+
   Future<void> _download(CustomCollection collection) async {
     try {
       await _api.joinCollection(collection);
@@ -288,15 +345,65 @@ class _CustomCollectionsPageState extends State<CustomCollectionsPage> {
             animation: _auth,
             builder: (context, _) {
               if (_auth.isAuthenticated) {
-                return IconButton(
-                  tooltip: 'Sair',
-                  icon: const Icon(Icons.logout),
-                  onPressed: () async {
-                    await _auth.logout();
+                // Menu da conta: sair ou excluir (App Store 5.1.1(v)).
+                return PopupMenuButton<String>(
+                  key: const Key('custom-account-menu'),
+                  tooltip: 'Conta',
+                  icon: const Icon(TablerIcons.userCircle),
+                  onSelected: (action) async {
+                    if (action == 'logout') {
+                      await _auth.logout();
+                    } else if (action == 'blocked') {
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => BlockedAuthorsPage(
+                            api: _api,
+                            bearerToken: _auth.session!.token,
+                          ),
+                        ),
+                      );
+                    } else {
+                      await CustomDeleteAccountSheet.show(context, _auth);
+                    }
                     if (mounted) {
                       await _load(); // recarrega sem Bearer (is_owner zera)
                     }
                   },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      enabled: false,
+                      child: Text(_auth.session?.user.email ?? ''),
+                    ),
+                    const PopupMenuItem(
+                      value: 'blocked',
+                      child: ListTile(
+                        leading: Icon(TablerIcons.userOff),
+                        title: Text('Usuários bloqueados'),
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'logout',
+                      child: ListTile(
+                        leading: Icon(TablerIcons.logout),
+                        title: Text('Sair'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(
+                          TablerIcons.trash,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        title: Text(
+                          'Excluir conta',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               }
               return IconButton(
@@ -412,26 +519,55 @@ class _CustomCollectionsPageState extends State<CustomCollectionsPage> {
                                       ),
                                     );
                                   },
-                            trailing: FutureBuilder<Set<int>>(
-                              future: _api.fetchJoinedCollectionIds(),
-                              builder: (context, snapshot) {
-                                final joined =
-                                    snapshot.data?.contains(c.id) ?? false;
-                                return joined
-                                    ? IconButton(
-                                        icon: const Icon(
-                                          Icons.download_done,
-                                          color: Colors.green,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FutureBuilder<Set<int>>(
+                                  future: _api.fetchJoinedCollectionIds(),
+                                  builder: (context, snapshot) {
+                                    final joined =
+                                        snapshot.data?.contains(c.id) ?? false;
+                                    return joined
+                                        ? IconButton(
+                                            icon: const Icon(
+                                              Icons.download_done,
+                                              color: Colors.green,
+                                            ),
+                                            tooltip: 'Remover download',
+                                            onPressed: () => _removeDownload(c),
+                                          )
+                                        : IconButton(
+                                            icon: const Icon(Icons.download),
+                                            tooltip: 'Baixar',
+                                            onPressed: () => _download(c),
+                                          );
+                                  },
+                                ),
+                                if (c.id > 0 && !c.isOwner)
+                                  PopupMenuButton<String>(
+                                    key: Key('collection-moderation-${c.id}'),
+                                    tooltip: 'Denunciar ou bloquear',
+                                    icon: const Icon(TablerIcons.dotsVertical),
+                                    onSelected: (action) =>
+                                        _moderate(c, action),
+                                    itemBuilder: (_) => const [
+                                      PopupMenuItem(
+                                        value: 'report',
+                                        child: ListTile(
+                                          leading: Icon(TablerIcons.flag),
+                                          title: Text('Denunciar'),
                                         ),
-                                        tooltip: 'Remover download',
-                                        onPressed: () => _removeDownload(c),
-                                      )
-                                    : IconButton(
-                                        icon: const Icon(Icons.download),
-                                        tooltip: 'Baixar',
-                                        onPressed: () => _download(c),
-                                      );
-                              },
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'block',
+                                        child: ListTile(
+                                          leading: Icon(TablerIcons.userOff),
+                                          title: Text('Bloquear autor'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
                           ),
                         );

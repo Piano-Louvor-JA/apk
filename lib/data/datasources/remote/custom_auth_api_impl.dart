@@ -105,6 +105,54 @@ class CustomAuthApiImpl {
     }
   }
 
+  /// Exclui a conta (DELETE /auth/me) — App Store 5.1.1(v) / LGPD.
+  ///
+  /// A API confere a senha atual. Sucesso limpa a sessão local; erro lança
+  /// [CustomAuthException] e mantém a sessão (o usuário segue logado).
+  Future<void> deleteAccount({required String password}) async {
+    final session = await sessionStore.read();
+    if (session == null) {
+      throw const CustomAuthException(
+        'errors.sessionExpired',
+        'Sessão expirada',
+      );
+    }
+    try {
+      await _fetch(
+        'DELETE',
+        _authUrl('/me'),
+        body: {'password': password},
+        bearerToken: session.token,
+      );
+    } on DioException catch (e) {
+      throw switch (e.response?.statusCode) {
+        403 => const CustomAuthException(
+          'errors.wrongPassword',
+          'Senha incorreta',
+        ),
+        400 => const CustomAuthException(
+          'errors.passwordRequired',
+          'Senha obrigatória',
+        ),
+        401 => const CustomAuthException(
+          'errors.sessionExpired',
+          'Sessão expirada',
+        ),
+        null => CustomAuthException(
+          'errors.connection',
+          'Falha de rede: ${e.message ?? e}',
+        ),
+        _ => CustomAuthException(
+          'errors.deleteFailed',
+          'Erro: ${e.message ?? e}',
+        ),
+      };
+    } catch (e) {
+      throw CustomAuthException('errors.connection', 'Falha de rede: $e');
+    }
+    await sessionStore.clear();
+  }
+
   CustomAuthException _mapDio(DioException e, {required String fallback}) {
     final status = e.response?.statusCode;
     if (status == 409) {
