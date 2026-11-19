@@ -407,6 +407,7 @@ class _HymnsViewState extends State<_HymnsView> {
           ),
           IconButton(
             key: const Key('hymns-search-toggle'),
+            tooltip: (_isSearching ? 'common.close' : 'common.search').tr(),
             icon: Icon(_isSearching ? TablerIcons.x : TablerIcons.search),
             onPressed: () {
               setState(() {

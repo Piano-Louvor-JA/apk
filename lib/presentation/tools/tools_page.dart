@@ -149,6 +149,7 @@ class _ToolsPageState extends State<ToolsPage> {
         leading: IconButton(
           key: const Key('tool-back'),
           icon: const Icon(TablerIcons.arrowLeft),
+          tooltip: 'common.back'.tr(),
           onPressed: () => setState(() => _activeView = null),
         ),
         title: Text(view.label.tr()),

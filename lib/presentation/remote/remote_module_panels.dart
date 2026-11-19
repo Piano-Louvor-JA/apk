@@ -383,11 +383,13 @@ class _ChevronField extends StatelessWidget {
         ),
         IconButton(
           key: Key('remote-bible-$keyPrefix-minus'),
+          tooltip: 'common.decrease'.tr(),
           icon: const Icon(TablerIcons.chevronLeft),
           onPressed: value > min ? () => onChanged(value - 1) : null,
         ),
         IconButton(
           key: Key('remote-bible-$keyPrefix-plus'),
+          tooltip: 'common.increase'.tr(),
           icon: const Icon(TablerIcons.chevronRight),
           onPressed: value < max ? () => onChanged(value + 1) : null,
         ),
@@ -764,12 +766,7 @@ class _RemoteMorePanelState extends State<RemoteMorePanel> {
 }
 
 class RemoteClockRandomPanel extends StatelessWidget {
-  const RemoteClockRandomPanel({
-    super.key,
-    this.clock,
-    this.random,
-    this.send,
-  });
+  const RemoteClockRandomPanel({super.key, this.clock, this.random, this.send});
 
   final RemoteClockState? clock;
   final RemoteRandomState? random;

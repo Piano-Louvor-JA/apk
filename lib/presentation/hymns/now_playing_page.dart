@@ -588,9 +588,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     // não subscreve e a UI não troca quando o Android entra/sai do PiP.
     return ValueListenableBuilder<bool>(
       valueListenable: PipController.isActive,
-      builder: (context, isPip, _) => isPip
-          ? _buildPip(context)
-          : _buildFullScreen(context),
+      builder: (context, isPip, _) =>
+          isPip ? _buildPip(context) : _buildFullScreen(context),
     );
   }
 
@@ -601,74 +600,78 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Scaffold(
-        backgroundColor: scheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.detail.title ?? '',
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: scheme.onSurface,
-                  fontWeight: FontWeight.w600,
+      backgroundColor: scheme.surface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.detail.title ?? '',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // SPEC 13 (ajuste Ezequias 05/10): tempo da faixa visível no PiP.
+            // Linha única "m:ss / m:ss" — sem seek (controle é da notificação).
+            ValueListenableBuilder<Duration?>(
+              valueListenable: _pipPosition,
+              builder: (context, pos, _) => Text(
+                '${_fmt(pos)} / ${_fmt(_pipDuration.value)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-              const SizedBox(height: 8),
-              // SPEC 13 (ajuste Ezequias 05/10): tempo da faixa visível no PiP.
-              // Linha única "m:ss / m:ss" — sem seek (controle é da notificação).
-              ValueListenableBuilder<Duration?>(
-                valueListenable: _pipPosition,
-                builder: (context, pos, _) => Text(
-                  '${_fmt(pos)} / ${_fmt(_pipDuration.value)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+            const SizedBox(height: 8),
+            ValueListenableBuilder<bool>(
+              valueListenable: widget.player.playingListenable,
+              builder: (context, livePlaying, _) => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: 'common.previous'.tr(),
+                    icon: Icon(
+                      TablerIcons.chevronLeft,
+                      color: scheme.onSurface,
+                    ),
+                    onPressed: () => _goToSlide(_index - 1),
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    tooltip: livePlaying
+                        ? 'common.pause'.tr()
+                        : 'common.play'.tr(),
+                    iconSize: 44,
+                    icon: Icon(
+                      livePlaying
+                          ? TablerIcons.playerPause
+                          : TablerIcons.playerPlay,
+                      color: scheme.primary,
+                    ),
+                    onPressed: () => _setAudioPlaying(!widget.player.isPlaying),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    tooltip: 'common.next'.tr(),
+                    icon: Icon(
+                      TablerIcons.chevronRight,
+                      color: scheme.onSurface,
+                    ),
+                    onPressed: () => _goToSlide(_index + 1),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              ValueListenableBuilder<bool>(
-                valueListenable: widget.player.playingListenable,
-                builder: (context, livePlaying, _) => Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        TablerIcons.chevronLeft,
-                        color: scheme.onSurface,
-                      ),
-                      onPressed: () => _goToSlide(_index - 1),
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      iconSize: 44,
-                      icon: Icon(
-                        livePlaying
-                            ? TablerIcons.playerPause
-                            : TablerIcons.playerPlay,
-                        color: scheme.primary,
-                      ),
-                      onPressed: () =>
-                          _setAudioPlaying(!widget.player.isPlaying),
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: Icon(
-                        TablerIcons.chevronRight,
-                        color: scheme.onSurface,
-                      ),
-                      onPressed: () => _goToSlide(_index + 1),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 
   /// Tela cheia: layout integral, sem regressão (SPEC 13 RF2).
@@ -719,6 +722,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     ),
                     IconButton(
                       icon: const Icon(TablerIcons.x, color: Colors.white),
+                      tooltip: 'common.stop'.tr(),
                       // X = para tudo (local + todas as TVs) E fecha.
                       onPressed: () {
                         _stopAudioEverywhere();
@@ -882,6 +886,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
+                      tooltip: 'common.previous'.tr(),
                       icon: const Icon(
                         TablerIcons.chevronLeft,
                         color: Colors.white,
@@ -892,6 +897,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     ValueListenableBuilder<bool>(
                       valueListenable: widget.player.playingListenable,
                       builder: (context, playing, _) => IconButton(
+                        tooltip: playing
+                            ? 'common.pause'.tr()
+                            : 'common.play'.tr(),
                         iconSize: 56,
                         icon: Icon(
                           playing
@@ -906,6 +914,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     ),
                     const SizedBox(width: 24),
                     IconButton(
+                      tooltip: 'common.next'.tr(),
                       icon: const Icon(
                         TablerIcons.chevronRight,
                         color: Colors.white,
