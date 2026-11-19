@@ -12,6 +12,7 @@ import 'package:louvorja_piano_mobile/presentation/shared/widgets/empty_state.da
 import 'package:louvorja_piano_mobile/presentation/youtube/bloc/youtube_cubit.dart';
 
 import 'youtube_sheets.dart';
+import 'youtube_reorder.dart';
 import 'youtube_video_tile.dart';
 
 typedef YoutubeTileBuilder =
@@ -19,6 +20,7 @@ typedef YoutubeTileBuilder =
       YoutubeVideo video,
       YoutubeState state, {
       List<YoutubeTileAction> extra,
+      bool draggable,
     });
 
 /// Coletâneas online: lista (criar, abrir) e a coletânea aberta (renomear,
@@ -132,11 +134,12 @@ class _YoutubeCollectionsTabState extends State<YoutubeCollectionsTab> {
                   icon: TablerIcons.playlist,
                   title: 'youtube.collections.empty'.tr(),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                  itemCount: state.collections.length,
-                  itemBuilder: (context, i) {
-                    final c = state.collections[i];
+              : youtubeReorderableList<YoutubeCollection>(
+                  key: const Key('youtube-collections-list'),
+                  items: state.collections,
+                  idOf: (c) => c.id,
+                  onMove: context.read<YoutubeCubit>().reorderCollections,
+                  itemBuilder: (context, c) {
                     final cover = c.videos.firstOrNull?.toVideo();
                     return Card(
                       margin: const EdgeInsets.symmetric(
@@ -148,7 +151,23 @@ class _YoutubeCollectionsTabState extends State<YoutubeCollectionsTab> {
                       ),
                       child: ListTile(
                         key: Key('youtube-collection-${c.id}'),
-                        leading: CircleAvatar(
+                        contentPadding: const EdgeInsets.only(
+                          left: AppSpacing.s2,
+                          right: AppSpacing.s4,
+                        ),
+                        leading: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Tooltip(
+                              message: 'youtube.actions.dragHint'.tr(),
+                              child: Icon(
+                                TablerIcons.gripVertical,
+                                size: 18,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            CircleAvatar(
                           backgroundColor: theme.colorScheme.primary.withValues(
                             alpha: 0.16,
                           ),
@@ -159,6 +178,8 @@ class _YoutubeCollectionsTabState extends State<YoutubeCollectionsTab> {
                             TablerIcons.playlist,
                             color: theme.colorScheme.primary,
                           ),
+                        ),
+                          ],
                         ),
                         title: Text(c.name),
                         subtitle: Text(
@@ -268,14 +289,18 @@ class _YoutubeCollectionsTabState extends State<YoutubeCollectionsTab> {
                   actionLabel: 'youtube.tabs.search'.tr(),
                   onAction: widget.onOpenSearch,
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                  itemCount: c.videos.length,
-                  itemBuilder: (context, i) {
-                    final video = c.videos[i].toVideo();
+              : youtubeReorderableList<YoutubeSavedVideo>(
+                  key: const Key('youtube-collection-videos'),
+                  items: c.videos,
+                  idOf: (v) => v.videoId,
+                  onMove: (from, to) => cubit.reorderInCollection(c.id, from, to),
+                  itemBuilder: (context, saved) {
+                    final i = c.videos.indexOf(saved);
+                    final video = saved.toVideo();
                     return widget.tile(
                       video,
                       state,
+                      draggable: true,
                       extra: [
                         if (i > 0)
                           YoutubeTileAction(

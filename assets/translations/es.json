@@ -712,7 +712,8 @@
       "search": "Buscar",
       "history": "Historial",
       "favorites": "Favoritos",
-      "collections": "Colecciones"
+      "collections": "Colecciones",
+      "downloads": "Descargados"
     },
     "search": {
       "placeholder": "Buscar en YouTube o pegar un enlace…",
@@ -729,13 +730,20 @@
       "play": "Reproducir",
       "more": "Más opciones",
       "remove": "Quitar del historial",
-      "failed": "No se pudo abrir el video."
+      "failed": "No se pudo abrir el video.",
+      "dragHint": "Mantén presionado para arrastrar y cambiar la posición"
     },
     "favorites": {
       "add": "Agregar a favoritos",
       "remove": "Quitar de favoritos",
       "filter": "Filtrar favoritos…",
       "empty": "Aún no hay favoritos. Toca el corazón de un video para guardarlo aquí."
+    },
+    "downloads": {
+      "filter": "Filtrar descargados…",
+      "empty": "Aún no hay videos descargados. Usa el botón de descarga en un video para reproducirlo sin internet.",
+      "renamedAs": "Archivo renombrado: {name}",
+      "count": "{n} video(s) · {size}"
     },
     "history": {
       "filter": "Filtrar historial…",
@@ -802,7 +810,15 @@
       "all": "Descargar todos ({n})",
       "allBusy": "Descargando {n}…",
       "allDone": "Todos descargados",
-      "stop": "Detener"
+      "stop": "Detener",
+      "rename": "Renombrar archivo descargado",
+      "renameTitle": "Renombrar archivo descargado",
+      "renameLabel": "Nombre del archivo",
+      "renameHint": "Se quitan acentos y símbolos y el nombre queda con hasta {n} caracteres. El código del video va al final.",
+      "renamePreview": "Así quedará:",
+      "renameConfirm": "Renombrar",
+      "renamed": "Archivo renombrado: {name}",
+      "renameFailed": "No se pudo renombrar: el video se está descargando."
     },
     "storage": {
       "hint": "Espacio usado por los videos descargados",
