@@ -97,15 +97,10 @@ class _LiturgyAvulsaPageState extends State<LiturgyAvulsaPage> {
 
     final catRows = DataPacketParser.parse(catsXml);
     final prefs = await SharedPreferences.getInstance();
-    final outboxHook =
-        (
-          categories,
-          items,
-        ) => OperatorStateBoot
-            .client(prefs)
-            .enqueueScheduled(
-              ScheduledStatePayload(categories: categories, items: items),
-            );
+    final outboxHook = (categories, items) =>
+        OperatorStateBoot.client(prefs).enqueueScheduled(
+          ScheduledStatePayload(categories: categories, items: items),
+        );
     final n = await _scheduled!.importFromDelphi(
       categories: catRows,
       items: itemRows,
@@ -463,6 +458,7 @@ class _LiturgyAvulsaPageState extends State<LiturgyAvulsaPage> {
                                     ),
                                     if (!_locked)
                                       IconButton(
+                                        tooltip: 'common.menu'.tr(),
                                         icon: const Icon(
                                           TablerIcons.dotsVertical,
                                           size: 20,

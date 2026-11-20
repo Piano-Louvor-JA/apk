@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_target.dart';
 import 'package:louvorja_piano_mobile/domain/repositories/liturgy_link_repository.dart';
 
@@ -9,6 +10,23 @@ class LiturgyVideoCache {
   const LiturgyVideoCache(this.directory, this.remote);
   final Directory directory;
   final LiturgyLinkRepository remote;
+
+  /// Pasta dos vídeos online do player local (Liturgia e módulo YouTube
+  /// usam a mesma: o que baixa num toca offline no outro).
+  static Future<Directory> defaultDirectory() async => Directory(
+    '${(await getApplicationSupportDirectory()).path}/liturgy-videos',
+  );
+
+  /// Arquivo do vídeo (existindo ou não).
+  String pathFor(String url) => _path(url);
+
+  /// Apaga a cópia baixada; false se não havia.
+  Future<bool> remove(String url) async {
+    final file = File(_path(url));
+    if (!await file.exists()) return false;
+    await file.delete();
+    return true;
+  }
   String _path(String raw) {
     final url = LiturgyWebTarget.parse(raw)?.url ?? raw;
     return '${directory.path}/${sha256.convert(utf8.encode(url))}.mp4';
@@ -22,6 +40,7 @@ class LiturgyVideoCache {
   Future<String> download(
     String url, {
     void Function(int, int)? onProgress,
+    Duration timeout = const Duration(minutes: 4),
   }) async {
     final existing = await find(url);
     if (existing != null) return existing;
@@ -32,7 +51,7 @@ class LiturgyVideoCache {
       // Nunca fica parado sem resposta: desiste e a barra avisa.
       await remote
           .download(url, partial.path, onProgress: onProgress)
-          .timeout(const Duration(minutes: 4));
+          .timeout(timeout);
       if (!await partial.exists() || await partial.length() == 0)
         throw StateError('empty-video');
       await partial.rename(path);

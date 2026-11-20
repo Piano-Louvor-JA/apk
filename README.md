@@ -72,4 +72,6 @@ O APK é um app de **operação** (controle + navegação + play). Projeção, m
 
 ## Licença
 
-Proprietário — © Pianolouvorja
+[GPL-3.0](LICENSE) — © Piano Louvor JA.
+
+O apk Android inclui o `youtubedl-android` (GPL-3.0) para baixar vídeos online, por isso o projeto é distribuído sob GPL-3.0. O código anterior a essa mudança foi publicado sob MIT ([LICENSE-MIT](LICENSE-MIT)). Componentes de terceiros e detalhes em [NOTICE](NOTICE).

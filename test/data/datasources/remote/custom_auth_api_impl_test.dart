@@ -236,6 +236,155 @@ void main() {
       expect(await auth.me(), isNull);
       expect(await store.read(), isNull);
     });
+
+    test(
+      'valida a sessão com GET /auth/me (rota da API) e atualiza o usuário',
+      () async {
+        await store.save(
+          const CustomSession(
+            token: 'tok',
+            user: CustomUser(idUser: 7, email: 'a@b.c', displayName: 'Antigo'),
+          ),
+        );
+        final calls = <({String method, String url, String? bearer})>[];
+        auth = CustomAuthApiImpl(
+          fetch: (method, url, {body, bearerToken}) async {
+            calls.add((method: method, url: url, bearer: bearerToken));
+            return '{"user":{"id_user":7,"email":"a@b.c","displayName":"Novo"}}';
+          },
+          apiBaseUrl: 'https://api.test',
+          sessionStore: store,
+        );
+
+        final fresh = await auth.me();
+
+        expect(calls.single.method, 'GET');
+        expect(calls.single.url, 'https://api.test/v1/custom/auth/me');
+        expect(calls.single.bearer, 'tok');
+        expect(fresh?.user.displayName, 'Novo');
+        expect((await store.read())?.user.displayName, 'Novo');
+      },
+    );
+  });
+
+  group('deleteAccount', () {
+    CustomAuthApiImpl withStatus(
+      int? status,
+      List<
+        ({
+          String method,
+          String url,
+          Map<String, dynamic>? body,
+          String? bearer,
+        })
+      >
+      calls,
+    ) {
+      return CustomAuthApiImpl(
+        fetch: (method, url, {body, bearerToken}) async {
+          calls.add((
+            method: method,
+            url: url,
+            body: body,
+            bearer: bearerToken,
+          ));
+          if (status == null) {
+            throw DioException(
+              requestOptions: RequestOptions(path: url),
+              type: DioExceptionType.connectionError,
+            );
+          }
+          if (status >= 400) {
+            throw DioException(
+              requestOptions: RequestOptions(path: url),
+              response: Response(
+                requestOptions: RequestOptions(path: url),
+                statusCode: status,
+                data: {'error': 'x'},
+              ),
+            );
+          }
+          return '';
+        },
+        apiBaseUrl: 'https://api.test',
+        sessionStore: store,
+      );
+    }
+
+    Future<void> saveSession() => store.save(
+      const CustomSession(
+        token: 'tok',
+        user: CustomUser(idUser: 1, email: 'a@b.c', displayName: 'A'),
+      ),
+    );
+
+    test(
+      'DELETE /auth/me com Bearer e senha; sucesso limpa a sessão',
+      () async {
+        await saveSession();
+        final calls =
+            <
+              ({
+                String method,
+                String url,
+                Map<String, dynamic>? body,
+                String? bearer,
+              })
+            >[];
+        auth = withStatus(204, calls);
+
+        await auth.deleteAccount(password: 'secret1');
+
+        expect(calls.single.method, 'DELETE');
+        expect(calls.single.url, 'https://api.test/v1/custom/auth/me');
+        expect(calls.single.bearer, 'tok');
+        expect(calls.single.body, {'password': 'secret1'});
+        expect(await store.read(), isNull);
+      },
+    );
+
+    for (final (status, code) in [
+      (403, 'errors.wrongPassword'),
+      (400, 'errors.passwordRequired'),
+      (401, 'errors.sessionExpired'),
+      (500, 'errors.deleteFailed'),
+      (null, 'errors.connection'),
+    ]) {
+      test('${status ?? 'sem rede'} → $code e mantém a sessão', () async {
+        await saveSession();
+        auth = withStatus(status, []);
+
+        await expectLater(
+          auth.deleteAccount(password: 'x'),
+          throwsA(predicate((e) => e is CustomAuthException && e.code == code)),
+        );
+        expect(await store.read(), isNotNull);
+      });
+    }
+
+    test('sem sessão → sessionExpired sem chamar a API', () async {
+      final calls =
+          <
+            ({
+              String method,
+              String url,
+              Map<String, dynamic>? body,
+              String? bearer,
+            })
+          >[];
+      auth = withStatus(204, calls);
+
+      await expectLater(
+        auth.deleteAccount(password: 'x'),
+        throwsA(
+          predicate(
+            (e) =>
+                e is CustomAuthException && e.code == 'errors.sessionExpired',
+          ),
+        ),
+      );
+      expect(calls, isEmpty);
+    });
   });
 
   group('CustomSessionStore', () {

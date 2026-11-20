@@ -137,6 +137,7 @@ class _PalcoAutoConnectSheetState extends State<PalcoAutoConnectSheet> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
+                  tooltip: 'common.close'.tr(),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],

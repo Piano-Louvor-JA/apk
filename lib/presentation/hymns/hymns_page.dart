@@ -373,6 +373,13 @@ class _HymnsViewState extends State<_HymnsView> {
               )
             : Text('hymns.title'.tr()),
         actions: [
+          // Módulo YouTube (buscar, tocar e projetar vídeos)
+          IconButton(
+            key: const Key('hymns-youtube'),
+            icon: const Icon(TablerIcons.brandYoutube),
+            tooltip: 'youtube.open'.tr(),
+            onPressed: () => context.push('/hymns/youtube'),
+          ),
           // Playlists (seleção de hinos do acervo, local)
           IconButton(
             icon: const Icon(Icons.queue_music),
@@ -400,6 +407,7 @@ class _HymnsViewState extends State<_HymnsView> {
           ),
           IconButton(
             key: const Key('hymns-search-toggle'),
+            tooltip: (_isSearching ? 'common.close' : 'common.search').tr(),
             icon: Icon(_isSearching ? TablerIcons.x : TablerIcons.search),
             onPressed: () {
               setState(() {

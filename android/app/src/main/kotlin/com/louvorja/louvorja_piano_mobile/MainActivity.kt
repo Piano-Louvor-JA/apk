@@ -26,6 +26,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         LiturgyDocuments.register(flutterEngine.dartExecutor.binaryMessenger)
         LiturgyMedia.register(flutterEngine.dartExecutor.binaryMessenger, this)
+        YtDlp.register(flutterEngine.dartExecutor.binaryMessenger, this)
 
         // SPEC 13 (apk#132): receiver de MANIFEST pras ações de mídia —
         // broadcasts do shell do PiP não chegam em receivers dinâmicos

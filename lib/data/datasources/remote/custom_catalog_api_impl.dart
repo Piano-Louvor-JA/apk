@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+
+import 'package:louvorja_piano_mobile/domain/entities/blocked_author.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:louvorja_piano_mobile/domain/entities/custom_collection.dart';
@@ -296,6 +298,66 @@ class CustomCatalogApiImpl {
       _api('/collections/$collectionId'),
       bearerToken: bearerToken,
     );
+  }
+
+  /// Denuncia a coletânea (App Store 1.2). A API esconde a coletânea do
+  /// catálogo público até a curadoria revisar. [reason]: 3 a 500 caracteres.
+  Future<void> reportCollection(
+    int collectionId, {
+    required String reason,
+    required String bearerToken,
+  }) async {
+    await _fetch(
+      'POST',
+      _api('/collections/$collectionId/report'),
+      body: {'reason': reason},
+      bearerToken: bearerToken,
+    );
+  }
+
+  /// Bloqueia o autor da coletânea: as coletâneas dele somem da Comunidade
+  /// para este usuário (App Store 1.2).
+  Future<BlockedAuthor> blockAuthor(
+    int collectionId, {
+    required String bearerToken,
+  }) async {
+    final response = await _fetch(
+      'POST',
+      _api('/collections/$collectionId/block-author'),
+      bearerToken: bearerToken,
+    );
+    final map = _asMap(response);
+    return BlockedAuthor.fromJson(map['blocked'] as Map<String, dynamic>);
+  }
+
+  /// Autores bloqueados pelo usuário.
+  Future<List<BlockedAuthor>> fetchBlockedAuthors({
+    required String bearerToken,
+  }) async {
+    final response = await _fetch(
+      'GET',
+      _api('/blocks'),
+      bearerToken: bearerToken,
+    );
+    final data = _asMap(response)['data'] as List<dynamic>? ?? const [];
+    return data
+        .map((e) => BlockedAuthor.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Desbloqueia o autor.
+  Future<void> unblockAuthor(int userId, {required String bearerToken}) async {
+    await _fetch('DELETE', _api('/blocks/$userId'), bearerToken: bearerToken);
+  }
+
+  Map<String, dynamic> _asMap(dynamic raw) {
+    if (raw is Response) return _asMap(raw.data);
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is String && raw.isNotEmpty) {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+    }
+    return const {};
   }
 
   /// Cria uma música custom com letra (dono da coletânea). Retorna o id.

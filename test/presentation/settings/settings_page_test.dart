@@ -1,5 +1,6 @@
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +34,25 @@ void main() {
             'installerStore': null,
           },
         );
+  });
+
+  testWidgets('Android mostra o botão; iPhone/iPad remete à App Store', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_subject(SettingsController()));
+    await tester.pumpAndSettle();
+    expect(find.text('Verificar atualização'), findsOneWidget);
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_subject(SettingsController()));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No iPhone e no iPad, as atualizações chegam pela App Store.'),
+      findsOneWidget,
+    );
+    expect(find.text('Verificar atualização'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('renderiza todas as configurações', (tester) async {

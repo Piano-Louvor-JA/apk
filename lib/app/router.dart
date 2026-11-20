@@ -28,6 +28,7 @@ import '../presentation/settings/terms_page.dart';
 import '../presentation/liturgy/player/web_video_host.dart';
 import '../presentation/shared/widgets/main_navigation.dart';
 import '../presentation/tools/tools_page.dart';
+import '../presentation/youtube/youtube_page.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -62,6 +63,10 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'playlists',
                   builder: (context, state) => const PlaylistsPage(),
+                ),
+                GoRoute(
+                  path: 'youtube',
+                  builder: (context, state) => const YoutubePage(),
                 ),
                 GoRoute(
                   path: 'custom',

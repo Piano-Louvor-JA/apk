@@ -85,9 +85,7 @@ class _PipMinimalOverlayState extends State<PipMinimalOverlay> {
                 '${_fmt(pos)} / ${_fmt(_dur.value)}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
-                  fontFeatures: const [
-                    FontFeature.tabularFigures(),
-                  ],
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
@@ -98,6 +96,7 @@ class _PipMinimalOverlayState extends State<PipMinimalOverlay> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
+                    tooltip: 'common.rewind15'.tr(),
                     icon: Icon(
                       TablerIcons.chevronLeft,
                       color: scheme.onSurface,
@@ -106,6 +105,7 @@ class _PipMinimalOverlayState extends State<PipMinimalOverlay> {
                   ),
                   const SizedBox(width: 16),
                   IconButton(
+                    tooltip: playing ? 'common.pause'.tr() : 'common.play'.tr(),
                     iconSize: 44,
                     icon: Icon(
                       playing
@@ -123,6 +123,7 @@ class _PipMinimalOverlayState extends State<PipMinimalOverlay> {
                   ),
                   const SizedBox(width: 16),
                   IconButton(
+                    tooltip: 'common.forward15'.tr(),
                     icon: Icon(
                       TablerIcons.chevronRight,
                       color: scheme.onSurface,
