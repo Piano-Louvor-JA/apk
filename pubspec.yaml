@@ -84,6 +84,9 @@ dependencies:
   archive: ^4.7.1
   flutter_foreground_task: ^11.0.3
   multicast_dns: ^0.3.3+1
+  # iOS: Bonjour nativo p/ achar receivers (_palco._tcp) sem o entitlement
+  # de multicast; Android segue no multicast_dns.
+  bonsoir: ^7.1.5
   mobile_scanner: ^7.5.0
   flutter_webrtc: ^1.6.3
   qr_flutter: ^4.1.0
@@ -96,6 +99,12 @@ dependencies:
   webview_flutter_android: ^4.14.1
   youtube_explode_dart: ^3.1.0
   video_player: ^2.14.1
+# bonsoir puxa o bonsoir_linux (dbus ^0.7), que conflita com o wakelock_plus
+# (dbus ^0.8). O plugin Linux não entra nos builds Android/iOS; o override só
+# destrava a resolução. Remover quando o bonsoir_linux aceitar dbus 0.8.
+dependency_overrides:
+  dbus: ^0.8.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
