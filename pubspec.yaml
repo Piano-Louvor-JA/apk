@@ -25,7 +25,7 @@ dependencies:
 
   # Fonts
   # 9.0.0 troca TextTheme do Flutter por material_ui e não compila com ThemeData.
-  google_fonts: ^9.0.0
+  google_fonts: ^8.2.1
 
   # Internationalization
   easy_localization: ^3.0.7
@@ -81,7 +81,7 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   image: ^4.13.1
   # 4.6.0 deixa de lançar erro em dado danificado: .slja corrompido seria importado pela metade.
-  archive: ^4.7.1
+  archive: '>=4.5.2 <4.6.0'
   flutter_foreground_task: ^11.0.3
   multicast_dns: ^0.3.3+1
   # iOS: Bonjour nativo p/ achar receivers (_palco._tcp) sem o entitlement
@@ -115,7 +115,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # Code generation
-  build_runner: ^2.17.1
+  build_runner: ^2.16.1
   freezed: ^4.0.1
   json_serializable: ^6.15.2
 
