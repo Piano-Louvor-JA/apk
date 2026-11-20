@@ -8,7 +8,7 @@ environment:
   flutter: ">=3.32.0"
 
 dependencies:
-  html: ^0.15.6
+  html: ^0.15.7
   xml: any
   flutter:
     sdk: flutter
@@ -25,7 +25,7 @@ dependencies:
 
   # Fonts
   # 9.0.0 troca TextTheme do Flutter por material_ui e não compila com ThemeData.
-  google_fonts: ^8.2.1
+  google_fonts: ^9.0.0
 
   # Internationalization
   easy_localization: ^3.0.7
@@ -40,7 +40,7 @@ dependencies:
   connectivity_plus: ^7.3.2
 
   # Icons (mesma lib do Electron/web, v3.44.0 ≈ v3.45.0)
-  tabler_icons_plus: ^3.51.0
+  tabler_icons_plus: ^3.52.0
 
   # SVG rendering (logos e brand assets)
   flutter_markdown: ^0.7.6
@@ -54,7 +54,7 @@ dependencies:
   device_info_plus: ^13.3.0
 
   # Media
-  cached_network_image: ^4.0.6
+  cached_network_image: ^4.0.7
 
   # Code generation (runtime annotations)
   freezed_annotation: ^3.0.0
@@ -67,7 +67,7 @@ dependencies:
 
   # Seleção de mídia local para itens da liturgia (mobile/web).
   # 13.x é federado: FilePicker.pickFile/pickFiles, sem FilePicker.platform.
-  file_picker: 13.3.3
+  file_picker: 13.4.0
 
   # Abrir URLs externas (site, video online) da liturgia
   url_launcher: ^6.3.3
@@ -79,14 +79,14 @@ dependencies:
   open_filex: ^5.0.0
   image_picker: ^1.2.4
   flutter_colorpicker: ^1.1.0
-  image: ^4.12.0
+  image: ^4.13.1
   # 4.6.0 deixa de lançar erro em dado danificado: .slja corrompido seria importado pela metade.
-  archive: '>=4.5.2 <4.6.0'
+  archive: ^4.7.1
   flutter_foreground_task: ^11.0.3
   multicast_dns: ^0.3.3+1
   # iOS: Bonjour nativo p/ achar receivers (_palco._tcp) sem o entitlement
   # de multicast; Android segue no multicast_dns.
-  bonsoir: ^7.1.5
+  bonsoir: ^7.1.6
   mobile_scanner: ^7.5.0
   flutter_webrtc: ^1.6.3
   qr_flutter: ^4.1.0
@@ -115,7 +115,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # Code generation
-  build_runner: ^2.16.1
+  build_runner: ^2.17.1
   freezed: ^4.0.1
   json_serializable: ^6.15.2
 
