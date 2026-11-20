@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -116,6 +117,65 @@ void main() {
 
     expect(called, isFalse);
     expect(c.status, CustomAuthStatus.unauthenticated);
+  });
+  group('deleteAccount', () {
+    test('sucesso → unauthenticated, sem sessão e notifica', () async {
+      await store.save(
+        const CustomSession(
+          token: 't',
+          user: CustomUser(idUser: 1, email: 'a@b.c', displayName: 'R'),
+        ),
+      );
+      String? sentPassword;
+      final c = CustomAuthController(
+        _apiWith((m, u, {body, bearerToken}) async {
+          if (m == 'DELETE') sentPassword = body?['password'] as String?;
+          return m == 'DELETE' ? '' : _ok;
+        }, store),
+      );
+      await c.restore();
+      var notified = 0;
+      c.addListener(() => notified++);
+
+      final ok = await c.deleteAccount('secret1');
+
+      expect(ok, isTrue);
+      expect(sentPassword, 'secret1');
+      expect(c.status, CustomAuthStatus.unauthenticated);
+      expect(c.session, isNull);
+      expect(c.errorCode, isNull);
+      expect(notified, greaterThanOrEqualTo(1));
+    });
+
+    test('senha errada → continua logado com errorCode', () async {
+      await store.save(
+        const CustomSession(
+          token: 't',
+          user: CustomUser(idUser: 1, email: 'a@b.c', displayName: 'R'),
+        ),
+      );
+      final c = CustomAuthController(
+        _apiWith((m, u, {body, bearerToken}) async {
+          if (m == 'DELETE') {
+            throw DioException(
+              requestOptions: RequestOptions(path: u),
+              response: Response(
+                requestOptions: RequestOptions(path: u),
+                statusCode: 403,
+              ),
+            );
+          }
+          return _ok;
+        }, store),
+      );
+      await c.restore();
+
+      final ok = await c.deleteAccount('errada');
+
+      expect(ok, isFalse);
+      expect(c.isAuthenticated, isTrue);
+      expect(c.errorCode, 'errors.wrongPassword');
+    });
   });
 }
 
