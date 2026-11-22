@@ -205,6 +205,87 @@ class _SettingsPageState extends State<SettingsPage> {
                             // coverage:ignore-line
                           )?.setLocale(const Locale('es')),
                         ),
+                        _ChoiceChip(
+                          label: 'settings.languageRussian'.tr(),
+                          selected: locale == const Locale('ru'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('ru')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageUkrainian'.tr(),
+                          selected: locale == const Locale('uk'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('uk')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageFrench'.tr(),
+                          selected: locale == const Locale('fr'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('fr')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageJapanese'.tr(),
+                          selected: locale == const Locale('ja'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('ja')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageKorean'.tr(),
+                          selected: locale == const Locale('ko'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('ko')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageChinese'.tr(),
+                          selected: locale == const Locale('zh'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('zh')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageTurkish'.tr(),
+                          selected: locale == const Locale('tr'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('tr')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageArabic'.tr(),
+                          selected: locale == const Locale('ar'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('ar')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageHindi'.tr(),
+                          selected: locale == const Locale('hi'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('hi')),
+                        ),
                       ],
                     ),
                   ),
