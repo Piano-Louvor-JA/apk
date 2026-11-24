@@ -8,6 +8,7 @@ import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/app/theme/app_radius.dart';
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
+import 'package:louvorja_piano_mobile/core/services/youtube/youtube_channel_parser.dart';
 import 'package:louvorja_piano_mobile/core/services/youtube/youtube_downloads.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/youtube_library_storage.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
@@ -259,10 +260,24 @@ class _PlaylistImportState extends State<_PlaylistImport> {
     super.dispose();
   }
 
+  String _lastUrl = '';
+
+  /// Botão "Colar": link de playlist já é lido, sem precisar de "Continuar".
   Future<void> _paste() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text?.trim();
-    if (text != null && text.isNotEmpty) setState(() => _url.text = text);
+    if (text == null || text.isEmpty || !mounted) return;
+    setState(() => _url.text = _lastUrl = text);
+    if (YoutubeChannelParser.isPlaylistLink(text)) unawaited(_load());
+  }
+
+  /// Colou (o texto cresceu de uma vez) um link de playlist: lê na hora.
+  void _onUrlChanged(String value) {
+    final pasted = value.length - _lastUrl.length > 1;
+    _lastUrl = value;
+    if (pasted && !_loading && YoutubeChannelParser.isPlaylistLink(value)) {
+      unawaited(_load());
+    }
   }
 
   Future<void> _load() async {
@@ -374,6 +389,7 @@ class _PlaylistImportState extends State<_PlaylistImport> {
         enabled: !_loading,
         autofocus: true,
         keyboardType: TextInputType.url,
+        onChanged: _onUrlChanged,
         decoration: InputDecoration(
           hintText: 'youtube.playlist.urlPlaceholder'.tr(),
           suffixIcon: IconButton(

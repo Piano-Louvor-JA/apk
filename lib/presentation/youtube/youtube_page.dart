@@ -26,6 +26,7 @@ import 'package:louvorja_piano_mobile/presentation/shared/phone_projection.dart'
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/empty_state.dart';
 
 import 'bloc/youtube_cubit.dart';
+import 'widgets/youtube_channels_tab.dart';
 import 'widgets/youtube_collections_tab.dart';
 import 'widgets/youtube_reorder.dart';
 import 'widgets/youtube_sheets.dart';
@@ -111,7 +112,7 @@ class _YoutubeView extends StatefulWidget {
 class _YoutubeViewState extends State<_YoutubeView>
     with SingleTickerProviderStateMixin {
   static const _collectionsIndex = 3;
-  late final TabController _tabs = TabController(length: 4, vsync: this);
+  late final TabController _tabs = TabController(length: 5, vsync: this);
 
   /// Lista "Baixados" aberta (botão ao lado do espaço usado, só no
   /// Android): ocupa o lugar das abas até voltar.
@@ -122,6 +123,7 @@ class _YoutubeViewState extends State<_YoutubeView>
   final _downloadsFilter = TextEditingController();
   final _scroll = ScrollController();
   final _openedCollection = ValueNotifier<String?>(null);
+  final _channels = YoutubeChannelsSelection();
   Timer? _typing;
 
   /// Busca sozinha depois de uma pausa na digitação.
@@ -146,6 +148,7 @@ class _YoutubeViewState extends State<_YoutubeView>
     _downloadsFilter.dispose();
     _scroll.dispose();
     _openedCollection.dispose();
+    _channels.dispose();
     _typing?.cancel();
     super.dispose();
   }
@@ -266,6 +269,18 @@ class _YoutubeViewState extends State<_YoutubeView>
     );
   }
 
+  /// Playlist de canal salva como coletânea: abre a coletânea criada.
+  void _openSavedCollection(YoutubeCollection created) {
+    _tabs.animateTo(_collectionsIndex);
+    _openedCollection.value = created.id;
+    showYoutubeToast(
+      context,
+      'youtube.playlist.created'.tr(
+        namedArgs: {'name': created.name, 'n': '${created.videos.length}'},
+      ),
+    );
+  }
+
   YoutubeVideoTile _tile(
     YoutubeVideo video,
     YoutubeState state, {
@@ -328,7 +343,9 @@ class _YoutubeViewState extends State<_YoutubeView>
           ],
           bottom: _downloadsOpen
               ? null
-              : TabBar(
+              : _ScrollHintTabBar(
+                  controller: _tabs,
+                  tabBar: TabBar(
             controller: _tabs,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
@@ -340,8 +357,13 @@ class _YoutubeViewState extends State<_YoutubeView>
                 'youtube.tabs.collections'.tr(),
                 state.collections.length,
               ),
+              Tab(
+                key: const Key('youtube-tab-channels'),
+                text: 'youtube.tabs.channels'.tr(),
+              ),
             ],
-          ),
+                  ),
+                ),
         ),
         body: LayoutBuilder(
           builder: (context, constraints) => Column(
@@ -391,6 +413,12 @@ class _YoutubeViewState extends State<_YoutubeView>
           opened: _openedCollection,
           onImportPlaylist: _importPlaylist,
           onOpenSearch: () => _tabs.animateTo(0),
+        ),
+        YoutubeChannelsTab(
+          tile: (video, channelState) => _tile(video, channelState),
+          selection: _channels,
+          typingPause: typingPause,
+          onSavedCollection: _openSavedCollection,
         ),
       ],
     ),
@@ -893,3 +921,96 @@ class _StorageChip extends StatelessWidget {
     );
   }
 }
+
+/// Barra de abas rolável com setas nas pontas: mostra que há mais abas para
+/// o lado (e que dá para arrastar). Tocar na seta vai para a aba vizinha.
+class _ScrollHintTabBar extends StatefulWidget implements PreferredSizeWidget {
+  const _ScrollHintTabBar({required this.tabBar, required this.controller});
+
+  final TabBar tabBar;
+  final TabController controller;
+
+  @override
+  Size get preferredSize => tabBar.preferredSize;
+
+  @override
+  State<_ScrollHintTabBar> createState() => _ScrollHintTabBarState();
+}
+
+class _ScrollHintTabBarState extends State<_ScrollHintTabBar> {
+  bool _before = false, _after = false;
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.horizontal) return false;
+    final before = metrics.extentBefore > 1;
+    final after = metrics.extentAfter > 1;
+    if (before != _before || after != _after) {
+      // Pode chegar no meio do layout: atualiza no próximo quadro.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _before = before;
+            _after = after;
+          });
+        }
+      });
+    }
+    return false;
+  }
+
+  void _step(int delta) {
+    final tabs = widget.controller;
+    final next = (tabs.index + delta).clamp(0, tabs.length - 1);
+    if (next != tabs.index) tabs.animateTo(next);
+  }
+
+  Widget _arrow({required bool right}) {
+    final theme = Theme.of(context);
+    final background =
+        theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
+    return Positioned(
+      top: 0,
+      bottom: 0,
+      left: right ? null : 0,
+      right: right ? 0 : null,
+      child: GestureDetector(
+        key: Key(right ? 'youtube-tabs-more-right' : 'youtube-tabs-more-left'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _step(right ? 1 : -1),
+        child: Container(
+          width: 40,
+          alignment: right ? Alignment.centerRight : Alignment.centerLeft,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: right ? Alignment.centerLeft : Alignment.centerRight,
+              end: right ? Alignment.centerRight : Alignment.centerLeft,
+              colors: [background.withValues(alpha: 0), background],
+              stops: const [0, .55],
+            ),
+          ),
+          child: Icon(
+            right ? TablerIcons.chevronRight : TablerIcons.chevronLeft,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      NotificationListener<ScrollMetricsNotification>(
+        onNotification: (n) => _onMetrics(n.metrics),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (n) => _onMetrics(n.metrics),
+          child: widget.tabBar,
+        ),
+      ),
+      if (_before) _arrow(right: false),
+      if (_after) _arrow(right: true),
+    ],
+  );
+}
+
