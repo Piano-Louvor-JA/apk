@@ -78,6 +78,23 @@ class CustomAuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Exclui a conta (irreversível). Falha mantém o usuário logado e
+  /// preenche [errorCode].
+  Future<bool> deleteAccount(String password) async {
+    errorCode = null;
+    try {
+      await api.deleteAccount(password: password);
+    } on CustomAuthException catch (e) {
+      errorCode = e.code;
+      notifyListeners();
+      return false;
+    }
+    session = null;
+    status = CustomAuthStatus.unauthenticated;
+    notifyListeners();
+    return true;
+  }
+
   /// sync v2 (apk#107): flush pós-login — push da outbox + pull LWW.
   Future<void> _flushAfterLogin() async {
     try {

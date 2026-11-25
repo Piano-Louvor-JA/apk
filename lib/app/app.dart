@@ -83,6 +83,8 @@ class _LouvorjaAppState extends State<LouvorjaApp> with WidgetsBindingObserver {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
+      // Directionality (LTR/RTL) e derivada automaticamente do locale pelo
+      // WidgetsApp/MaterialApp: Locale('ar') -> RTL nativo, sem widget extra.
       routerConfig: appRouter,
       builder: (context, child) {
         if (_showSplash) {

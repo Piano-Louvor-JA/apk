@@ -276,7 +276,8 @@
       "alignCenter": "Centralizar",
       "alignRight": "Alinhar à direita",
       "clear": "Limpar formatação"
-    }
+    },
+    "cloneFrom": "Clonar de outro dia"
   },
   "bible": {
     "title": "Bíblia",
@@ -356,7 +357,16 @@
     "languageEnglish": "English",
     "languageSpanish": "Espanol",
     "version": "Versao",
-    "privacyPolicy": "Política de Privacidade"
+    "privacyPolicy": "Política de Privacidade",
+    "languageRussian": "Русский",
+    "languageUkrainian": "Українська",
+    "languageFrench": "Français",
+    "languageJapanese": "日本語",
+    "languageKorean": "한국어",
+    "languageChinese": "中文",
+    "languageTurkish": "Türkçe",
+    "languageArabic": "العربية",
+    "languageHindi": "हिन्दी"
   },
   "timer": {
     "save": "Salvar",

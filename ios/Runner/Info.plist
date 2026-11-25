@@ -78,6 +78,14 @@
 		<string>LouvorJA PIANO precisa salvar imagens da liturgia na sua galeria.</string>
 		<key>NSDocumentsFolderUsageDescription</key>
 		<string>LouvorJA PIANO precisa acessar documentos (PDF, PPT) para a liturgia do culto.</string>
+		<key>NSBonjourServices</key>
+		<array>
+			<string>_palco._tcp</string>
+		</array>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>audio</string>
+		</array>
 		<key>NSLocalNetworkUsageDescription</key>
 		<string>LouvorJA PIANO precisa de acesso a rede para transmitir musicas e conteudo do culto.</string>
 		<key>NSAppTransportSecurity</key>

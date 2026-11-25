@@ -212,9 +212,10 @@ class UpdateService {
       String? apkUrl;
       int? apkSize;
       String? apkSha256;
+      final universalApkName = RegExp(r'^louvorja-piano-.*-universal\.apk$');
       for (final asset in assets.whereType<Map>()) {
         final name = (asset['name'] ?? '').toString().toLowerCase();
-        if (name.endsWith('.apk') && name.contains('-universal.')) {
+        if (universalApkName.hasMatch(name)) {
           apkUrl = asset['browser_download_url']?.toString();
           apkSize = asset['size'] as int?;
           final digest = asset['digest']?.toString();
