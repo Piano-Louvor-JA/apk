@@ -552,6 +552,8 @@
       "noScreens": "No screens available",
       "showCaptions": "Show captions",
       "hideCaptions": "Hide captions",
+      "fullscreen": "Full screen",
+      "exitFullscreen": "Exit full screen",
       "closeConfirmTitle": "Close the media?",
       "closeConfirmMessage": "What is playing on the desktop will stop.",
       "closeConfirmCancel": "Cancel",

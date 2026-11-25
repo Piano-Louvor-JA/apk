@@ -551,6 +551,8 @@
       "noScreens": "Nenhuma tela disponível",
       "showCaptions": "Mostrar legendas",
       "hideCaptions": "Ocultar legendas",
+      "fullscreen": "Tela cheia",
+      "exitFullscreen": "Sair da tela cheia",
       "closeConfirmTitle": "Fechar a mídia?",
       "closeConfirmMessage": "O que está tocando no desktop será encerrado.",
       "closeConfirmCancel": "Cancelar",

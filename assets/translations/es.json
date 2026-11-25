@@ -552,6 +552,8 @@
       "noScreens": "Ninguna pantalla disponible",
       "showCaptions": "Mostrar subtítulos",
       "hideCaptions": "Ocultar subtítulos",
+      "fullscreen": "Pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
       "closeConfirmTitle": "¿Cerrar el medio?",
       "closeConfirmMessage": "Lo que se reproduce en el escritorio se detendrá.",
       "closeConfirmCancel": "Cancelar",
