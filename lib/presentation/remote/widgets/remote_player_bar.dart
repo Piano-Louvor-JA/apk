@@ -901,6 +901,8 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   void _openTargets() {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
       builder: (_) => _VideoTargetsSheet(
         initial: _st,
         states: widget.states,
@@ -1011,30 +1013,38 @@ class _VideoTargetsSheet extends StatelessWidget {
           final monitors = _RemotePlayerBarState._targetMonitors(state);
           final tvs = _RemotePlayerBarState._targetTvs(state);
           final empty = monitors.isEmpty && tvs.isEmpty;
-          return ListView(
-            shrinkWrap: true,
-            children: [
-              ListTile(
-                title: Text(
-                  'remote.video.selectScreens'.tr(),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              if (empty) ListTile(title: Text('remote.video.noScreens'.tr())),
-              for (final monitor in monitors)
-                _tile(monitor, TablerIcons.deviceDesktop),
-              if (tvs.isNotEmpty) ...[
-                const Divider(),
+          // Arrastável: abre na metade e sobe até quase a tela toda, para
+          // alcançar as conexões remotas (TVs) abaixo dos monitores.
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.6,
+            minChildSize: 0.3,
+            maxChildSize: 0.95,
+            builder: (context, controller) => ListView(
+              controller: controller,
+              children: [
                 ListTile(
-                  dense: true,
                   title: Text(
-                    'remote.video.remoteConnections'.tr(),
-                    style: Theme.of(context).textTheme.labelLarge,
+                    'remote.video.selectScreens'.tr(),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                for (final tv in tvs) _tile(tv, TablerIcons.deviceTv),
+                if (empty) ListTile(title: Text('remote.video.noScreens'.tr())),
+                for (final monitor in monitors)
+                  _tile(monitor, TablerIcons.deviceDesktop),
+                if (tvs.isNotEmpty) ...[
+                  const Divider(),
+                  ListTile(
+                    dense: true,
+                    title: Text(
+                      'remote.video.remoteConnections'.tr(),
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  for (final tv in tvs) _tile(tv, TablerIcons.deviceTv),
+                ],
               ],
-            ],
+            ),
           );
         },
       ),
