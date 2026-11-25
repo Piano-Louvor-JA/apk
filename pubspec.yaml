@@ -29,6 +29,8 @@ dependencies:
 
   # Internationalization
   easy_localization: ^3.0.7
+  flutter_localizations:
+    sdk: flutter
 
   # Persistent key-value storage (settings)
   shared_preferences: ^2.5.6

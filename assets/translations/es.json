@@ -357,7 +357,16 @@
     "languageEnglish": "English",
     "languageSpanish": "Espanol",
     "version": "Version",
-    "privacyPolicy": "Política de Privacidad"
+    "privacyPolicy": "Política de Privacidad",
+    "languageRussian": "Русский",
+    "languageUkrainian": "Українська",
+    "languageFrench": "Français",
+    "languageJapanese": "日本語",
+    "languageKorean": "한국어",
+    "languageChinese": "中文",
+    "languageTurkish": "Türkçe",
+    "languageArabic": "العربية",
+    "languageHindi": "हिन्दी"
   },
   "timer": {
     "save": "Guardar",
