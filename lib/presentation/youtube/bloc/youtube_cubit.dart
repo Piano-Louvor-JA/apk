@@ -147,6 +147,14 @@ class YoutubeCubit extends Cubit<YoutubeState> {
     );
   }
 
+  /// Só histórico e favoritos (no controle remoto, quando o desktop manda).
+  Future<void> reloadLibrary() async {
+    final history = await _storage.history();
+    final favorites = await _storage.favorites();
+    if (isClosed) return;
+    emit(state.copyWith(history: history, favorites: favorites));
+  }
+
   /* ---------- Busca ---------- */
 
   Future<void> search(String text) async {

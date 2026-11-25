@@ -681,7 +681,8 @@
       "reload": "Recarregar",
       "project": "Projetar no desktop",
       "close": "Fechar navegador"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "Tocar aleatório",
@@ -869,6 +870,11 @@
       "saveAsCollection": "Salvar como coletânea",
       "filter": "Buscar pelo número ou nome…",
       "noMatch": "Nenhum vídeo para “{query}”."
+    },
+    "remote": {
+      "subtitle": "Toca no computador",
+      "sent": "Abrindo no computador: {title}",
+      "notConnected": "Conecte o controle remoto ao computador primeiro."
     }
   }
 }

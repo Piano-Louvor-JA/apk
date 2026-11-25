@@ -15,6 +15,7 @@ import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presenc
 import 'widgets/remote_bible_preview.dart';
 import 'remote_announcements_panel.dart';
 import 'remote_sabbath_panel.dart';
+import 'package:louvorja_piano_mobile/presentation/youtube/youtube_page.dart';
 
 typedef RemoteSend =
     Future<void> Function(
@@ -728,19 +729,49 @@ class _RemoteMorePanelState extends State<RemoteMorePanel> {
         _featureCard(context, _MoreFeature.random, TablerIcons.dice, 'remote.random.title'),
         _featureCard(context, _MoreFeature.announcements, TablerIcons.speakerphone, 'remote.tabAnnouncements'),
         _featureCard(context, _MoreFeature.sabbath, TablerIcons.book2, 'remote.sabbath.title'),
+        // Só para desktops que tocam YouTube pelo remoto (os antigos não anunciam).
+        if (widget.state?.youtubeCanPlay ?? false)
+          _card(
+            context,
+            key: const Key('remote-more-youtube'),
+            icon: TablerIcons.brandYoutube,
+            label: 'remote.youtube',
+            onTap: _openYoutube,
+          ),
       ],
     );
   }
 
-  Widget _featureCard(BuildContext context, _MoreFeature feature, IconData icon, String label) {
+  /// O módulo YouTube inteiro, mas tocando no computador (mesmo player do
+  /// vídeo do YouTube da liturgia), com a barra do player do computador.
+  void _openYoutube() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => YoutubePage(
+          remote: true,
+          openPlayer: youtubeDesktopOpener(),
+        ),
+      ),
+    );
+  }
+
+  Widget _featureCard(BuildContext context, _MoreFeature feature, IconData icon, String label) => _card(
+    context,
+    key: Key(switch (feature) { _MoreFeature.time => 'remote-more-time', _MoreFeature.random => 'remote-more-random', _MoreFeature.announcements => 'remote-more-announcements', _MoreFeature.sabbath => 'remote-more-sabbath' }),
+    icon: icon,
+    label: label,
+    onTap: () => setState(() => _feature = feature),
+  );
+
+  Widget _card(BuildContext context, {required Key key, required IconData icon, required String label, required VoidCallback onTap}) {
     final theme = Theme.of(context);
     return Material(
-      key: Key(switch (feature) { _MoreFeature.time => 'remote-more-time', _MoreFeature.random => 'remote-more-random', _MoreFeature.announcements => 'remote-more-announcements', _MoreFeature.sabbath => 'remote-more-sabbath' }),
+      key: key,
       color: theme.colorScheme.surfaceContainer,
       borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => setState(() => _feature = feature),
+        onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -10,6 +10,7 @@ import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_target.dart';
 import 'package:louvorja_piano_mobile/core/services/youtube/youtube_downloads.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/youtube_library_storage.dart';
+import 'package:louvorja_piano_mobile/data/datasources/local/youtube_remote_library_storage.dart';
 import 'package:louvorja_piano_mobile/data/repositories/liturgy_link_repository_impl.dart';
 import 'package:louvorja_piano_mobile/data/repositories/youtube_search_repository_impl.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
@@ -18,6 +19,9 @@ import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
 import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_youtube_library.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_bar.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/player/local_liturgy_player.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/player/local_liturgy_player_bar.dart';
@@ -76,6 +80,33 @@ Future<void> openYoutubePlayer(BuildContext context, YoutubeVideo video) async {
   }
 }
 
+/// Controle remoto: toca o vídeo no computador, no mesmo player do vídeo do
+/// YouTube da liturgia (`youtube.play`). A barra do player do computador
+/// aparece embaixo da página; projetar é pela seta dela.
+YoutubePlayerOpener youtubeDesktopOpener({
+  Future<void> Function(RemoteCommand command)? send,
+  bool Function()? connected,
+}) => (context, video) async {
+  final isConnected = connected ?? () => RemoteSession.instance.isControlling;
+  if (!isConnected()) {
+    showYoutubeToast(context, 'youtube.remote.notConnected'.tr());
+    return;
+  }
+  showYoutubeToast(
+    context,
+    'youtube.remote.sent'.tr(namedArgs: {'title': video.title}),
+  );
+  await (send ?? RemoteSession.instance.send)(
+    RemoteCommand(
+      id: 'yt${DateTime.now().microsecondsSinceEpoch}',
+      action: RemoteAction.youtubePlay,
+      url: video.watchUrl,
+      name: video.title,
+      channel: video.channel.isEmpty ? null : video.channel,
+    ),
+  );
+};
+
 /// Módulo YouTube (a partir de Hinos): buscar, tocar e projetar vídeos,
 /// histórico, favoritos, coletâneas online e downloads offline.
 /// Paridade com o módulo YouTube do desktop.
@@ -85,25 +116,50 @@ class YoutubePage extends StatelessWidget {
     this.search,
     this.storage,
     this.openPlayer = openYoutubePlayer,
+    this.remote = false,
+    this.remoteStates,
+    this.remoteInitialState,
   });
 
   final YoutubeSearchRepository? search;
   final YoutubeLibraryStorage? storage;
   final YoutubePlayerOpener openPlayer;
 
+  /// Aberta pelo controle remoto: toca no computador ([youtubeDesktopOpener]),
+  /// mostra a barra do player do computador e esconde os downloads do celular.
+  final bool remote;
+
+  /// Estados do computador (padrão: a sessão do controle remoto). Para testes.
+  final Stream<RemotePlayerState>? remoteStates;
+  final RemotePlayerState? remoteInitialState;
+
   @override
   Widget build(BuildContext context) => BlocProvider(
     create: (_) => YoutubeCubit(
       search: search ?? YoutubeSearchRepositoryImpl(),
-      storage: storage,
+      // Controle remoto: histórico e favoritos são os do computador.
+      storage: storage ?? (remote ? YoutubeRemoteLibraryStorage() : null),
     )..load(),
-    child: _YoutubeView(openPlayer: openPlayer),
+    child: _YoutubeView(
+      openPlayer: openPlayer,
+      remote: remote,
+      remoteStates: remoteStates,
+      remoteInitialState: remoteInitialState,
+    ),
   );
 }
 
 class _YoutubeView extends StatefulWidget {
-  const _YoutubeView({required this.openPlayer});
+  const _YoutubeView({
+    required this.openPlayer,
+    this.remote = false,
+    this.remoteStates,
+    this.remoteInitialState,
+  });
   final YoutubePlayerOpener openPlayer;
+  final bool remote;
+  final Stream<RemotePlayerState>? remoteStates;
+  final RemotePlayerState? remoteInitialState;
 
   @override
   State<_YoutubeView> createState() => _YoutubeViewState();
@@ -133,14 +189,19 @@ class _YoutubeViewState extends State<_YoutubeView>
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    if (YoutubeDownloads.supported) {
+    if (widget.remote) RemoteYoutubeLibrary.changes.addListener(_onDesktopLibrary);
+    if (_downloads) {
       unawaited(YoutubeDownloads.instance.measure());
       unawaited(YoutubeDownloads.instance.loadIndex());
     }
   }
 
+  /// O computador mandou histórico/favoritos novos (ou o celular mudou).
+  void _onDesktopLibrary() => unawaited(_cubit.reloadLibrary());
+
   @override
   void dispose() {
+    RemoteYoutubeLibrary.changes.removeListener(_onDesktopLibrary);
     _tabs.dispose();
     _searchField.dispose();
     _historyFilter.dispose();
@@ -161,6 +222,9 @@ class _YoutubeViewState extends State<_YoutubeView>
   }
 
   YoutubeCubit get _cubit => context.read<YoutubeCubit>();
+
+  /// Downloads do celular: só fora do controle remoto (lá quem toca é o computador).
+  bool get _downloads => !widget.remote && YoutubeDownloads.supported;
 
   /// Vídeos que o módulo conhece (busca, histórico, favoritos, coletâneas).
   List<YoutubeVideo> _knownVideos(YoutubeState state) => [
@@ -300,6 +364,7 @@ class _YoutubeViewState extends State<_YoutubeView>
     onFavorite: () => _cubit.toggleFavorite(video),
     onAddToCollection: () => showYoutubeCollectionPicker(context, video),
     extraActions: extra,
+    downloads: !widget.remote,
   );
 
   @override
@@ -314,7 +379,8 @@ class _YoutubeViewState extends State<_YoutubeView>
             children: [
               Text('youtube.title'.tr()),
               Text(
-                'youtube.subtitle'.tr(),
+                (widget.remote ? 'youtube.remote.subtitle' : 'youtube.subtitle')
+                    .tr(),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.primary,
                 ),
@@ -322,14 +388,14 @@ class _YoutubeViewState extends State<_YoutubeView>
             ],
           ),
           actions: [
-            if (YoutubeDownloads.supported)
+            if (_downloads)
               _StorageChip(
                 onTap: () {
                   final state = _cubit.state;
                   showYoutubeStorageSheet(context, known: _knownVideos(state));
                 },
               ),
-            if (YoutubeDownloads.supported)
+            if (_downloads)
               _DownloadsButton(
                 open: _downloadsOpen,
                 onTap: _downloadsOpen ? _closeDownloads : _openDownloads,
@@ -379,24 +445,55 @@ class _YoutubeViewState extends State<_YoutubeView>
                       )
                     : _tabViews(),
               ),
-              // O mesmo player da Liturgia (visual do controle remoto).
-              BlocBuilder<LocalLiturgyPlayer, RemotePlayerState>(
-                bloc: localLiturgyPlayer,
-                builder: (context, _) => localLiturgyPlayer.hasContent
-                    ? ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: constraints.maxHeight * .62,
-                        ),
-                        child: const SingleChildScrollView(
-                          child: LocalLiturgyPlayerBar(),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+              // Controle remoto: a barra do player do computador (a mesma da
+              // liturgia remota); senão o player local da Liturgia.
+              if (widget.remote)
+                _remotePlayerBar(constraints)
+              else
+                // O mesmo player da Liturgia (visual do controle remoto).
+                BlocBuilder<LocalLiturgyPlayer, RemotePlayerState>(
+                  bloc: localLiturgyPlayer,
+                  builder: (context, _) => localLiturgyPlayer.hasContent
+                      ? ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight * .62,
+                          ),
+                          child: const SingleChildScrollView(
+                            child: LocalLiturgyPlayerBar(),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _remotePlayerBar(BoxConstraints constraints) {
+    final session = RemoteSession.instance;
+    return StreamBuilder<RemotePlayerState>(
+      stream: widget.remoteStates ?? session.states,
+      initialData: widget.remoteInitialState ?? session.lastState,
+      builder: (context, snapshot) {
+        final state = snapshot.data;
+        if (state == null || !state.hasOpenMedia) {
+          return const SizedBox.shrink();
+        }
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: constraints.maxHeight * .62),
+          child: SingleChildScrollView(
+            child: RemotePlayerBar(
+              key: const Key('youtube-remote-player'),
+              state: state,
+              showTransport: true,
+              send: session.send,
+              videoFrame: session.videoFrame,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -413,6 +510,7 @@ class _YoutubeViewState extends State<_YoutubeView>
           opened: _openedCollection,
           onImportPlaylist: _importPlaylist,
           onOpenSearch: () => _tabs.animateTo(0),
+          downloads: !widget.remote,
         ),
         YoutubeChannelsTab(
           tile: (video, channelState) => _tile(video, channelState),

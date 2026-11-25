@@ -682,7 +682,8 @@
       "reload": "Reload",
       "project": "Project on desktop",
       "close": "Close browser"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "Shuffle play",
@@ -870,6 +871,11 @@
       "saveAsCollection": "Save as collection",
       "filter": "Find by number or name…",
       "noMatch": "No videos for “{query}”."
+    },
+    "remote": {
+      "subtitle": "Plays on the computer",
+      "sent": "Opening on the computer: {title}",
+      "notConnected": "Connect the remote control to the computer first."
     }
   }
 }
