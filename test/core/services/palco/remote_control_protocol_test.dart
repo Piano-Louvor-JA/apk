@@ -24,13 +24,20 @@ void main() {
     final ws = await WebSocket.connect(
       'ws://127.0.0.1:${sender.effectiveWsPort}/palco',
     );
+    // Aguarda o servidor processar o hello, não apenas a fila local.
+    final registered = sender.events
+        .firstWhere(
+          (message) =>
+              message.type == 'hello' && message.helloRole == 'desktop',
+        )
+        .timeout(const Duration(seconds: 5));
     // hello: declara role desktop
     ws.add(
       jsonEncode(
         const PalcoMessage(type: 'hello', fields: {'role': 'desktop'}).toJson(),
       ),
     );
-    await pumpEventQueue();
+    await registered;
     return (base!, ws);
   }
 
@@ -106,11 +113,11 @@ void main() {
     final (_, ws) = await connectClient();
     await pumpEventQueue();
     expect(sender.roleCounts['desktop'], 1);
+    final removed = sender.rolesChanged
+        .firstWhere((_) => sender.roleCounts['desktop'] == null)
+        .timeout(const Duration(seconds: 5));
     await ws.close();
-    // O servidor só percebe o fechamento do socket de forma assíncrona.
-    for (var i = 0; i < 40 && sender.roleCounts['desktop'] != null; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 25));
-    }
+    await removed;
     expect(sender.roleCounts['desktop'], isNull);
   });
 }
