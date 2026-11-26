@@ -1,3 +1,4 @@
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -34,8 +35,8 @@ class CustomCollectionsPage extends StatefulWidget {
 
   /// Dio padrão da página. Visível p/ testes (RF-01: timeouts 8s/15s).
   @visibleForTesting
-  static Dio buildDefaultDio() => Dio(
-    BaseOptions(
+  static Dio buildDefaultDio() => createApiDio(
+    options: BaseOptions(
       // Sem timeout o request fica pendurado quando o host não responde
       // (ex.: saiu do Wi-Fi de casa) — falha rápida com erro claro.
       connectTimeout: const Duration(seconds: 8),
