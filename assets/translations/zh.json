@@ -564,7 +564,9 @@
       "closeConfirmTitle": "关闭媒体？",
       "closeConfirmMessage": "桌面上正在播放的内容将停止。",
       "closeConfirmCancel": "取消",
-      "closeConfirmOk": "关闭"
+      "closeConfirmOk": "关闭",
+      "fullscreen": "全屏",
+      "exitFullscreen": "退出全屏"
     },
     "title": "遥控器",
     "palcoOff": "请先打开 Palco — 遥控使用同一连接。",
@@ -691,7 +693,8 @@
       "reload": "重新加载",
       "project": "投影到桌面",
       "close": "关闭浏览器"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "随机播放",
@@ -722,7 +725,8 @@
       "history": "历史",
       "favorites": "收藏",
       "collections": "合集",
-      "downloads": "已下载"
+      "downloads": "已下载",
+      "channels": "频道"
     },
     "search": {
       "placeholder": "搜索 YouTube 或粘贴链接…",
@@ -839,6 +843,50 @@
       "removeAllTitle": "删除所有已下载的视频？",
       "removeAllMessage": "{n} 个 YouTube 视频的副本将从设备中移除。它们仍保留在历史、收藏和合集中，可以重新下载。",
       "others": "此文件夹中另有 {n} 个崇拜程序视频。"
+    },
+    "channels": {
+      "title": "频道",
+      "hint": "粘贴频道链接即可添加（例如 youtube.com/@channel）。播放列表和视频会在打开时从 YouTube 读取。",
+      "addPlaceholder": "粘贴 YouTube 频道链接或 @账号…",
+      "add": "添加频道",
+      "adding": "正在读取频道…",
+      "addInvalid": "这不是 YouTube 频道链接（例如 youtube.com/@channel）。",
+      "addEmpty": "此频道没有公开的播放列表。",
+      "addError": "暂时无法读取该频道。请检查网络后重试。",
+      "added": "已添加频道“{name}”。",
+      "alreadyDefault": "“{name}”已内置在应用中。",
+      "delete": "删除频道",
+      "deleteTitle": "删除频道“{name}”？",
+      "deleteMessage": "频道将从列表中移除。视频仍保留在历史记录、收藏和合集中。",
+      "deleteConfirm": "删除",
+      "filterPlaylists": "查找播放列表…",
+      "noPlaylistMatch": "没有与“{query}”相关的播放列表。",
+      "searchPlaceholder": "搜索复临信徒频道（例如：赞美、青年、圣诞）…",
+      "search": "搜索",
+      "searching": "正在搜索频道…",
+      "searchTitle": "与“{query}”相关的复临信徒频道",
+      "searchEmpty": "未找到与“{query}”相关的频道。请换个词试试。",
+      "searchError": "暂时无法搜索。请检查网络后重试。",
+      "searchClose": "关闭搜索",
+      "register": "添加",
+      "registered": "已添加",
+      "builtIn": "应用内置",
+      "playlistCount": "{n} 个播放列表",
+      "open": "打开",
+      "backToChannels": "返回频道",
+      "backToPlaylists": "返回播放列表",
+      "loading": "正在读取播放列表…",
+      "error": "暂时无法读取该播放列表。请检查网络后重试。",
+      "empty": "此播放列表目前为空。",
+      "retry": "重试",
+      "saveAsCollection": "保存为合集",
+      "filter": "按编号或名称查找…",
+      "noMatch": "没有与“{query}”相关的视频。"
+    },
+    "remote": {
+      "subtitle": "在电脑上播放",
+      "sent": "正在电脑上打开：{title}",
+      "notConnected": "请先将遥控器连接到电脑。"
     }
   }
 }

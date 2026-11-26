@@ -564,7 +564,9 @@
       "closeConfirmTitle": "Fermer le média ?",
       "closeConfirmMessage": "Ce qui est lu sur l'ordinateur sera arrêté.",
       "closeConfirmCancel": "Annuler",
-      "closeConfirmOk": "Fermer"
+      "closeConfirmOk": "Fermer",
+      "fullscreen": "Plein écran",
+      "exitFullscreen": "Quitter le plein écran"
     },
     "title": "Télécommande",
     "palcoOff": "Allumez d'abord le Palco — la télécommande utilise la même connexion.",
@@ -691,7 +693,8 @@
       "reload": "Recharger",
       "project": "Projeter sur l'ordinateur",
       "close": "Fermer le navigateur"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "Lecture aléatoire",
@@ -722,7 +725,8 @@
       "history": "Historique",
       "favorites": "Favoris",
       "collections": "Collections",
-      "downloads": "Téléchargées"
+      "downloads": "Téléchargées",
+      "channels": "Chaînes"
     },
     "search": {
       "placeholder": "Rechercher sur YouTube ou collez un lien…",
@@ -839,6 +843,50 @@
       "removeAllTitle": "Supprimer toutes les vidéos téléchargées ?",
       "removeAllMessage": "Les copies de {n} vidéo(s) YouTube seront retirées de l'appareil. Elles restent dans l'historique, les favoris et les collections, et peuvent être retéléchargées.",
       "others": "Plus {n} vidéo(s) de Liturgie conservées dans ce dossier."
+    },
+    "channels": {
+      "title": "Chaînes",
+      "hint": "Ajoutez une chaîne en collant son lien (ex. youtube.com/@chaine). Les playlists et vidéos sont lues sur YouTube quand vous les ouvrez.",
+      "addPlaceholder": "Collez le lien de la chaîne YouTube ou le @identifiant…",
+      "add": "Ajouter une chaîne",
+      "adding": "Lecture de la chaîne…",
+      "addInvalid": "Ce n'est pas un lien de chaîne YouTube (ex. youtube.com/@chaine).",
+      "addEmpty": "Cette chaîne n'a pas de playlists publiques.",
+      "addError": "Impossible de lire la chaîne pour l'instant. Vérifiez votre connexion et réessayez.",
+      "added": "Chaîne « {name} » ajoutée.",
+      "alreadyDefault": "« {name} » est déjà inclus dans l'app.",
+      "delete": "Supprimer la chaîne",
+      "deleteTitle": "Supprimer la chaîne « {name} » ?",
+      "deleteMessage": "La chaîne quitte la liste. Les vidéos restent dans l'historique, les favoris et les collections.",
+      "deleteConfirm": "Supprimer",
+      "filterPlaylists": "Chercher une playlist…",
+      "noPlaylistMatch": "Aucune playlist pour « {query} ».",
+      "searchPlaceholder": "Rechercher des chaînes adventistes (ex. louange, jeunesse, Noël)…",
+      "search": "Rechercher",
+      "searching": "Recherche des chaînes…",
+      "searchTitle": "Chaînes adventistes pour « {query} »",
+      "searchEmpty": "Aucune chaîne trouvée pour « {query} ». Essayez d'autres mots.",
+      "searchError": "Impossible de rechercher pour l'instant. Vérifiez votre connexion et réessayez.",
+      "searchClose": "Fermer la recherche",
+      "register": "Ajouter",
+      "registered": "Ajoutée",
+      "builtIn": "Inclus dans l'app",
+      "playlistCount": "{n} playlist(s)",
+      "open": "Ouvrir",
+      "backToChannels": "Retour aux chaînes",
+      "backToPlaylists": "Retour aux playlists",
+      "loading": "Lecture de la playlist…",
+      "error": "Impossible de lire la playlist pour l'instant. Vérifiez votre connexion et réessayez.",
+      "empty": "Cette playlist est vide pour le moment.",
+      "retry": "Réessayer",
+      "saveAsCollection": "Enregistrer comme collection",
+      "filter": "Chercher par numéro ou nom…",
+      "noMatch": "Aucune vidéo pour « {query} »."
+    },
+    "remote": {
+      "subtitle": "Joue sur l'ordinateur",
+      "sent": "Ouverture sur l'ordinateur : {title}",
+      "notConnected": "Connectez d'abord la télécommande à l'ordinateur."
     }
   }
 }
