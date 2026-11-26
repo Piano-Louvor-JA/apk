@@ -38,12 +38,53 @@ class HomeLocation {
 class HomeLocationPreferences {
   static const storageKey = 'home.location';
 
+  /// Ultimo distrito/igreja nao vazios ja digitados (por campo). Local: nao
+  /// sincroniza. A telemetria usa quando o campo foi apagado (mesma chave do
+  /// desktop: `home.locationLastKnown`).
+  static const lastKnownKey = 'home.locationLastKnown';
+
+  /// Avisa quem escuta (heartbeat da telemetria) que o usuario salvou.
+  static final ValueNotifier<int> savedChanges = ValueNotifier<int>(0);
+
   /// Avisa a Home quando o valor mudou fora dela (pull do sync v2).
   static final ValueNotifier<int> externalChanges = ValueNotifier<int>(0);
 
   const HomeLocationPreferences._();
 
   static void notifyExternalChange() => externalChanges.value++;
+
+  static HomeLocation _read(SharedPreferences prefs, String key) {
+    try {
+      final raw = prefs.getString(key);
+      return raw == null
+          ? const HomeLocation()
+          : HomeLocation.fromJson(jsonDecode(raw));
+    } catch (_) {
+      return const HomeLocation();
+    }
+  }
+
+  static String _firstFilled(String a, String b, String c) =>
+      a.isNotEmpty ? a : (b.isNotEmpty ? b : c);
+
+  static Future<HomeLocation> loadLastKnown() async {
+    try {
+      return _read(await SharedPreferences.getInstance(), lastKnownKey);
+    } catch (_) {
+      return const HomeLocation();
+    }
+  }
+
+  /// Distrito/igreja para a telemetria: o campo atual; se estiver vazio, o
+  /// ultimo valor ja digitado nele.
+  static Future<HomeLocation> resolveReported() async {
+    final current = await load();
+    final known = await loadLastKnown();
+    return HomeLocation(
+      district: current.district.isNotEmpty ? current.district : known.district,
+      church: current.church.isNotEmpty ? current.church : known.church,
+    );
+  }
 
   /// Falha de leitura ou valor invalido retorna vazio: a Home nunca quebra
   /// por causa de preferencia.
@@ -66,10 +107,28 @@ class HomeLocationPreferences {
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(storageKey, jsonEncode(location.toJson()));
+      // Le antes de sobrescrever: quem preencheu antes desta versao (ou
+      // recebeu pelo sync) e apaga agora ainda tem o valor guardado.
+      final previous = _read(prefs, storageKey);
+      final known = _read(prefs, lastKnownKey);
+      final next = HomeLocation.fromJson(location.toJson());
+      await prefs.setString(storageKey, jsonEncode(next.toJson()));
+      final lastKnown = HomeLocation(
+        district: _firstFilled(
+          next.district,
+          previous.district,
+          known.district,
+        ),
+        church: _firstFilled(next.church, previous.church, known.church),
+      );
+      if (lastKnown.district != known.district ||
+          lastKnown.church != known.church) {
+        await prefs.setString(lastKnownKey, jsonEncode(lastKnown.toJson()));
+      }
     } catch (_) {
       // Best-effort: a tela continua com o valor digitado.
     }
+    savedChanges.value++;
     try {
       await outbox?.call(storageKey, location.toJson());
     } catch (_) {

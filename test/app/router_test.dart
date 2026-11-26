@@ -19,7 +19,11 @@ Widget _wrapRouter() {
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    // Testes de rota: assistente de primeira inicializacao ja concluido (o
+    // logo dele pulsa sem parar e o pumpAndSettle nao assentaria).
+    SharedPreferences.setMockInitialValues({
+      'onboarding.state': '{"completedAt":"2026-01-01T00:00:00Z"}',
+    });
     // Mock PackageInfo para Settings nao pendurar em FutureBuilder
     const channel = MethodChannel('dev.fluttercommunity.plus/package_info');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

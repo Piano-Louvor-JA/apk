@@ -14,8 +14,10 @@ import '../../app/theme/app_spacing.dart';
 import '../../core/services/apk_installer.dart';
 import '../../core/services/apk_version_guard.dart';
 import '../../core/services/home_location_preferences.dart';
+import '../../core/services/onboarding_preferences.dart';
 import '../../core/services/sync/operator_state_boot.dart';
 import '../../core/services/update_service.dart';
+import '../onboarding/onboarding_dialog.dart';
 import '../shared/widgets/gradient_background.dart';
 import '../shared/widgets/update_banner.dart';
 
@@ -44,6 +46,10 @@ class _HomePageState extends State<HomePage> {
   bool _editingDistrict = false;
   bool _editingChurch = false;
 
+  // Assistente de primeira inicializacao + lembrete leve da Home.
+  OnboardingState _onboarding = const OnboardingState();
+  bool _onboardingChecked = false;
+
   // Auto-update
   late final UpdateService _updateService;
   UpdateCheckResult? _update;
@@ -62,6 +68,60 @@ class _HomePageState extends State<HomePage> {
     _loadLocation();
     HomeLocationPreferences.externalChanges.addListener(_loadLocation);
     _checkForUpdates();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkOnboarding());
+  }
+
+  /// Uma vez por abertura: instalacao nova abre o assistente completo; quem
+  /// ja usava e esta sem distrito/igreja ve so essa etapa.
+  Future<void> _checkOnboarding() async {
+    if (_onboardingChecked) return;
+    _onboardingChecked = true;
+    final state = await OnboardingPreferences.load();
+    final location = await HomeLocationPreferences.load();
+    final mode = OnboardingPreferences.resolveMode(
+      state: state,
+      location: location,
+    );
+    if (mode != OnboardingMode.none && mounted) {
+      await OnboardingDialog.show(
+        context,
+        mode: mode,
+        initialLocation: location,
+        onSaveLocation: _persistLocation,
+      );
+      await _loadLocation();
+    }
+    await _reloadOnboarding();
+  }
+
+  Future<void> _reloadOnboarding() async {
+    final state = await OnboardingPreferences.load();
+    if (mounted) setState(() => _onboarding = state);
+  }
+
+  bool get _showReminder => OnboardingPreferences.shouldShowReminder(
+    state: _onboarding,
+    location: HomeLocation(
+      district: _districtController.text,
+      church: _churchController.text,
+    ),
+    now: DateTime.now().toUtc(),
+  );
+
+  Future<void> _snoozeReminder() async {
+    final next = _onboarding.copyWith(
+      reminderSnoozedUntil: OnboardingPreferences.snoozedUntil(
+        DateTime.now().toUtc(),
+      ),
+    );
+    await OnboardingPreferences.save(next);
+    if (mounted) setState(() => _onboarding = next);
+  }
+
+  Future<void> _dismissReminder() async {
+    final next = _onboarding.copyWith(reminderDismissed: true);
+    await OnboardingPreferences.save(next);
+    if (mounted) setState(() => _onboarding = next);
   }
 
   Future<void> _loadLocation() async {
@@ -81,19 +141,25 @@ class _HomePageState extends State<HomePage> {
 
   void _saveLocation() {
     unawaited(
-      HomeLocationPreferences.save(
+      _persistLocation(
         HomeLocation(
           district: _districtController.text,
           church: _churchController.text,
         ),
+      ),
+    );
+  }
+
+  /// Grava distrito/igreja local + outbox do sync (Home e assistente).
+  Future<void> _persistLocation(HomeLocation location) =>
+      HomeLocationPreferences.save(
+        location,
         outbox: (key, value) async => OperatorStateBoot.enqueuePrefsChange(
           await SharedPreferences.getInstance(),
           key,
           value,
         ),
-      ),
-    );
-  }
+      );
 
   // coverage:ignore-start
   Future<void> _checkForUpdates() async {
@@ -299,6 +365,13 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                       ),
+                      if (_showReminder) ...[
+                        const SizedBox(height: 24),
+                        _LocationReminder(
+                          onLater: _snoozeReminder,
+                          onNever: _dismissReminder,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -367,6 +440,56 @@ class _LocationField extends StatelessWidget {
               ? theme.colorScheme.onSurface
               : theme.colorScheme.onSurfaceVariant,
         ),
+      ),
+    );
+  }
+}
+
+/// Lembrete leve (sem modal) enquanto faltar distrito ou igreja.
+class _LocationReminder extends StatelessWidget {
+  final VoidCallback onLater;
+  final VoidCallback onNever;
+
+  const _LocationReminder({required this.onLater, required this.onNever});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    return Container(
+      key: const Key('home-location-reminder'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.08),
+        border: Border.all(color: primary.withValues(alpha: 0.35)),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(14),
+          bottomRight: Radius.circular(14),
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'onboarding.reminder.text'.tr(),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall,
+          ),
+          Wrap(
+            alignment: WrapAlignment.center,
+            children: [
+              TextButton(
+                key: const Key('home-reminder-snooze'),
+                onPressed: onLater,
+                child: Text('onboarding.reminder.later'.tr()),
+              ),
+              TextButton(
+                key: const Key('home-reminder-dismiss'),
+                onPressed: onNever,
+                child: Text('onboarding.reminder.never'.tr()),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

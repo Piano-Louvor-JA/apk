@@ -3,6 +3,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:louvorja_piano_mobile/app/app.dart';
 
@@ -11,6 +12,12 @@ void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
   setUpAll(() {
+    // Navegacao: assistente de primeira inicializacao ja concluido (senao a
+    // etapa de distrito/igreja abre por cima da Home e bloqueia o dock).
+    SharedPreferences.setMockInitialValues({
+      'onboarding.state': '{"completedAt":"2026-01-01T00:00:00Z"}',
+      'home.location': '{"district":"Distrito E2E","church":"Igreja E2E"}',
+    });
     const channel = MethodChannel('dev.fluttercommunity.plus/package_info');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
