@@ -1,5 +1,7 @@
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:louvorja_piano_mobile/core/services/home_location_preferences.dart';
@@ -178,6 +180,41 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
       expect(api.sent, hasLength(1));
+      loop.stop();
+    });
+
+    testWidgets('pausar cancela envio pendente de localizacao', (tester) async {
+      final api = _FakeApi();
+      final loop = HeartbeatLoop(api: api, builder: _builder());
+      loop.start();
+      await tester.pump();
+      HomeLocationPreferences.savedChanges.value++;
+      loop.didChangeAppLifecycleState(AppLifecycleState.paused);
+      await tester.pump(HeartbeatLoop.locationDebounce * 2);
+      expect(api.sent, hasLength(1));
+      // Alteracoes recebidas enquanto pausado tambem nao enviam.
+      HomeLocationPreferences.savedChanges.value++;
+      await tester.pump(HeartbeatLoop.locationDebounce * 2);
+      expect(api.sent, hasLength(1));
+      loop.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(api.sent, hasLength(2));
+      loop.stop();
+    });
+
+    testWidgets('pausar durante montagem do corpo impede envio', (tester) async {
+      final ready = Completer<String>();
+      final api = _FakeApi();
+      final loop = HeartbeatLoop(
+        api: api,
+        builder: HeartbeatBodyBuilder(version: () => ready.future),
+      );
+      loop.start();
+      await tester.pump();
+      loop.didChangeAppLifecycleState(AppLifecycleState.paused);
+      ready.complete('1.0.0');
+      await tester.pump();
+      expect(api.sent, isEmpty);
       loop.stop();
     });
 

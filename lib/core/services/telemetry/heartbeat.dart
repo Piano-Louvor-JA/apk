@@ -201,16 +201,19 @@ class HeartbeatLoop with WidgetsBindingObserver {
 
   void _startTimer() {
     if (_timer != null) return;
-    _send();
     _timer = Timer.periodic(interval, (_) => _send());
+    _send();
   }
 
   void _stopTimer() {
+    _debounce?.cancel();
+    _debounce = null;
     _timer?.cancel();
     _timer = null;
   }
 
   void _onLocationSaved() {
+    if (!_running || _timer == null) return;
     _debounce?.cancel();
     _debounce = Timer(locationDebounce, () {
       _debounce = null;
@@ -221,7 +224,11 @@ class HeartbeatLoop with WidgetsBindingObserver {
   void _send() {
     unawaited(() async {
       try {
-        await api.sendHeartbeat(await builder.build());
+        if (!_running || _timer == null) return;
+        final body = await builder.build();
+        // O app pode ter sido pausado enquanto as preferencias eram lidas.
+        if (!_running || _timer == null) return;
+        await api.sendHeartbeat(body);
       } catch (_) {
         // Silencioso: tenta no proximo ciclo.
       }
