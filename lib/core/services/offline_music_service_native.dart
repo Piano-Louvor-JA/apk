@@ -1,6 +1,7 @@
 library;
 
 import 'package:dio/dio.dart';
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/repositories/music_offline_repository_native.dart';
@@ -16,7 +17,7 @@ class OfflineMusicService implements OfflineMusicPort, OfflineLibraryPort {
     if (_repository != null) return _repository!;
     final documents = await getApplicationDocumentsDirectory();
     _repository = MusicOfflineRepository(
-      Dio(),
+      createApiDio(),
       '${documents.path}/music-offline',
     );
     return _repository!;

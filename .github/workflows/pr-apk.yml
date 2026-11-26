@@ -70,12 +70,14 @@ jobs:
       - name: Build APK (debug, mesmo perfil do CI)
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
+          PARTNER_KEY_STG: ${{ secrets.PARTNER_KEY_STG }}
         run: >-
           flutter build apk --debug --no-tree-shake-icons
           --dart-define=LOUVORJA_URL_DATABASE=https://api-stg.pianolouvorja.com.br/json_db
           --dart-define=LOUVORJA_URL_FILES=https://api-stg.pianolouvorja.com.br/file
           --dart-define=LOUVORJA_FALLBACK_URLS=
           --dart-define=API_TOKEN=$API_TOKEN
+          --dart-define=PARTNER_KEY_STG="$PARTNER_KEY_STG"
 
       - name: Renomeia artefato com número da PR
         env:
