@@ -564,7 +564,9 @@
       "closeConfirmTitle": "미디어를 닫을까요?",
       "closeConfirmMessage": "데스크톱에서 재생 중인 내용이 중지됩니다.",
       "closeConfirmCancel": "취소",
-      "closeConfirmOk": "닫기"
+      "closeConfirmOk": "닫기",
+      "fullscreen": "전체 화면",
+      "exitFullscreen": "전체 화면 종료"
     },
     "title": "리모컨",
     "palcoOff": "먼저 Palco를 켜세요 — 리모컨은 같은 연결을 사용합니다.",
@@ -691,7 +693,8 @@
       "reload": "다시 불러오기",
       "project": "데스크톱에 투영",
       "close": "브라우저 닫기"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "임의 재생",
@@ -722,7 +725,8 @@
       "history": "기록",
       "favorites": "즐겨찾기",
       "collections": "컬렉션",
-      "downloads": "내려받음"
+      "downloads": "내려받음",
+      "channels": "채널"
     },
     "search": {
       "placeholder": "YouTube 검색 또는 링크 붙여넣기…",
@@ -839,6 +843,50 @@
       "removeAllTitle": "내려받은 영상을 모두 삭제할까요?",
       "removeAllMessage": "YouTube 영상 {n}개의 사본이 기기에서 제거됩니다. 기록, 즐겨찾기, 컬렉션에는 남으며 다시 내려받을 수 있습니다.",
       "others": "이 폴더에는 예배 순서 영상도 {n}개 보관되어 있습니다."
+    },
+    "channels": {
+      "title": "채널",
+      "hint": "링크를 붙여넣어 채널을 추가하세요(예: youtube.com/@channel). 재생목록과 영상은 열 때 YouTube에서 읽어옵니다.",
+      "addPlaceholder": "YouTube 채널 링크나 @핸들을 붙여넣으세요…",
+      "add": "채널 추가",
+      "adding": "채널을 읽는 중…",
+      "addInvalid": "YouTube 채널 링크가 아닙니다(예: youtube.com/@channel).",
+      "addEmpty": "이 채널에는 공개 재생목록이 없습니다.",
+      "addError": "지금은 채널을 읽을 수 없습니다. 인터넷을 확인하고 다시 시도하세요.",
+      "added": "채널 “{name}”을(를) 추가했습니다.",
+      "alreadyDefault": "“{name}”은(는) 이미 앱에 들어 있습니다.",
+      "delete": "채널 삭제",
+      "deleteTitle": "채널 “{name}”을(를) 삭제할까요?",
+      "deleteMessage": "채널이 목록에서 빠집니다. 영상은 기록, 즐겨찾기, 컬렉션에 남습니다.",
+      "deleteConfirm": "삭제",
+      "filterPlaylists": "재생목록 찾기…",
+      "noPlaylistMatch": "“{query}”에 해당하는 재생목록이 없습니다.",
+      "searchPlaceholder": "재림교회 채널 검색(예: 찬양, 청년, 성탄)…",
+      "search": "검색",
+      "searching": "채널을 찾는 중…",
+      "searchTitle": "“{query}” 재림교회 채널",
+      "searchEmpty": "“{query}”에 해당하는 채널을 찾지 못했습니다. 다른 단어로 해 보세요.",
+      "searchError": "지금은 검색할 수 없습니다. 인터넷을 확인하고 다시 시도하세요.",
+      "searchClose": "검색 닫기",
+      "register": "추가",
+      "registered": "추가됨",
+      "builtIn": "앱에 기본 포함",
+      "playlistCount": "재생목록 {n}개",
+      "open": "열기",
+      "backToChannels": "채널로 돌아가기",
+      "backToPlaylists": "재생목록으로 돌아가기",
+      "loading": "재생목록을 읽는 중…",
+      "error": "지금은 재생목록을 읽을 수 없습니다. 인터넷을 확인하고 다시 시도하세요.",
+      "empty": "이 재생목록은 지금 비어 있습니다.",
+      "retry": "다시 시도",
+      "saveAsCollection": "컬렉션으로 저장",
+      "filter": "번호나 이름으로 찾기…",
+      "noMatch": "“{query}”에 해당하는 영상이 없습니다."
+    },
+    "remote": {
+      "subtitle": "컴퓨터에서 재생",
+      "sent": "컴퓨터에서 여는 중: {title}",
+      "notConnected": "먼저 리모컨을 컴퓨터에 연결하세요."
     }
   },
   "onboarding": {

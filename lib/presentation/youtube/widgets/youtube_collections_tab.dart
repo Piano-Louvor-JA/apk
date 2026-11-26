@@ -32,6 +32,7 @@ class YoutubeCollectionsTab extends StatefulWidget {
     required this.opened,
     required this.onImportPlaylist,
     required this.onOpenSearch,
+    this.downloads = true,
   });
 
   final YoutubeTileBuilder tile;
@@ -39,6 +40,9 @@ class YoutubeCollectionsTab extends StatefulWidget {
   /// Id da coletânea aberta (nulo = lista).
   final ValueNotifier<String?> opened;
   final VoidCallback onImportPlaylist, onOpenSearch;
+
+  /// "Baixar todos" (falso no controle remoto).
+  final bool downloads;
 
   @override
   State<YoutubeCollectionsTab> createState() => _YoutubeCollectionsTabState();
@@ -276,7 +280,7 @@ class _YoutubeCollectionsTabState extends State<YoutubeCollectionsTab> {
             ],
           ),
         ),
-        if (c.videos.isNotEmpty && YoutubeDownloads.supported)
+        if (c.videos.isNotEmpty && widget.downloads && YoutubeDownloads.supported)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s3),
             child: _DownloadAllBar(collection: c),

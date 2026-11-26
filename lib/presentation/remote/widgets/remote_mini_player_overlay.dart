@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import '../../liturgy/player/video_fullscreen_page.dart';
 import 'remote_player_bar.dart';
 import 'remote_floating_panel.dart';
 import 'remote_bible_floating_panel.dart';
@@ -103,6 +104,9 @@ class _RemoteMiniPlayerOverlayState extends State<RemoteMiniPlayerOverlay> {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
+      // Tela cheia do vídeo aberta: sem o minimizado por cima.
+      valueListenable: VideoFullscreenPage.open,
+      builder: (context, fullscreen, _) => ValueListenableBuilder<bool>(
       valueListenable: _presence,
       builder: (context, fullPlayerVisible, _) {
         final state = _state;
@@ -110,6 +114,7 @@ class _RemoteMiniPlayerOverlayState extends State<RemoteMiniPlayerOverlay> {
         final visible =
             !_expanded &&
             !fullPlayerVisible &&
+            !fullscreen &&
             media.viewInsets.bottom == 0 &&
             _session.isControlling &&
             state != null &&
@@ -142,6 +147,7 @@ class _RemoteMiniPlayerOverlayState extends State<RemoteMiniPlayerOverlay> {
           ),
         );
       },
+      ),
     );
   }
 }

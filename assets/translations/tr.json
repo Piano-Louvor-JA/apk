@@ -564,7 +564,9 @@
       "closeConfirmTitle": "Medya kapatılsın mı?",
       "closeConfirmMessage": "Masaüstünde oynayan içerik durdurulacak.",
       "closeConfirmCancel": "İptal",
-      "closeConfirmOk": "Kapat"
+      "closeConfirmOk": "Kapat",
+      "fullscreen": "Tam ekran",
+      "exitFullscreen": "Tam ekrandan çık"
     },
     "title": "Uzaktan Kumanda",
     "palcoOff": "Önce Palco'yu açın — kumanda aynı bağlantıyı kullanır.",
@@ -691,7 +693,8 @@
       "reload": "Yeniden yükle",
       "project": "Masaüstüne yansıt",
       "close": "Tarayıcıyı kapat"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "Karışık çal",
@@ -722,7 +725,8 @@
       "history": "Geçmiş",
       "favorites": "Favoriler",
       "collections": "Koleksiyonlar",
-      "downloads": "İndirilenler"
+      "downloads": "İndirilenler",
+      "channels": "Kanallar"
     },
     "search": {
       "placeholder": "YouTube'da ara veya bağlantı yapıştır…",
@@ -839,6 +843,50 @@
       "removeAllTitle": "İndirilen tüm videolar silinsin mi?",
       "removeAllMessage": "{n} YouTube videosunun kopyaları cihazdan kaldırılacak. Geçmiş, favori ve koleksiyonlarda kalır ve yeniden indirilebilir.",
       "others": "Ayrıca bu klasörde {n} Ayin videosu tutuluyor."
+    },
+    "channels": {
+      "title": "Kanallar",
+      "hint": "Bağlantısını yapıştırarak bir kanal ekleyin (ör. youtube.com/@kanal). Çalma listeleri ve videolar açtığınızda YouTube'dan okunur.",
+      "addPlaceholder": "YouTube kanal bağlantısını veya @kullanıcı adını yapıştırın…",
+      "add": "Kanal ekle",
+      "adding": "Kanal okunuyor…",
+      "addInvalid": "Bu bir YouTube kanal bağlantısı değil (ör. youtube.com/@kanal).",
+      "addEmpty": "Bu kanalın herkese açık çalma listesi yok.",
+      "addError": "Kanal şu anda okunamadı. İnternetinizi kontrol edip yeniden deneyin.",
+      "added": "“{name}” kanalı eklendi.",
+      "alreadyDefault": "“{name}” uygulamayla birlikte zaten geliyor.",
+      "delete": "Kanalı sil",
+      "deleteTitle": "“{name}” kanalı silinsin mi?",
+      "deleteMessage": "Kanal listeden çıkar. Videolar geçmişte, favorilerde ve koleksiyonlarda kalır.",
+      "deleteConfirm": "Sil",
+      "filterPlaylists": "Çalma listesi bul…",
+      "noPlaylistMatch": "“{query}” için çalma listesi yok.",
+      "searchPlaceholder": "Adventist kanallarında ara (ör. ilahi, gençlik, Noel)…",
+      "search": "Ara",
+      "searching": "Kanallar aranıyor…",
+      "searchTitle": "“{query}” için Adventist kanalları",
+      "searchEmpty": "“{query}” için kanal bulunamadı. Başka kelimeler deneyin.",
+      "searchError": "Şu anda arama yapılamadı. İnternetinizi kontrol edip yeniden deneyin.",
+      "searchClose": "Aramayı kapat",
+      "register": "Ekle",
+      "registered": "Eklendi",
+      "builtIn": "Uygulamayla gelir",
+      "playlistCount": "{n} çalma listesi",
+      "open": "Aç",
+      "backToChannels": "Kanallara dön",
+      "backToPlaylists": "Çalma listelerine dön",
+      "loading": "Çalma listesi okunuyor…",
+      "error": "Çalma listesi şu anda okunamadı. İnternetinizi kontrol edip yeniden deneyin.",
+      "empty": "Bu çalma listesi şu anda boş.",
+      "retry": "Yeniden dene",
+      "saveAsCollection": "Koleksiyon olarak kaydet",
+      "filter": "Numara veya ada göre bul…",
+      "noMatch": "“{query}” için video yok."
+    },
+    "remote": {
+      "subtitle": "Bilgisayarda çalar",
+      "sent": "Bilgisayarda açılıyor: {title}",
+      "notConnected": "Önce uzaktan kumandayı bilgisayara bağlayın."
     }
   },
   "onboarding": {

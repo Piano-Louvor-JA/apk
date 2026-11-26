@@ -13,6 +13,7 @@ import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_
 import 'local_liturgy_player.dart';
 import '../widgets/rich_notes_editor_page.dart';
 import 'local_liturgy_session.dart';
+import 'video_fullscreen_page.dart';
 import 'web_video_host.dart';
 import '../../shared/phone_projection.dart';
 
@@ -115,12 +116,26 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
     }
   }
 
+  /// Tela cheia, como a dos slides dos hinos; acima de tudo (navigator raiz).
+  void _openFullscreen(Widget video) {
+    Navigator.of(context, rootNavigator: true).push(
+      VideoFullscreenPage.route(
+        initial: player.state,
+        states: player.stream,
+        send: _send,
+        video: video,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) =>
       BlocBuilder<LocalLiturgyPlayer, RemotePlayerState>(
         bloc: player,
         builder: (context, state) {
           Widget? preview;
+          // Vídeo ou YouTube: o mesmo vídeo vai para a tela cheia.
+          Widget? fullscreenVideo;
           if (player.media case final LocalLiturgyMediaImpl media) {
             final video = media.video;
             final item = media.item;
@@ -134,6 +149,10 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
                   ),
                 ),
               );
+              fullscreenVideo = AspectRatio(
+                aspectRatio: video.value.aspectRatio,
+                child: VideoPlayer(video),
+              );
             } else if (media.web case final page?) {
               preview = ColoredBox(
                 color: Theme.of(context).colorScheme.scrim,
@@ -143,6 +162,11 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
                     child: WebVideoSlot(key: ObjectKey(page)),
                   ),
                 ),
+              );
+              // Um só player web: a tela cheia é outro espaço para a mesma WebView.
+              fullscreenVideo = AspectRatio(
+                aspectRatio: 16 / 9,
+                child: WebVideoSlot(key: ObjectKey(('fullscreen', page))),
               );
             } else if (item != null &&
                 {
@@ -180,6 +204,10 @@ class _LocalLiturgyPlayerBarState extends State<LocalLiturgyPlayerBar> {
             onMinimize: widget.onMinimize,
             navigatorKey: widget.navigatorKey,
             preview: preview,
+            framesFullscreen: false,
+            onFullscreen: fullscreenVideo == null
+                ? null
+                : () => _openFullscreen(fullscreenVideo!),
           );
         },
       );

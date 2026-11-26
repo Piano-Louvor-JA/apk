@@ -153,7 +153,9 @@ object YtDlp {
             }
         } catch (e: YoutubeDL.CanceledException) {
             main.post { result.error("CANCELED", "cancelado", null) }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Throwable, não só Exception: um Error (ExceptionInInitializerError,
+            // UnsatisfiedLinkError…) solto nesta thread fecha o app inteiro.
             Log.w(TAG, "download falhou", e)
             main.post { result.error("FAILED", e.message ?: e.toString(), null) }
         }
