@@ -10,6 +10,7 @@ import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_web_target.dart';
 import 'package:louvorja_piano_mobile/core/services/youtube/youtube_downloads.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/youtube_library_storage.dart';
+import 'package:louvorja_piano_mobile/data/datasources/local/youtube_remote_library_storage.dart';
 import 'package:louvorja_piano_mobile/data/repositories/liturgy_link_repository_impl.dart';
 import 'package:louvorja_piano_mobile/data/repositories/youtube_search_repository_impl.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
@@ -18,6 +19,9 @@ import 'package:louvorja_piano_mobile/core/services/dlna/stage_session.dart';
 import 'package:louvorja_piano_mobile/core/services/hymn_audio_player.dart';
 import 'package:louvorja_piano_mobile/core/services/now_playing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_youtube_library.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
+import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_bar.dart';
 import 'package:louvorja_piano_mobile/domain/entities/liturgy_item.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/player/local_liturgy_player.dart';
 import 'package:louvorja_piano_mobile/presentation/liturgy/player/local_liturgy_player_bar.dart';
@@ -26,6 +30,7 @@ import 'package:louvorja_piano_mobile/presentation/shared/phone_projection.dart'
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/empty_state.dart';
 
 import 'bloc/youtube_cubit.dart';
+import 'widgets/youtube_channels_tab.dart';
 import 'widgets/youtube_collections_tab.dart';
 import 'widgets/youtube_reorder.dart';
 import 'widgets/youtube_sheets.dart';
@@ -75,6 +80,33 @@ Future<void> openYoutubePlayer(BuildContext context, YoutubeVideo video) async {
   }
 }
 
+/// Controle remoto: toca o vídeo no computador, no mesmo player do vídeo do
+/// YouTube da liturgia (`youtube.play`). A barra do player do computador
+/// aparece embaixo da página; projetar é pela seta dela.
+YoutubePlayerOpener youtubeDesktopOpener({
+  Future<void> Function(RemoteCommand command)? send,
+  bool Function()? connected,
+}) => (context, video) async {
+  final isConnected = connected ?? () => RemoteSession.instance.isControlling;
+  if (!isConnected()) {
+    showYoutubeToast(context, 'youtube.remote.notConnected'.tr());
+    return;
+  }
+  showYoutubeToast(
+    context,
+    'youtube.remote.sent'.tr(namedArgs: {'title': video.title}),
+  );
+  await (send ?? RemoteSession.instance.send)(
+    RemoteCommand(
+      id: 'yt${DateTime.now().microsecondsSinceEpoch}',
+      action: RemoteAction.youtubePlay,
+      url: video.watchUrl,
+      name: video.title,
+      channel: video.channel.isEmpty ? null : video.channel,
+    ),
+  );
+};
+
 /// Módulo YouTube (a partir de Hinos): buscar, tocar e projetar vídeos,
 /// histórico, favoritos, coletâneas online e downloads offline.
 /// Paridade com o módulo YouTube do desktop.
@@ -84,25 +116,50 @@ class YoutubePage extends StatelessWidget {
     this.search,
     this.storage,
     this.openPlayer = openYoutubePlayer,
+    this.remote = false,
+    this.remoteStates,
+    this.remoteInitialState,
   });
 
   final YoutubeSearchRepository? search;
   final YoutubeLibraryStorage? storage;
   final YoutubePlayerOpener openPlayer;
 
+  /// Aberta pelo controle remoto: toca no computador ([youtubeDesktopOpener]),
+  /// mostra a barra do player do computador e esconde os downloads do celular.
+  final bool remote;
+
+  /// Estados do computador (padrão: a sessão do controle remoto). Para testes.
+  final Stream<RemotePlayerState>? remoteStates;
+  final RemotePlayerState? remoteInitialState;
+
   @override
   Widget build(BuildContext context) => BlocProvider(
     create: (_) => YoutubeCubit(
       search: search ?? YoutubeSearchRepositoryImpl(),
-      storage: storage,
+      // Controle remoto: histórico e favoritos são os do computador.
+      storage: storage ?? (remote ? YoutubeRemoteLibraryStorage() : null),
     )..load(),
-    child: _YoutubeView(openPlayer: openPlayer),
+    child: _YoutubeView(
+      openPlayer: openPlayer,
+      remote: remote,
+      remoteStates: remoteStates,
+      remoteInitialState: remoteInitialState,
+    ),
   );
 }
 
 class _YoutubeView extends StatefulWidget {
-  const _YoutubeView({required this.openPlayer});
+  const _YoutubeView({
+    required this.openPlayer,
+    this.remote = false,
+    this.remoteStates,
+    this.remoteInitialState,
+  });
   final YoutubePlayerOpener openPlayer;
+  final bool remote;
+  final Stream<RemotePlayerState>? remoteStates;
+  final RemotePlayerState? remoteInitialState;
 
   @override
   State<_YoutubeView> createState() => _YoutubeViewState();
@@ -111,7 +168,7 @@ class _YoutubeView extends StatefulWidget {
 class _YoutubeViewState extends State<_YoutubeView>
     with SingleTickerProviderStateMixin {
   static const _collectionsIndex = 3;
-  late final TabController _tabs = TabController(length: 4, vsync: this);
+  late final TabController _tabs = TabController(length: 5, vsync: this);
 
   /// Lista "Baixados" aberta (botão ao lado do espaço usado, só no
   /// Android): ocupa o lugar das abas até voltar.
@@ -122,6 +179,7 @@ class _YoutubeViewState extends State<_YoutubeView>
   final _downloadsFilter = TextEditingController();
   final _scroll = ScrollController();
   final _openedCollection = ValueNotifier<String?>(null);
+  final _channels = YoutubeChannelsSelection();
   Timer? _typing;
 
   /// Busca sozinha depois de uma pausa na digitação.
@@ -131,14 +189,19 @@ class _YoutubeViewState extends State<_YoutubeView>
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    if (YoutubeDownloads.supported) {
+    if (widget.remote) RemoteYoutubeLibrary.changes.addListener(_onDesktopLibrary);
+    if (_downloads) {
       unawaited(YoutubeDownloads.instance.measure());
       unawaited(YoutubeDownloads.instance.loadIndex());
     }
   }
 
+  /// O computador mandou histórico/favoritos novos (ou o celular mudou).
+  void _onDesktopLibrary() => unawaited(_cubit.reloadLibrary());
+
   @override
   void dispose() {
+    RemoteYoutubeLibrary.changes.removeListener(_onDesktopLibrary);
     _tabs.dispose();
     _searchField.dispose();
     _historyFilter.dispose();
@@ -146,6 +209,7 @@ class _YoutubeViewState extends State<_YoutubeView>
     _downloadsFilter.dispose();
     _scroll.dispose();
     _openedCollection.dispose();
+    _channels.dispose();
     _typing?.cancel();
     super.dispose();
   }
@@ -158,6 +222,9 @@ class _YoutubeViewState extends State<_YoutubeView>
   }
 
   YoutubeCubit get _cubit => context.read<YoutubeCubit>();
+
+  /// Downloads do celular: só fora do controle remoto (lá quem toca é o computador).
+  bool get _downloads => !widget.remote && YoutubeDownloads.supported;
 
   /// Vídeos que o módulo conhece (busca, histórico, favoritos, coletâneas).
   List<YoutubeVideo> _knownVideos(YoutubeState state) => [
@@ -266,6 +333,18 @@ class _YoutubeViewState extends State<_YoutubeView>
     );
   }
 
+  /// Playlist de canal salva como coletânea: abre a coletânea criada.
+  void _openSavedCollection(YoutubeCollection created) {
+    _tabs.animateTo(_collectionsIndex);
+    _openedCollection.value = created.id;
+    showYoutubeToast(
+      context,
+      'youtube.playlist.created'.tr(
+        namedArgs: {'name': created.name, 'n': '${created.videos.length}'},
+      ),
+    );
+  }
+
   YoutubeVideoTile _tile(
     YoutubeVideo video,
     YoutubeState state, {
@@ -285,6 +364,7 @@ class _YoutubeViewState extends State<_YoutubeView>
     onFavorite: () => _cubit.toggleFavorite(video),
     onAddToCollection: () => showYoutubeCollectionPicker(context, video),
     extraActions: extra,
+    downloads: !widget.remote,
   );
 
   @override
@@ -299,7 +379,8 @@ class _YoutubeViewState extends State<_YoutubeView>
             children: [
               Text('youtube.title'.tr()),
               Text(
-                'youtube.subtitle'.tr(),
+                (widget.remote ? 'youtube.remote.subtitle' : 'youtube.subtitle')
+                    .tr(),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.primary,
                 ),
@@ -307,14 +388,14 @@ class _YoutubeViewState extends State<_YoutubeView>
             ],
           ),
           actions: [
-            if (YoutubeDownloads.supported)
+            if (_downloads)
               _StorageChip(
                 onTap: () {
                   final state = _cubit.state;
                   showYoutubeStorageSheet(context, known: _knownVideos(state));
                 },
               ),
-            if (YoutubeDownloads.supported)
+            if (_downloads)
               _DownloadsButton(
                 open: _downloadsOpen,
                 onTap: _downloadsOpen ? _closeDownloads : _openDownloads,
@@ -328,7 +409,9 @@ class _YoutubeViewState extends State<_YoutubeView>
           ],
           bottom: _downloadsOpen
               ? null
-              : TabBar(
+              : _ScrollHintTabBar(
+                  controller: _tabs,
+                  tabBar: TabBar(
             controller: _tabs,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
@@ -340,8 +423,13 @@ class _YoutubeViewState extends State<_YoutubeView>
                 'youtube.tabs.collections'.tr(),
                 state.collections.length,
               ),
+              Tab(
+                key: const Key('youtube-tab-channels'),
+                text: 'youtube.tabs.channels'.tr(),
+              ),
             ],
-          ),
+                  ),
+                ),
         ),
         body: LayoutBuilder(
           builder: (context, constraints) => Column(
@@ -357,24 +445,55 @@ class _YoutubeViewState extends State<_YoutubeView>
                       )
                     : _tabViews(),
               ),
-              // O mesmo player da Liturgia (visual do controle remoto).
-              BlocBuilder<LocalLiturgyPlayer, RemotePlayerState>(
-                bloc: localLiturgyPlayer,
-                builder: (context, _) => localLiturgyPlayer.hasContent
-                    ? ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: constraints.maxHeight * .62,
-                        ),
-                        child: const SingleChildScrollView(
-                          child: LocalLiturgyPlayerBar(),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+              // Controle remoto: a barra do player do computador (a mesma da
+              // liturgia remota); senão o player local da Liturgia.
+              if (widget.remote)
+                _remotePlayerBar(constraints)
+              else
+                // O mesmo player da Liturgia (visual do controle remoto).
+                BlocBuilder<LocalLiturgyPlayer, RemotePlayerState>(
+                  bloc: localLiturgyPlayer,
+                  builder: (context, _) => localLiturgyPlayer.hasContent
+                      ? ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight * .62,
+                          ),
+                          child: const SingleChildScrollView(
+                            child: LocalLiturgyPlayerBar(),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _remotePlayerBar(BoxConstraints constraints) {
+    final session = RemoteSession.instance;
+    return StreamBuilder<RemotePlayerState>(
+      stream: widget.remoteStates ?? session.states,
+      initialData: widget.remoteInitialState ?? session.lastState,
+      builder: (context, snapshot) {
+        final state = snapshot.data;
+        if (state == null || !state.hasOpenMedia) {
+          return const SizedBox.shrink();
+        }
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: constraints.maxHeight * .62),
+          child: SingleChildScrollView(
+            child: RemotePlayerBar(
+              key: const Key('youtube-remote-player'),
+              state: state,
+              showTransport: true,
+              send: session.send,
+              videoFrame: session.videoFrame,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -391,6 +510,13 @@ class _YoutubeViewState extends State<_YoutubeView>
           opened: _openedCollection,
           onImportPlaylist: _importPlaylist,
           onOpenSearch: () => _tabs.animateTo(0),
+          downloads: !widget.remote,
+        ),
+        YoutubeChannelsTab(
+          tile: (video, channelState) => _tile(video, channelState),
+          selection: _channels,
+          typingPause: typingPause,
+          onSavedCollection: _openSavedCollection,
         ),
       ],
     ),
@@ -893,3 +1019,96 @@ class _StorageChip extends StatelessWidget {
     );
   }
 }
+
+/// Barra de abas rolável com setas nas pontas: mostra que há mais abas para
+/// o lado (e que dá para arrastar). Tocar na seta vai para a aba vizinha.
+class _ScrollHintTabBar extends StatefulWidget implements PreferredSizeWidget {
+  const _ScrollHintTabBar({required this.tabBar, required this.controller});
+
+  final TabBar tabBar;
+  final TabController controller;
+
+  @override
+  Size get preferredSize => tabBar.preferredSize;
+
+  @override
+  State<_ScrollHintTabBar> createState() => _ScrollHintTabBarState();
+}
+
+class _ScrollHintTabBarState extends State<_ScrollHintTabBar> {
+  bool _before = false, _after = false;
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.horizontal) return false;
+    final before = metrics.extentBefore > 1;
+    final after = metrics.extentAfter > 1;
+    if (before != _before || after != _after) {
+      // Pode chegar no meio do layout: atualiza no próximo quadro.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _before = before;
+            _after = after;
+          });
+        }
+      });
+    }
+    return false;
+  }
+
+  void _step(int delta) {
+    final tabs = widget.controller;
+    final next = (tabs.index + delta).clamp(0, tabs.length - 1);
+    if (next != tabs.index) tabs.animateTo(next);
+  }
+
+  Widget _arrow({required bool right}) {
+    final theme = Theme.of(context);
+    final background =
+        theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface;
+    return Positioned(
+      top: 0,
+      bottom: 0,
+      left: right ? null : 0,
+      right: right ? 0 : null,
+      child: GestureDetector(
+        key: Key(right ? 'youtube-tabs-more-right' : 'youtube-tabs-more-left'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _step(right ? 1 : -1),
+        child: Container(
+          width: 40,
+          alignment: right ? Alignment.centerRight : Alignment.centerLeft,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: right ? Alignment.centerLeft : Alignment.centerRight,
+              end: right ? Alignment.centerRight : Alignment.centerLeft,
+              colors: [background.withValues(alpha: 0), background],
+              stops: const [0, .55],
+            ),
+          ),
+          child: Icon(
+            right ? TablerIcons.chevronRight : TablerIcons.chevronLeft,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      NotificationListener<ScrollMetricsNotification>(
+        onNotification: (n) => _onMetrics(n.metrics),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (n) => _onMetrics(n.metrics),
+          child: widget.tabBar,
+        ),
+      ),
+      if (_before) _arrow(right: false),
+      if (_after) _arrow(right: true),
+    ],
+  );
+}
+

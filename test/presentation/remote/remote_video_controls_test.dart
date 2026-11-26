@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
+import 'package:louvorja_piano_mobile/presentation/liturgy/player/video_fullscreen_page.dart';
 import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_player_bar.dart';
 
 const _audio = Key('remote-audio-output');
@@ -60,6 +63,9 @@ void main() {
     RemoteVideoControls? controls, {
     bool showTransport = true,
     bool open = true,
+    VoidCallback? onFullscreen,
+    ValueNotifier<Uint8List?>? videoFrame,
+    bool framesFullscreen = true,
   }) => tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -69,6 +75,10 @@ void main() {
             state: _state(controls, open: open),
             showTransport: showTransport,
             send: (c) async => sent.add(c),
+            onFullscreen: onFullscreen,
+            videoFrame: videoFrame,
+            framesFullscreen: framesFullscreen,
+            states: const Stream.empty(),
           ),
         ),
       ),
@@ -77,6 +87,54 @@ void main() {
 
   IconButton button(WidgetTester tester, Key key) =>
       tester.widget<IconButton>(find.byKey(key));
+
+  group('tela cheia', () {
+    testWidgets('com video e tela cheia disponivel, o botao abre', (
+      tester,
+    ) async {
+      var opened = 0;
+      await pump(tester, _controls(), onFullscreen: () => opened++);
+      final full = find.byKey(const Key('remote-video-fullscreen'));
+      expect(full, findsOneWidget);
+      // Na linha do "Som", como as legendas.
+      expect(
+        tester.getCenter(full).dy,
+        tester.getCenter(find.byKey(_audio)).dy,
+      );
+      await tester.tap(full);
+      expect(opened, 1);
+    });
+
+    testWidgets(
+      'no controle remoto, abre a tela cheia com os quadros do computador',
+      (tester) async {
+        final frame = ValueNotifier<Uint8List?>(null);
+        addTearDown(frame.dispose);
+        await pump(tester, _controls(), videoFrame: frame);
+        await tester.tap(find.byKey(const Key('remote-video-fullscreen')));
+        await tester.pumpAndSettle();
+        expect(find.byType(VideoFullscreenPage), findsOneWidget);
+        expect(
+          find.byKey(const Key('remote-fullscreen-frame')),
+          findsOneWidget,
+        );
+
+        // Os comandos vão ao computador, como na barra.
+        await tester.tap(find.byKey(const Key('video-fullscreen-play')));
+        expect(sent.last.action, RemoteAction.pause);
+      },
+    );
+
+    testWidgets(
+      'player local sem video de verdade, ou sem video, nao aparece',
+      (tester) async {
+        await pump(tester, _controls(), framesFullscreen: false);
+        expect(find.byKey(const Key('remote-video-fullscreen')), findsNothing);
+        await pump(tester, null, open: false);
+        expect(find.byKey(const Key('remote-video-fullscreen')), findsNothing);
+      },
+    );
+  });
 
   group('visibilidade', () {
     testWidgets('sem video a linha fica visivel e desativada', (tester) async {

@@ -12,6 +12,7 @@ import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_session.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_player_presence.dart';
+import 'package:louvorja_piano_mobile/presentation/liturgy/player/video_fullscreen_page.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_slide_gallery.dart';
 
 /// Controles do player do alvo conectado.
@@ -39,6 +40,8 @@ class RemotePlayerBar extends StatefulWidget {
     this.displayTitle,
     this.onEdit,
     this.previewMaxHeight,
+    this.onFullscreen,
+    this.framesFullscreen = true,
   });
 
   /// Quadros da prévia do vídeo; default = sessão global. Injetável em teste.
@@ -53,6 +56,14 @@ class RemotePlayerBar extends StatefulWidget {
   final String? displayTitle;
   final VoidCallback? onEdit;
   final double? previewMaxHeight;
+
+  /// Tela cheia do vídeo do player local. No controle remoto (com
+  /// [videoFrame]), a tela cheia mostra os quadros do computador.
+  final VoidCallback? onFullscreen;
+
+  /// Sem [onFullscreen], abre a tela cheia com os quadros do computador
+  /// (controle remoto). O player local desliga: lá só o vídeo de verdade.
+  final bool framesFullscreen;
   final bool compact;
 
   /// Telas e projeção independente; a Liturgia local usa o botão Telas.
@@ -725,6 +736,30 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   }
 
   /// Vídeo/YouTube aberto: só a imagem escuta os quadros, a barra não reconstrói.
+  VoidCallback? get _fullscreen =>
+      widget.onFullscreen ??
+      (widget.framesFullscreen ? _openRemoteFullscreen : null);
+
+  /// Controle remoto: o vídeo toca no computador; a tela cheia mostra os
+  /// quadros que ele manda e os comandos vão para ele.
+  void _openRemoteFullscreen() {
+    final frames = widget.videoFrame ?? RemoteSession.instance.videoFrame;
+    Navigator.of(context, rootNavigator: true).push(
+      VideoFullscreenPage.route(
+        initial: _st,
+        states: widget.states ?? RemoteSession.instance.states,
+        send: widget.send ?? RemoteSession.instance.send,
+        video: ValueListenableBuilder<Uint8List?>(
+          key: const Key('remote-fullscreen-frame'),
+          valueListenable: frames,
+          builder: (context, bytes, _) => bytes == null
+              ? const SizedBox.shrink()
+              : Image.memory(bytes, fit: BoxFit.contain, gaplessPlayback: true),
+        ),
+      ),
+    );
+  }
+
   Widget _videoFramePreview() {
     return ValueListenableBuilder<Uint8List?>(
       valueListenable: widget.videoFrame ?? RemoteSession.instance.videoFrame,
@@ -888,6 +923,13 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
             onPressed: () => _send(RemoteAction.videoToggleCaptions),
             icon: const Icon(TablerIcons.badgeCc),
           ),
+        if (video != null && _fullscreen != null)
+          IconButton(
+            key: const Key('remote-video-fullscreen'),
+            tooltip: 'remote.video.fullscreen'.tr(),
+            onPressed: _fullscreen,
+            icon: const Icon(TablerIcons.maximize),
+          ),
       ],
     );
   }
@@ -901,6 +943,8 @@ class _RemotePlayerBarState extends State<RemotePlayerBar> {
   void _openTargets() {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
       builder: (_) => _VideoTargetsSheet(
         initial: _st,
         states: widget.states,
@@ -1011,30 +1055,38 @@ class _VideoTargetsSheet extends StatelessWidget {
           final monitors = _RemotePlayerBarState._targetMonitors(state);
           final tvs = _RemotePlayerBarState._targetTvs(state);
           final empty = monitors.isEmpty && tvs.isEmpty;
-          return ListView(
-            shrinkWrap: true,
-            children: [
-              ListTile(
-                title: Text(
-                  'remote.video.selectScreens'.tr(),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              if (empty) ListTile(title: Text('remote.video.noScreens'.tr())),
-              for (final monitor in monitors)
-                _tile(monitor, TablerIcons.deviceDesktop),
-              if (tvs.isNotEmpty) ...[
-                const Divider(),
+          // Arrastável: abre na metade e sobe até quase a tela toda, para
+          // alcançar as conexões remotas (TVs) abaixo dos monitores.
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.6,
+            minChildSize: 0.3,
+            maxChildSize: 0.95,
+            builder: (context, controller) => ListView(
+              controller: controller,
+              children: [
                 ListTile(
-                  dense: true,
                   title: Text(
-                    'remote.video.remoteConnections'.tr(),
-                    style: Theme.of(context).textTheme.labelLarge,
+                    'remote.video.selectScreens'.tr(),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                for (final tv in tvs) _tile(tv, TablerIcons.deviceTv),
+                if (empty) ListTile(title: Text('remote.video.noScreens'.tr())),
+                for (final monitor in monitors)
+                  _tile(monitor, TablerIcons.deviceDesktop),
+                if (tvs.isNotEmpty) ...[
+                  const Divider(),
+                  ListTile(
+                    dense: true,
+                    title: Text(
+                      'remote.video.remoteConnections'.tr(),
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  for (final tv in tvs) _tile(tv, TablerIcons.deviceTv),
+                ],
               ],
-            ],
+            ),
           );
         },
       ),

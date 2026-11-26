@@ -141,7 +141,22 @@ enum RemoteAction {
   videoToggleCaptions('video.toggleCaptions'),
   videoSetTarget('video.setTarget'),
   videoSetIndependentMode('video.setIndependentMode'),
-  videoSetIndependentTarget('video.setIndependentTarget');
+  videoSetIndependentTarget('video.setIndependentTarget'),
+
+  /// Módulo YouTube: toca o vídeo no desktop, no mesmo player do vídeo do
+  /// YouTube da liturgia (link em `url`, título em `name`, canal em `channel`).
+  youtubePlay('youtube.play'),
+
+  /// Marca/desmarca o vídeo nos favoritos do YouTube do desktop (a origem):
+  /// link em `url`, estado desejado em `enabled`, título e canal.
+  youtubeFavorite('youtube.favorite'),
+
+  /// Histórico/favoritos do YouTube do desktop: vídeo em `url` (id ou link),
+  /// destino da reordenação em `targetId`.
+  youtubeHistoryRemove('youtube.historyRemove'),
+  youtubeHistoryClear('youtube.historyClear'),
+  youtubeHistoryReorder('youtube.historyReorder'),
+  youtubeFavoritesReorder('youtube.favoritesReorder');
 
   const RemoteAction(this.wire);
   final String wire;
@@ -193,6 +208,7 @@ class RemoteCommand extends RemoteMessage {
     this.enabled,
     this.url,
     this.ratio,
+    this.channel,
   }) : assert(volume == null || (volume >= 0 && volume <= 100), 'volume 0-100'),
        assert(position == null || !position.isNegative, 'seek >= 0'),
        assert(durationMs == null || durationMs > 0, 'durationMs > 0');
@@ -214,6 +230,9 @@ class RemoteCommand extends RemoteMessage {
 
   /// Proporção da rolagem (site.scroll), de 0 a 1.
   final double? ratio;
+
+  /// Canal do vídeo do YouTube (youtube.play), para o histórico do desktop.
+  final String? channel;
 
   /// Índice do item da liturgia (liturgy.select/toggleDone).
   final int? index;
@@ -273,6 +292,7 @@ class RemoteCommand extends RemoteMessage {
       if (enabled != null) 'enabled': enabled,
       if (url != null) 'url': url,
       if (ratio != null) 'ratio': ratio,
+      if (channel != null) 'channel': channel,
       if (mode != null) 'mode': mode,
     };
     return jsonEncode(map);
@@ -438,6 +458,10 @@ class RemotePlayerState extends RemoteMessage {
     this.idleVideoTargets = const [],
     this.idleVideoTvs = const [],
     this.idleIndependent,
+    this.youtubeCanPlay = false,
+    this.youtubeLibraryKey,
+    this.youtubeHistory,
+    this.youtubeFavorites,
   });
 
   final int? hymnId;
@@ -511,6 +535,15 @@ class RemotePlayerState extends RemoteMessage {
   /// Projeção independente quando não há vídeo aberto.
   final RemoteIndependentControls? idleIndependent;
 
+  /// O desktop toca YouTube pelo controle remoto (desktops antigos não dizem).
+  final bool youtubeCanPlay;
+
+  /// Histórico e favoritos do YouTube do desktop (JSON cru). As listas só vêm
+  /// quando mudam ou num pedido completo; nos outros estados, só a chave.
+  final String? youtubeLibraryKey;
+  final List<Object?>? youtubeHistory;
+  final List<Object?>? youtubeFavorites;
+
   @override
   String encode() {
     return jsonEncode({
@@ -519,6 +552,13 @@ class RemotePlayerState extends RemoteMessage {
       if (announcementsModule != null) 'announcements': announcementsModule!.toJson(),
       if (playlistModule != null) 'playlist': playlistModule!.toJson(),
       if (sabbathModule != null) 'sabbath': sabbathModule!.toJson(),
+      if (youtubeCanPlay || youtubeLibraryKey != null)
+        'youtube': {
+          if (youtubeCanPlay) 'canPlay': true,
+          if (youtubeLibraryKey != null) 'libraryKey': youtubeLibraryKey,
+          if (youtubeHistory != null) 'history': youtubeHistory,
+          if (youtubeFavorites != null) 'favorites': youtubeFavorites,
+        },
       'player': {
         if (hymnId != null) 'hymnId': hymnId,
         if (title != null) 'title': title,
@@ -1066,6 +1106,16 @@ class RemoteProtocol {
       announcementsModule: RemoteAnnouncementsState.parse(m['announcements']),
       playlistModule: RemotePlaylistState.parse(m['playlist']),
       sabbathModule: RemoteSabbathState.parse(m['sabbath']),
+      youtubeCanPlay: m['youtube'] is Map && (m['youtube'] as Map)['canPlay'] == true,
+      youtubeLibraryKey: m['youtube'] is Map && (m['youtube'] as Map)['libraryKey'] is String
+          ? (m['youtube'] as Map)['libraryKey'] as String
+          : null,
+      youtubeHistory: m['youtube'] is Map && (m['youtube'] as Map)['history'] is List
+          ? List<Object?>.from((m['youtube'] as Map)['history'] as List)
+          : null,
+      youtubeFavorites: m['youtube'] is Map && (m['youtube'] as Map)['favorites'] is List
+          ? List<Object?>.from((m['youtube'] as Map)['favorites'] as List)
+          : null,
       videoControls: _parseVideoControls(m['video']),
       idleIndependent: m['videoTargets'] is Map
           ? _parseIndependent((m['videoTargets'] as Map)['independent'])

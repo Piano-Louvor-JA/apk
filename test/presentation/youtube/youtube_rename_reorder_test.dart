@@ -11,6 +11,7 @@ import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_link_info.da
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_video_cache.dart';
 import 'package:louvorja_piano_mobile/core/services/youtube/youtube_downloads.dart';
 import 'package:louvorja_piano_mobile/data/datasources/local/youtube_library_storage.dart';
+import 'package:louvorja_piano_mobile/domain/entities/youtube_channel.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
 import 'package:louvorja_piano_mobile/domain/repositories/liturgy_link_repository.dart';
 import 'package:louvorja_piano_mobile/domain/repositories/youtube_search_repository.dart';
@@ -53,6 +54,14 @@ class _Search implements YoutubeSearchRepository {
   @override
   Future<YoutubePlaylistResult> playlist(String text) async =>
       const YoutubePlaylistResult(error: 'invalid');
+
+  @override
+  Future<YoutubeChannelResult> channel(String text) async =>
+      const YoutubeChannelResult(error: 'invalid');
+
+  @override
+  Future<YoutubeChannelSearchResult> searchChannels(String query) async =>
+      const YoutubeChannelSearchResult(error: 'empty');
 }
 
 const v1 = YoutubeVideo(
