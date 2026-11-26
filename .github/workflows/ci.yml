@@ -99,6 +99,7 @@ jobs:
         env:
           # Token vem de secret (nunca hardcoded). Vazio = sem token.
           API_TOKEN: ${{ secrets.API_TOKEN }}
+          PARTNER_KEY_PROD: ${{ secrets.PARTNER_KEY_PROD }}
         # API 100% via dart-define (apk#54) — sem isso o app sai do CI
         # sem onde fazer requisição ("erro sem conexão com o servidor").
         # env simples NÃO chega no String.fromEnvironment: tem que ser flag.
@@ -108,6 +109,7 @@ jobs:
           --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file
           --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
           --dart-define=API_TOKEN=$API_TOKEN
+          --dart-define=PARTNER_KEY_PROD="$PARTNER_KEY_PROD"
 
   build-ios:
     name: Build iOS
@@ -125,12 +127,15 @@ jobs:
       - run: flutter pub get
 
       - name: Build iOS (debug, no codesign)
+        env:
+          PARTNER_KEY_PROD: ${{ secrets.PARTNER_KEY_PROD }}
         # Paridade com o APK: mesmo sem instalar, o build valida os defines.
         run: |
           flutter build ios --debug --no-codesign --no-tree-shake-icons \
             --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
-            --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev
+            --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
+            --dart-define=PARTNER_KEY_PROD="$PARTNER_KEY_PROD"
 
   regression-gate:
     name: Regression Gate (anti-regressão)

@@ -276,7 +276,8 @@
       "alignCenter": "Centralizar",
       "alignRight": "Alinhar à direita",
       "clear": "Limpar formatação"
-    }
+    },
+    "cloneFrom": "Clonar de outro dia"
   },
   "bible": {
     "title": "Bíblia",
@@ -356,7 +357,16 @@
     "languageEnglish": "English",
     "languageSpanish": "Espanol",
     "version": "Versao",
-    "privacyPolicy": "Política de Privacidade"
+    "privacyPolicy": "Política de Privacidade",
+    "languageRussian": "Русский",
+    "languageUkrainian": "Українська",
+    "languageFrench": "Français",
+    "languageJapanese": "日本語",
+    "languageKorean": "한국어",
+    "languageChinese": "中文",
+    "languageTurkish": "Türkçe",
+    "languageArabic": "العربية",
+    "languageHindi": "हिन्दी"
   },
   "timer": {
     "save": "Salvar",
@@ -551,6 +561,8 @@
       "noScreens": "Nenhuma tela disponível",
       "showCaptions": "Mostrar legendas",
       "hideCaptions": "Ocultar legendas",
+      "fullscreen": "Tela cheia",
+      "exitFullscreen": "Sair da tela cheia",
       "closeConfirmTitle": "Fechar a mídia?",
       "closeConfirmMessage": "O que está tocando no desktop será encerrado.",
       "closeConfirmCancel": "Cancelar",
@@ -681,7 +693,8 @@
       "reload": "Recarregar",
       "project": "Projetar no desktop",
       "close": "Fechar navegador"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "Tocar aleatório",
@@ -712,7 +725,8 @@
       "history": "Histórico",
       "favorites": "Favoritos",
       "collections": "Coletâneas",
-      "downloads": "Baixados"
+      "downloads": "Baixados",
+      "channels": "Canais"
     },
     "search": {
       "placeholder": "Buscar no YouTube ou colar um link…",
@@ -829,6 +843,89 @@
       "removeAllTitle": "Apagar todos os vídeos baixados?",
       "removeAllMessage": "As cópias de {n} vídeo(s) do YouTube saem do aparelho. Eles continuam no histórico, nos favoritos e nas coletâneas, e podem ser baixados de novo.",
       "others": "Mais {n} vídeo(s) da Liturgia guardados nesta pasta."
+    },
+    "channels": {
+      "title": "Canais",
+      "hint": "Cadastre um canal colando o link dele (ex.: youtube.com/@canal). As playlists e os vídeos são lidos do YouTube quando você abre.",
+      "addPlaceholder": "Cole o link ou o @ do canal do YouTube…",
+      "add": "Cadastrar canal",
+      "adding": "Lendo o canal…",
+      "addInvalid": "Esse link não é de um canal do YouTube (ex.: youtube.com/@canal).",
+      "addEmpty": "Esse canal não tem playlists públicas.",
+      "addError": "Não foi possível ler o canal agora. Confira a internet e tente de novo.",
+      "added": "Canal “{name}” cadastrado.",
+      "alreadyDefault": "“{name}” já vem no app.",
+      "delete": "Excluir canal",
+      "deleteTitle": "Excluir o canal “{name}”?",
+      "deleteMessage": "O canal sai da lista. Os vídeos continuam no histórico, nos favoritos e nas coletâneas.",
+      "deleteConfirm": "Excluir",
+      "filterPlaylists": "Buscar playlist…",
+      "noPlaylistMatch": "Nenhuma playlist para “{query}”.",
+      "searchPlaceholder": "Pesquisar canais adventistas (ex.: louvor, jovens, Natal)…",
+      "search": "Pesquisar",
+      "searching": "Pesquisando canais…",
+      "searchTitle": "Canais adventistas para “{query}”",
+      "searchEmpty": "Nenhum canal encontrado para “{query}”. Tente outras palavras.",
+      "searchError": "Não foi possível pesquisar agora. Confira a internet e tente de novo.",
+      "searchClose": "Fechar pesquisa",
+      "register": "Cadastrar",
+      "registered": "Cadastrado",
+      "builtIn": "Já vem no app",
+      "playlistCount": "{n} playlist(s)",
+      "open": "Abrir",
+      "backToChannels": "Voltar para os canais",
+      "backToPlaylists": "Voltar para as playlists",
+      "loading": "Lendo a playlist…",
+      "error": "Não foi possível ler a playlist agora. Confira a internet e tente de novo.",
+      "empty": "A playlist está vazia no momento.",
+      "retry": "Tentar de novo",
+      "saveAsCollection": "Salvar como coletânea",
+      "filter": "Buscar pelo número ou nome…",
+      "noMatch": "Nenhum vídeo para “{query}”."
+    },
+    "remote": {
+      "subtitle": "Toca no computador",
+      "sent": "Abrindo no computador: {title}",
+      "notConnected": "Conecte o controle remoto ao computador primeiro."
+    }
+  },
+  "onboarding": {
+    "wizardTitle": "Assistente de primeira inicialização",
+    "continue": "Continuar",
+    "back": "Voltar",
+    "finish": "Concluir",
+    "save": "Salvar",
+    "useDefault": "Usar padrão",
+    "stepOf": "Passo {current} de {total}",
+    "welcome": {
+      "title": "Seja bem-vindo ao Piano LouvorJA",
+      "text": "Este é o assistente de primeira inicialização. Ele vai te guiar nas primeiras configurações do app."
+    },
+    "update": {
+      "wizardTitle": "Atualização do Piano LouvorJA",
+      "title": "Seu Piano LouvorJA foi atualizado",
+      "text": "Esta versão traz novidades. Para concluir a atualização, informe o distrito e a igreja onde você usa o app."
+    },
+    "location": {
+      "title": "Onde você usa o LouvorJA?",
+      "text": "Conte pra gente o distrito e a igreja onde o app é usado. Isso ajuda a equipe a entender onde o LouvorJA está presente e a priorizar melhorias.",
+      "district": "Distrito",
+      "church": "Igreja",
+      "privacy": "Só distrito e igreja, sem nome, e-mail ou telefone. Você pode mudar depois na tela inicial.",
+      "required": "Preencha o distrito e a igreja para continuar."
+    },
+    "accent": {
+      "title": "Escolha a cor de realce",
+      "text": "A cor aparece em botões, destaques e ícones. Dá pra trocar quando quiser em Configurações → Aparência."
+    },
+    "interaction": {
+      "title": "Escolha a animação do app",
+      "text": "Define o estilo dos movimentos da interface. Também fica em Configurações → Aparência."
+    },
+    "reminder": {
+      "text": "Informe o distrito e a igreja onde o LouvorJA é usado.",
+      "later": "Lembrar depois",
+      "never": "Não perguntar mais"
     }
   }
 }

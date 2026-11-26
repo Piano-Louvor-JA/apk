@@ -66,6 +66,7 @@ jobs:
       - name: Build APK release
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
+          PARTNER_KEY_PROD: ${{ secrets.PARTNER_KEY_PROD }}
         # API 100% via dart-define (apk#54) — env simples não chega no
         # String.fromEnvironment: tem que ser flag na linha de comando.
         run: |
@@ -73,7 +74,8 @@ jobs:
             --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
-            --dart-define=API_TOKEN="$API_TOKEN"
+            --dart-define=API_TOKEN="$API_TOKEN" \
+            --dart-define=PARTNER_KEY_PROD="$PARTNER_KEY_PROD"
           VERSION=${{ needs.resolve.outputs.version }}
           cp build/app/outputs/flutter-apk/app-release.apk \
              louvorja-piano-${VERSION#v}-universal.apk
@@ -81,6 +83,7 @@ jobs:
       - name: Build APKs por ABI (split-per-abi)
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
+          PARTNER_KEY_PROD: ${{ secrets.PARTNER_KEY_PROD }}
         # Mesmos dart-define do universal — releases só mudam de binário,
         # nunca de configuração de API.
         run: |
@@ -88,7 +91,8 @@ jobs:
             --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
-            --dart-define=API_TOKEN="$API_TOKEN"
+            --dart-define=API_TOKEN="$API_TOKEN" \
+            --dart-define=PARTNER_KEY_PROD="$PARTNER_KEY_PROD"
           VERSION=${{ needs.resolve.outputs.version }}
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
              louvorja-piano-${VERSION#v}-arm64-v8a.apk
@@ -136,12 +140,14 @@ jobs:
       - name: Build iOS (release, no codesign)
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
+          PARTNER_KEY_PROD: ${{ secrets.PARTNER_KEY_PROD }}
         run: |
           flutter build ios --release --no-codesign --no-tree-shake-icons \
             --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
-            --dart-define=API_TOKEN="$API_TOKEN"
+            --dart-define=API_TOKEN="$API_TOKEN" \
+            --dart-define=PARTNER_KEY_PROD="$PARTNER_KEY_PROD"
 
       - name: Package unsigned IPA
         run: |
@@ -176,6 +182,7 @@ jobs:
       - name: Configurar projeto iOS (dart-defines)
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
+          PARTNER_KEY_PROD: ${{ secrets.PARTNER_KEY_PROD }}
         # --config-only grava os dart-defines no Generated.xcconfig; o
         # archive assinado é feito pelo xcodebuild logo abaixo.
         run: |
@@ -183,7 +190,8 @@ jobs:
             --dart-define=LOUVORJA_URL_DATABASE=https://api.pianolouvorja.com.br/json_db \
             --dart-define=LOUVORJA_URL_FILES=https://api.pianolouvorja.com.br/file \
             --dart-define=LOUVORJA_FALLBACK_URLS=https://api.louvorja.com.br,https://api.louvorja.workers.dev \
-            --dart-define=API_TOKEN="$API_TOKEN"
+            --dart-define=API_TOKEN="$API_TOKEN" \
+            --dart-define=PARTNER_KEY_PROD="$PARTNER_KEY_PROD"
           # Com todos os plugins em Swift Package Manager o Flutter não gera
           # Podfile; só roda o CocoaPods quando algum plugin ainda precisar.
           if [ -f ios/Podfile ]; then

@@ -15,7 +15,7 @@ import '../../core/services/palco/palco_slot.dart';
 import '../settings/widgets/stage_section.dart';
 import 'transmission_page.dart';
 
-/// Palco: TVs com o app Palco (webOS, Tizen, Android TV). Mostra quais
+/// Palco: TVs com o app Palco (webOS, Tizen, Android TV, Roku). Mostra quais
 /// estão conectadas a cada transmissão e as TVs
 /// encontradas na rede que ainda não conectaram.
 class PalcoPage extends StatefulWidget {
@@ -184,8 +184,8 @@ class _PalcoPageState extends State<PalcoPage> {
             )
           else if (notConnected.isEmpty)
             const _Hint(
-              'Nenhuma outra TV encontrada. Android TV com o Palco e TVs LG '
-              'aparecem aqui quando estão na mesma rede Wi-Fi.',
+              'Nenhuma outra TV encontrada. Android TV e TVs LG aparecem aqui '
+              'automaticamente. Roku conecta pelo IP exibido abaixo.',
             )
           else
             for (final tv in notConnected)
@@ -203,7 +203,7 @@ class _PalcoPageState extends State<PalcoPage> {
           const Divider(height: 32),
           Text(
             'A TV não achou o celular? No app Palco, aperte a tecla '
-            'VERMELHA do controle e digite:',
+            'VERMELHA; na Roku abra Configuração. Digite:',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

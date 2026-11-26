@@ -1,5 +1,6 @@
 library;
 
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:louvorja_piano_mobile/core/errors/louvorja_api_exception.dart';
 import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'dart:convert';
@@ -66,8 +67,8 @@ class LouvorjaApiImpl implements LouvorjaApiClient {
   }) : _baseUrls = baseUrls,
        _filesUrls = filesUrls,
        _now = now ?? DateTime.now,
-       _dio = Dio(
-         BaseOptions(
+       _dio = createApiDio(
+         options: BaseOptions(
            connectTimeout: const Duration(seconds: 10),
            receiveTimeout: const Duration(seconds: 30),
            headers: {'Api-Token': apiToken, ...clientPlatformHeaders()},

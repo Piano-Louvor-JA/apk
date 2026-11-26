@@ -5,6 +5,7 @@ import 'package:louvorja_piano_mobile/presentation/remote/widgets/remote_floatin
 import 'package:louvorja_piano_mobile/presentation/shared/widgets/player_sheet.dart';
 import 'local_liturgy_player_bar.dart';
 import 'local_liturgy_session.dart';
+import 'video_fullscreen_page.dart';
 import 'web_video_host.dart';
 import '../widgets/liturgy_site_mini_panel.dart';
 
@@ -37,6 +38,7 @@ class _LocalLiturgyOverlayState extends State<LocalLiturgyOverlay> {
     super.initState();
     subscription;
     localLiturgyPresence.addListener(_update);
+    VideoFullscreenPage.open.addListener(_update);
   }
 
   void _update() {
@@ -82,6 +84,8 @@ class _LocalLiturgyOverlayState extends State<LocalLiturgyOverlay> {
         visible:
             !expanded &&
             !localLiturgyPresence.value &&
+            // Tela cheia do vídeo aberta: o vídeo é dela, sem o minimizado.
+            !VideoFullscreenPage.open.value &&
             // Também com o item só escolhido: minimizar não some com ele.
             localLiturgyPlayer.hasContent &&
             MediaQuery.viewInsetsOf(context).bottom == 0,
@@ -106,6 +110,7 @@ class _LocalLiturgyOverlayState extends State<LocalLiturgyOverlay> {
   void dispose() {
     subscription.cancel();
     localLiturgyPresence.removeListener(_update);
+    VideoFullscreenPage.open.removeListener(_update);
     entry.remove();
     entry.dispose();
     super.dispose();

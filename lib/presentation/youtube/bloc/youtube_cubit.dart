@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:louvorja_piano_mobile/core/services/youtube/youtube_channels.dart';
 import 'package:louvorja_piano_mobile/core/utils/reorder.dart';
+import 'package:louvorja_piano_mobile/domain/entities/youtube_channel.dart';
 
 import 'package:louvorja_piano_mobile/data/datasources/local/youtube_library_storage.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
@@ -19,6 +21,11 @@ class YoutubeState {
     this.history = const [],
     this.favorites = const [],
     this.collections = const [],
+    this.channels = defaultYoutubeChannels,
+    this.channelQuery = '',
+    this.channelResults = const [],
+    this.channelSearching = false,
+    this.channelSearchError,
     this.loaded = false,
   });
 
@@ -30,6 +37,24 @@ class YoutubeState {
   final List<String> recentQueries;
   final List<YoutubeSavedVideo> history, favorites;
   final List<YoutubeCollection> collections;
+
+  /// Canais: os padrão (CPB) e os cadastrados.
+  final List<YoutubeChannel> channels;
+
+  /// Pesquisa de canais adventistas: o texto pesquisado (vazio = fechada),
+  /// os canais achados e o erro (`empty`, `network`…).
+  final String channelQuery;
+  final List<YoutubeChannelSearchItem> channelResults;
+  final bool channelSearching;
+  final String? channelSearchError;
+
+  YoutubeChannel? channel(String? id) =>
+      channels.where((c) => c.id == id).firstOrNull;
+
+  /// Canal achado na pesquisa que já está na lista (cadastrado ou padrão).
+  YoutubeChannel? knownChannel(String youtubeId) => channels
+      .where((c) => c.id == youtubeId || c.youtubeId == youtubeId)
+      .firstOrNull;
 
   bool get canLoadMore => continuation != null && !searching && !loadingMore;
 
@@ -51,6 +76,11 @@ class YoutubeState {
     List<YoutubeSavedVideo>? history,
     List<YoutubeSavedVideo>? favorites,
     List<YoutubeCollection>? collections,
+    List<YoutubeChannel>? channels,
+    String? channelQuery,
+    List<YoutubeChannelSearchItem>? channelResults,
+    bool? channelSearching,
+    String? Function()? channelSearchError,
     bool? loaded,
   }) => YoutubeState(
     query: query ?? this.query,
@@ -64,6 +94,13 @@ class YoutubeState {
     history: history ?? this.history,
     favorites: favorites ?? this.favorites,
     collections: collections ?? this.collections,
+    channels: channels ?? this.channels,
+    channelQuery: channelQuery ?? this.channelQuery,
+    channelResults: channelResults ?? this.channelResults,
+    channelSearching: channelSearching ?? this.channelSearching,
+    channelSearchError: channelSearchError != null
+        ? channelSearchError()
+        : this.channelSearchError,
     loaded: loaded ?? this.loaded,
   );
 }
@@ -76,10 +113,16 @@ class YoutubeCubit extends Cubit<YoutubeState> {
     YoutubeLibraryStorage? storage,
   }) : _search = search,
        _storage = storage ?? YoutubeLibraryStorage(),
-       super(const YoutubeState());
+       super(const YoutubeState()) {
+    channelLoader = ChannelPlaylistLoader(_search.playlist);
+  }
 
   final YoutubeSearchRepository _search;
   final YoutubeLibraryStorage _storage;
+
+  /// Vídeos das playlists dos canais (cache enquanto o módulo está aberto).
+  late final ChannelPlaylistLoader channelLoader;
+  int _channelSearchSeq = 0;
 
   /// Quantos vídeos a primeira busca já traz (como no desktop).
   static const initialTarget = 60;
@@ -90,6 +133,7 @@ class YoutubeCubit extends Cubit<YoutubeState> {
     final history = await _storage.history();
     final favorites = await _storage.favorites();
     final collections = await _storage.collections();
+    final channels = await _storage.channels();
     if (isClosed) return;
     emit(
       state.copyWith(
@@ -97,9 +141,18 @@ class YoutubeCubit extends Cubit<YoutubeState> {
         history: history,
         favorites: favorites,
         collections: collections,
+        channels: channels,
         loaded: true,
       ),
     );
+  }
+
+  /// Só histórico e favoritos (no controle remoto, quando o desktop manda).
+  Future<void> reloadLibrary() async {
+    final history = await _storage.history();
+    final favorites = await _storage.favorites();
+    if (isClosed) return;
+    emit(state.copyWith(history: history, favorites: favorites));
   }
 
   /* ---------- Busca ---------- */
@@ -273,5 +326,80 @@ class YoutubeCubit extends Cubit<YoutubeState> {
 
   void _setCollections(List<YoutubeCollection> list) {
     if (!isClosed) emit(state.copyWith(collections: list));
+  }
+
+  /* ---------- Canais ---------- */
+
+  /// Cadastra pelo link, @handle ou id. `error` vem do YouTube quando não deu.
+  Future<({YoutubeChannelSaveStatus status, YoutubeChannel? channel, String? error})>
+  addChannel(String text) async {
+    final q = text.trim();
+    if (q.isEmpty) {
+      return (status: YoutubeChannelSaveStatus.invalid, channel: null, error: 'invalid');
+    }
+    final result = await _search.channel(q);
+    final saved = await _storage.saveChannel(result);
+    if (!isClosed && saved.status != YoutubeChannelSaveStatus.invalid) {
+      emit(state.copyWith(channels: saved.list));
+    }
+    return (
+      status: saved.status,
+      channel: saved.channel,
+      error: saved.status == YoutubeChannelSaveStatus.invalid
+          ? (result.error ?? 'empty')
+          : null,
+    );
+  }
+
+  Future<void> removeChannel(String id) async {
+    final list = await _storage.removeChannel(id);
+    if (!isClosed) emit(state.copyWith(channels: list));
+  }
+
+  /// Canal cadastrado: relê as playlists ao abrir (falha mantém as salvas).
+  Future<void> refreshChannel(YoutubeChannel channel) async {
+    final result = await _search.channel(channel.url);
+    if (result.channel?.id != channel.id) return;
+    final saved = await _storage.saveChannel(result);
+    if (!isClosed && saved.status == YoutubeChannelSaveStatus.updated) {
+      emit(state.copyWith(channels: saved.list));
+    }
+  }
+
+  /// Pesquisa canais adventistas sobre o tema (a mais nova vale).
+  Future<void> searchChannels(String text) async {
+    final q = text.trim();
+    if (q.isEmpty) return clearChannelSearch();
+    final seq = ++_channelSearchSeq;
+    emit(
+      state.copyWith(
+        channelQuery: q,
+        channelResults: const [],
+        channelSearching: true,
+        channelSearchError: () => null,
+      ),
+    );
+    final result = await _search.searchChannels(q);
+    if (isClosed || seq != _channelSearchSeq) return;
+    emit(
+      state.copyWith(
+        channelResults: result.items,
+        channelSearching: false,
+        channelSearchError: () =>
+            result.items.isNotEmpty ? null : (result.error ?? 'empty'),
+      ),
+    );
+  }
+
+  void clearChannelSearch() {
+    _channelSearchSeq++;
+    emit(
+      state.copyWith(
+        channelQuery: '',
+        channelResults: const [],
+        channelSearching: false,
+        channelSearchError: () => null,
+      ),
+    );
   }
 }

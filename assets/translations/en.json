@@ -357,7 +357,16 @@
     "languageEnglish": "English",
     "languageSpanish": "Espanol",
     "version": "Version",
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "languageRussian": "Русский",
+    "languageUkrainian": "Українська",
+    "languageFrench": "Français",
+    "languageJapanese": "日本語",
+    "languageKorean": "한국어",
+    "languageChinese": "中文",
+    "languageTurkish": "Türkçe",
+    "languageArabic": "العربية",
+    "languageHindi": "हिन्दी"
   },
   "timer": {
     "save": "Save",
@@ -552,6 +561,8 @@
       "noScreens": "No screens available",
       "showCaptions": "Show captions",
       "hideCaptions": "Hide captions",
+      "fullscreen": "Full screen",
+      "exitFullscreen": "Exit full screen",
       "closeConfirmTitle": "Close the media?",
       "closeConfirmMessage": "What is playing on the desktop will stop.",
       "closeConfirmCancel": "Cancel",
@@ -682,7 +693,8 @@
       "reload": "Reload",
       "project": "Project on desktop",
       "close": "Close browser"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "Shuffle play",
@@ -713,7 +725,8 @@
       "history": "History",
       "favorites": "Favorites",
       "collections": "Collections",
-      "downloads": "Downloaded"
+      "downloads": "Downloaded",
+      "channels": "Channels"
     },
     "search": {
       "placeholder": "Search YouTube or paste a link…",
@@ -830,6 +843,89 @@
       "removeAllTitle": "Delete all downloaded videos?",
       "removeAllMessage": "The copies of {n} YouTube video(s) will be removed from the device. They stay in history, favorites and collections, and can be downloaded again.",
       "others": "Plus {n} Liturgy video(s) kept in this folder."
+    },
+    "channels": {
+      "title": "Channels",
+      "hint": "Add a channel by pasting its link (e.g. youtube.com/@channel). Playlists and videos are read from YouTube when you open them.",
+      "addPlaceholder": "Paste the YouTube channel link or @handle…",
+      "add": "Add channel",
+      "adding": "Reading the channel…",
+      "addInvalid": "This is not a YouTube channel link (e.g. youtube.com/@channel).",
+      "addEmpty": "This channel has no public playlists.",
+      "addError": "Could not read the channel right now. Check your internet and try again.",
+      "added": "Channel “{name}” added.",
+      "alreadyDefault": "“{name}” already comes with the app.",
+      "delete": "Delete channel",
+      "deleteTitle": "Delete the channel “{name}”?",
+      "deleteMessage": "The channel leaves the list. Videos stay in history, favorites and collections.",
+      "deleteConfirm": "Delete",
+      "filterPlaylists": "Find a playlist…",
+      "noPlaylistMatch": "No playlists for “{query}”.",
+      "searchPlaceholder": "Search Adventist channels (e.g. worship, youth, Christmas)…",
+      "search": "Search",
+      "searching": "Searching channels…",
+      "searchTitle": "Adventist channels for “{query}”",
+      "searchEmpty": "No channels found for “{query}”. Try other words.",
+      "searchError": "Could not search right now. Check your internet and try again.",
+      "searchClose": "Close search",
+      "register": "Add",
+      "registered": "Added",
+      "builtIn": "Comes with the app",
+      "playlistCount": "{n} playlist(s)",
+      "open": "Open",
+      "backToChannels": "Back to channels",
+      "backToPlaylists": "Back to playlists",
+      "loading": "Reading the playlist…",
+      "error": "Could not read the playlist right now. Check your internet and try again.",
+      "empty": "This playlist is empty right now.",
+      "retry": "Try again",
+      "saveAsCollection": "Save as collection",
+      "filter": "Find by number or name…",
+      "noMatch": "No videos for “{query}”."
+    },
+    "remote": {
+      "subtitle": "Plays on the computer",
+      "sent": "Opening on the computer: {title}",
+      "notConnected": "Connect the remote control to the computer first."
+    }
+  },
+  "onboarding": {
+    "wizardTitle": "First-launch setup",
+    "continue": "Continue",
+    "back": "Back",
+    "finish": "Finish",
+    "save": "Save",
+    "useDefault": "Use default",
+    "stepOf": "Step {current} of {total}",
+    "welcome": {
+      "title": "Welcome to Piano LouvorJA",
+      "text": "This is the first-launch setup. It will guide you through the first settings of the app."
+    },
+    "update": {
+      "wizardTitle": "Piano LouvorJA update",
+      "title": "Your Piano LouvorJA has been updated",
+      "text": "This version brings new features. To finish the update, enter the district and church where you use the app."
+    },
+    "location": {
+      "title": "Where do you use LouvorJA?",
+      "text": "Tell us the district and church where the app is used. It helps the team understand where LouvorJA is present and prioritize improvements.",
+      "district": "District",
+      "church": "Church",
+      "privacy": "Only district and church, no name, email or phone. You can change it later on the home screen.",
+      "required": "Fill in the district and church to continue."
+    },
+    "accent": {
+      "title": "Choose the accent color",
+      "text": "The color shows on buttons, highlights and icons. Change it anytime in Settings → Appearance."
+    },
+    "interaction": {
+      "title": "Choose the app animation",
+      "text": "Sets the motion style of the interface. Also in Settings → Appearance."
+    },
+    "reminder": {
+      "text": "Enter the district and church where LouvorJA is used.",
+      "later": "Remind me later",
+      "never": "Don't ask again"
     }
   }
 }

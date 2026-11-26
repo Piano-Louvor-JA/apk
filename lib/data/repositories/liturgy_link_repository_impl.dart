@@ -1,3 +1,4 @@
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:louvorja_piano_mobile/core/constants/app_version.dart';
 import 'package:louvorja_piano_mobile/core/services/liturgy/liturgy_media_muxer.dart';
 import 'dart:convert';
@@ -18,8 +19,8 @@ class LiturgyLinkRepositoryImpl implements LiturgyLinkRepository {
           (YtDlpDownloader.supported ? YtDlpDownloader.instance : null),
       _http =
           dio ??
-          Dio(
-            BaseOptions(
+          createApiDio(
+            options: BaseOptions(
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(minutes: 10),
               headers: clientPlatformHeaders(),

@@ -2,7 +2,7 @@ library;
 
 import 'dart:io';
 
-import 'package:dio/dio.dart';
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:louvorja_piano_mobile/core/services/bundle/bundle_snapshot_store.dart';
@@ -29,7 +29,7 @@ class BundleSyncBoot {
       final client = clientFactory != null
           ? clientFactory()
           : BundleSyncClient(
-              dio: Dio(),
+              dio: createApiDio(),
               origin: _resolveOrigin(),
               store: store,
               stateFile: stateFile,

@@ -1,3 +1,4 @@
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:louvorja_piano_mobile/core/constants/app_version.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -12,8 +13,8 @@ class ProvaiRepositoryImpl implements ProvaiRepository {
   ProvaiRepositoryImpl({Dio? dio})
     : _http =
           dio ??
-          Dio(
-            BaseOptions(
+          createApiDio(
+            options: BaseOptions(
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(minutes: 15),
             ),

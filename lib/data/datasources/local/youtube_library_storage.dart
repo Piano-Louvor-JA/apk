@@ -3,7 +3,9 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:louvorja_piano_mobile/core/services/youtube/youtube_default_channels.dart';
 import 'package:louvorja_piano_mobile/core/utils/reorder.dart';
+import 'package:louvorja_piano_mobile/domain/entities/youtube_channel.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
 
 /// Vídeo guardado (histórico, favorito ou item de coletânea).
@@ -145,6 +147,7 @@ class YoutubeLibraryStorage {
   static const favoritesKey = 'louvorja-youtube-favorites-v1';
   static const queriesKey = 'louvorja-youtube-queries-v1';
   static const collectionsKey = 'louvorja-youtube-collections-v1';
+  static const channelsKey = 'louvorja-youtube-channels-v1';
 
   static const historyMax = 300;
   static const favoritesMax = 500;
@@ -436,7 +439,128 @@ class YoutubeLibraryStorage {
         videos.insert(to, moved);
         return c.copyWith(videos: videos);
       });
+
+  /* ---------- Canais cadastrados ---------- */
+
+  static final _channelId = RegExp(r'^UC[\w-]{22}$');
+  static final _playlistId = RegExp(r'^(PL|UU|LL|FL|OL|RD)[\w-]{10,}$');
+
+  static List<YoutubeChannelPlaylist> _playlistsFrom(Object? raw) {
+    final seen = <String>{};
+    final list = <YoutubeChannelPlaylist>[];
+    for (final item in raw is List ? raw : const []) {
+      if (item is! Map) continue;
+      String str(String key) => item[key] is String ? item[key] as String : '';
+      final id = str('id');
+      final name = str('name').trim();
+      if (!_playlistId.hasMatch(id) || name.isEmpty || !seen.add(id)) continue;
+      final count = item['videoCount'];
+      list.add(
+        YoutubeChannelPlaylist(
+          id: id,
+          name: name,
+          thumbnail: str('thumbnail'),
+          videoCount: count is num && count > 0 ? count.toInt() : 0,
+        ),
+      );
+    }
+    return list;
+  }
+
+  static YoutubeChannel? _channelFrom(Object? raw) {
+    if (raw is! Map) return null;
+    String str(String key) => raw[key] is String ? raw[key] as String : '';
+    final id = str('id');
+    final name = str('name').trim();
+    if (!_channelId.hasMatch(id) || name.isEmpty) return null;
+    final addedAt = raw['addedAt'];
+    return YoutubeChannel(
+      id: id,
+      name: name,
+      url: str('url').isNotEmpty ? str('url') : 'https://www.youtube.com/channel/$id',
+      youtubeId: id,
+      avatar: str('avatar'),
+      userAdded: true,
+      addedAt: addedAt is num && addedAt > 0 ? addedAt.toInt() : 0,
+      playlists: _playlistsFrom(raw['playlists']),
+    );
+  }
+
+  /// Cadastrados pelo operador, na ordem do cadastro (mesma chave e formato
+  /// do desktop). Dado inválido é descartado.
+  Future<List<YoutubeChannel>> userChannels() async {
+    final seen = <String>{};
+    final list = <YoutubeChannel>[];
+    for (final item in await _readList(channelsKey)) {
+      final channel = _channelFrom(item);
+      if (channel != null && seen.add(channel.id)) list.add(channel);
+    }
+    return list;
+  }
+
+  /// Os canais padrão primeiro, depois os cadastrados.
+  Future<List<YoutubeChannel>> channels() async => [
+    ...defaultYoutubeChannels,
+    ...await userChannels(),
+  ];
+
+  /// Cadastra (ou atualiza) o canal lido do YouTube.
+  Future<YoutubeChannelSave> saveChannel(YoutubeChannelResult result) async {
+    final info = result.channel;
+    final builtIn = info == null
+        ? null
+        : defaultYoutubeChannels.where((c) => c.youtubeId == info.id).firstOrNull;
+    if (builtIn != null) {
+      return (status: YoutubeChannelSaveStatus.builtIn, channel: builtIn, list: await channels());
+    }
+    final playlists = _playlistsFrom([
+      for (final p in result.playlists)
+        {'id': p.id, 'name': p.title, 'thumbnail': p.thumbnail, 'videoCount': p.videoCount},
+    ]);
+    if (info == null || !_channelId.hasMatch(info.id) || info.name.trim().isEmpty || playlists.isEmpty) {
+      return (status: YoutubeChannelSaveStatus.invalid, channel: null, list: await channels());
+    }
+    final users = await userChannels();
+    final index = users.indexWhere((c) => c.id == info.id);
+    final channel = YoutubeChannel(
+      id: info.id,
+      name: info.name.trim(),
+      url: info.url.isNotEmpty ? info.url : 'https://www.youtube.com/channel/${info.id}',
+      youtubeId: info.id,
+      avatar: info.avatar,
+      userAdded: true,
+      addedAt: index >= 0 ? users[index].addedAt : _clock(),
+      playlists: playlists,
+    );
+    if (index >= 0) {
+      users[index] = channel;
+    } else {
+      users.add(channel);
+    }
+    await _write(channelsKey, [for (final c in users) c.toJson()]);
+    return (
+      status: index >= 0 ? YoutubeChannelSaveStatus.updated : YoutubeChannelSaveStatus.added,
+      channel: channel,
+      list: await channels(),
+    );
+  }
+
+  /// Exclui um canal cadastrado (os padrão não saem).
+  Future<List<YoutubeChannel>> removeChannel(String id) async {
+    final users = (await userChannels()).where((c) => c.id != id).toList();
+    await _write(channelsKey, [for (final c in users) c.toJson()]);
+    return channels();
+  }
 }
+
+enum YoutubeChannelSaveStatus { added, updated, builtIn, invalid }
+
+/// Resultado de cadastrar um canal: a situação, o canal e a lista completa.
+typedef YoutubeChannelSave = ({
+  YoutubeChannelSaveStatus status,
+  YoutubeChannel? channel,
+  List<YoutubeChannel> list,
+});
 
 /// Filtro por título ou canal, sem acento e com todos os termos (AND).
 List<T> filterYoutubeVideos<T>(
