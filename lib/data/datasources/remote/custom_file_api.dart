@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:dio/dio.dart';
 import 'package:louvorja_piano_mobile/core/platform_header.dart';
 
@@ -30,8 +31,8 @@ class CustomFileApi {
   CustomFileApi({Dio? dio, String? apiBaseUrl})
     : _dio =
           dio ??
-          Dio(
-            BaseOptions(
+          createApiDio(
+            options: BaseOptions(
               connectTimeout: const Duration(seconds: 30),
               receiveTimeout: const Duration(minutes: 5),
               sendTimeout: const Duration(minutes: 5),

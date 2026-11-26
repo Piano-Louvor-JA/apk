@@ -3,6 +3,7 @@
 /// (RF-05). Escrita (editar/publicar) permanece desktop/web — APK não edita.
 library;
 
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:dio/dio.dart';
 import 'package:louvorja_piano_mobile/core/constants/api_config.dart';
 import 'package:louvorja_piano_mobile/core/platform_header.dart';
@@ -24,8 +25,8 @@ class EditsApiImpl {
   factory EditsApiImpl.production() {
     final database = ApiConfig.urlDatabase;
     return EditsApiImpl(
-      dio: Dio(
-        BaseOptions(
+      dio: createApiDio(
+        options: BaseOptions(
           connectTimeout: const Duration(seconds: 5),
           receiveTimeout: const Duration(seconds: 8),
         ),

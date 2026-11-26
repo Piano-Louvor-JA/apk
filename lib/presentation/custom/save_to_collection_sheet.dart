@@ -1,3 +1,4 @@
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:dio/dio.dart';
 import 'package:louvorja_piano_mobile/core/platform_header.dart';
 import 'package:flutter/material.dart';
@@ -20,8 +21,8 @@ Future<void> showSaveToCollectionSheet(
   required String hymnTitle,
   CustomSessionStore? sessionStore,
 }) async {
-  final dio = Dio(
-    BaseOptions(
+  final dio = createApiDio(
+    options: BaseOptions(
       connectTimeout: const Duration(seconds: 8),
       receiveTimeout: const Duration(seconds: 15),
     ),

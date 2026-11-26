@@ -75,3 +75,30 @@ O APK é um app de **operação** (controle + navegação + play). Projeção, m
 [GPL-3.0](LICENSE) — © Piano Louvor JA.
 
 O apk Android inclui o `youtubedl-android` (GPL-3.0) para baixar vídeos online, por isso o projeto é distribuído sob GPL-3.0. O código anterior a essa mudança foi publicado sob MIT ([LICENSE-MIT](LICENSE-MIT)). Componentes de terceiros e detalhes em [NOTICE](NOTICE).
+
+## Identificação das requisições à API Piano
+
+Os clientes Dio da API usam `createApiDio` (`lib/core/network/api_dio.dart`).
+Em cada requisição à API Piano são acrescentados `X-Client-Platform`
+(`apk-android` ou `apk-ios`), `X-Client-Version` (versão instalada) e, quando
+configurado, `X-Partner-Key`. `Api-Token` legado e `Authorization` da sessão
+continuam independentes.
+
+Configure chaves próprias do **APK**, distintas das do desktop, nos secrets do
+repositório: `PARTNER_KEY_STG` para o build de PR e `PARTNER_KEY_PROD` para
+CI/release. Os workflows repassam esses valores via `--dart-define`.
+As chaves devem ser emitidas pelo administrador na CLI de parceiros da API;
+não devem ser incluídas no código ou em comandos versionados.
+
+Em builds locais, os defines aceitos são `PARTNER_KEY_STG`, `PARTNER_KEY_PROD`
+e `PARTNER_KEY` (override opcional). A URL efetiva seleciona STG ou produção;
+localhost/127.0.0.1 usam STG, aceitando override para uma chave da API local.
+Somente o define necessário ao ambiente precisa ser fornecido. Sem chave ou
+com valor fora do prefixo `plj_`, o header é omitido. Uma chave revogada ou
+desconhecida enviada à API recebe 401, conforme o contrato do servidor.
+
+A chave configurada só é acrescentada para HTTPS nos hosts exatos
+`api-stg.pianolouvorja.com.br` e `api.pianolouvorja.com.br`, ou HTTP/HTTPS
+local. Não é acrescentada ao upstream de catálogo, CDN ou Google/Firebase.
+O token distribuído identifica o parceiro de forma revogável; não substitui
+a autenticação do usuário e não é um segredo forte dentro do APK.

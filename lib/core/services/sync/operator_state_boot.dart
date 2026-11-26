@@ -7,6 +7,7 @@ library;
 
 import 'dart:async';
 
+import 'package:louvorja_piano_mobile/core/network/api_dio.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,8 +63,8 @@ abstract final class OperatorStateBoot {
   }) {
     final http =
         dio ??
-        Dio(
-          BaseOptions(
+        createApiDio(
+          options: BaseOptions(
             connectTimeout: const Duration(seconds: 10),
             receiveTimeout: const Duration(seconds: 15),
           ),
