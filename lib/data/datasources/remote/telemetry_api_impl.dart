@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/constants/api_config.dart';
 import '../../../core/constants/app_version.dart';
+import '../../../core/network/api_dio.dart';
 import '../../../core/platform_header.dart';
 import '../../../core/services/telemetry/heartbeat.dart';
 import '../../../domain/repositories/telemetry_api_client.dart';
@@ -40,11 +41,15 @@ class TelemetryApiImpl implements TelemetryApiClient {
     final headers = clientPlatformHeaders(version: await _version());
     for (final url in _urls) {
       try {
+        final partnerKey = partnerKeyForUri(Uri.parse(url));
         final res = await _dio.post<void>(
           url,
           data: body,
           options: Options(
-            headers: headers,
+            headers: {
+              ...headers,
+              if (partnerKey.isNotEmpty) 'X-Partner-Key': partnerKey,
+            },
             contentType: Headers.jsonContentType,
           ),
         );

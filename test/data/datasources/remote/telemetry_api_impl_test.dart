@@ -88,6 +88,33 @@ void main() {
       expect(await down.sendHeartbeat({}), isFalse);
     });
 
+    test('identifica parceiro por ambiente tambem no fallback', () async {
+      final seen = <RequestOptions>[];
+      final api = TelemetryApiImpl(
+        baseUrls: _bases,
+        dio: _dioWith([503, 204], seen),
+        version: () async => '1.0.0',
+      );
+      expect(await api.sendHeartbeat({}), isTrue);
+      expect(seen, hasLength(2));
+      const staging = String.fromEnvironment('PARTNER_KEY_STG');
+      const production = String.fromEnvironment('PARTNER_KEY_PROD');
+      expect(
+        seen[0].headers['X-Partner-Key'],
+        staging.isEmpty ? null : staging,
+      );
+      expect(
+        seen[1].headers['X-Partner-Key'],
+        production.isEmpty ? null : production,
+      );
+      expect(
+        seen.every(
+          (request) => request.uri.host.endsWith('.pianolouvorja.com.br'),
+        ),
+        isTrue,
+      );
+    });
+
     test('4xx nao insiste em outro host', () async {
       final seen = <RequestOptions>[];
       final api = TelemetryApiImpl(
