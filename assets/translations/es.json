@@ -561,6 +561,8 @@
       "noScreens": "Ninguna pantalla disponible",
       "showCaptions": "Mostrar subtítulos",
       "hideCaptions": "Ocultar subtítulos",
+      "fullscreen": "Pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
       "closeConfirmTitle": "¿Cerrar el medio?",
       "closeConfirmMessage": "Lo que se reproduce en el escritorio se detendrá.",
       "closeConfirmCancel": "Cancelar",
@@ -691,7 +693,8 @@
       "reload": "Recargar",
       "project": "Proyectar en el escritorio",
       "close": "Cerrar navegador"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "Reproducir aleatorio",
@@ -722,7 +725,8 @@
       "history": "Historial",
       "favorites": "Favoritos",
       "collections": "Colecciones",
-      "downloads": "Descargados"
+      "downloads": "Descargados",
+      "channels": "Canales"
     },
     "search": {
       "placeholder": "Buscar en YouTube o pegar un enlace…",
@@ -839,6 +843,50 @@
       "removeAllTitle": "¿Borrar todos los videos descargados?",
       "removeAllMessage": "Las copias de {n} video(s) de YouTube saldrán del dispositivo. Siguen en el historial, en favoritos y en las colecciones, y se pueden descargar de nuevo.",
       "others": "Además, {n} video(s) de la Liturgia guardados en esta carpeta."
+    },
+    "channels": {
+      "title": "Canales",
+      "hint": "Agrega un canal pegando su enlace (ej.: youtube.com/@canal). Las listas y los videos se leen de YouTube cuando los abres.",
+      "addPlaceholder": "Pega el enlace o el @ del canal de YouTube…",
+      "add": "Agregar canal",
+      "adding": "Leyendo el canal…",
+      "addInvalid": "Ese enlace no es de un canal de YouTube (ej.: youtube.com/@canal).",
+      "addEmpty": "Ese canal no tiene listas públicas.",
+      "addError": "No se pudo leer el canal ahora. Revisa internet e inténtalo de nuevo.",
+      "added": "Canal “{name}” agregado.",
+      "alreadyDefault": "“{name}” ya viene con la app.",
+      "delete": "Eliminar canal",
+      "deleteTitle": "¿Eliminar el canal “{name}”?",
+      "deleteMessage": "El canal sale de la lista. Los videos siguen en el historial, favoritos y colecciones.",
+      "deleteConfirm": "Eliminar",
+      "filterPlaylists": "Buscar lista…",
+      "noPlaylistMatch": "Ninguna lista para “{query}”.",
+      "searchPlaceholder": "Buscar canales adventistas (ej.: alabanza, jóvenes, Navidad)…",
+      "search": "Buscar",
+      "searching": "Buscando canales…",
+      "searchTitle": "Canales adventistas para “{query}”",
+      "searchEmpty": "Ningún canal encontrado para “{query}”. Prueba otras palabras.",
+      "searchError": "No se pudo buscar ahora. Revisa internet e inténtalo de nuevo.",
+      "searchClose": "Cerrar búsqueda",
+      "register": "Agregar",
+      "registered": "Agregado",
+      "builtIn": "Viene con la app",
+      "playlistCount": "{n} lista(s)",
+      "open": "Abrir",
+      "backToChannels": "Volver a los canales",
+      "backToPlaylists": "Volver a las listas",
+      "loading": "Leyendo la lista…",
+      "error": "No se pudo leer la lista ahora. Revisa internet e inténtalo de nuevo.",
+      "empty": "La lista está vacía por ahora.",
+      "retry": "Intentar de nuevo",
+      "saveAsCollection": "Guardar como colección",
+      "filter": "Buscar por número o nombre…",
+      "noMatch": "Ningún video para “{query}”."
+    },
+    "remote": {
+      "subtitle": "Se reproduce en la computadora",
+      "sent": "Abriendo en la computadora: {title}",
+      "notConnected": "Conecta el control remoto a la computadora primero."
     }
   }
 }

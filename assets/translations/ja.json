@@ -564,7 +564,9 @@
       "closeConfirmTitle": "メディアを閉じますか？",
       "closeConfirmMessage": "デスクトップで再生中のものが停止します。",
       "closeConfirmCancel": "キャンセル",
-      "closeConfirmOk": "閉じる"
+      "closeConfirmOk": "閉じる",
+      "fullscreen": "全画面",
+      "exitFullscreen": "全画面を終了"
     },
     "title": "リモコン",
     "palcoOff": "まずPalcoをオンにしてください — リモコンは同じ接続を使用します。",
@@ -691,7 +693,8 @@
       "reload": "再読み込み",
       "project": "デスクトップに投影",
       "close": "ブラウザを閉じる"
-    }
+    },
+    "youtube": "YouTube"
   },
   "albums": {
     "shuffle": "シャッフル再生",
@@ -722,7 +725,8 @@
       "history": "履歴",
       "favorites": "お気に入り",
       "collections": "コレクション",
-      "downloads": "ダウンロード済み"
+      "downloads": "ダウンロード済み",
+      "channels": "チャンネル"
     },
     "search": {
       "placeholder": "YouTube を検索またはリンクを貼り付け…",
@@ -839,6 +843,50 @@
       "removeAllTitle": "ダウンロードした動画をすべて削除しますか？",
       "removeAllMessage": "YouTube 動画 {n} 本のコピーが端末から削除されます。履歴・お気に入り・コレクションには残り、再ダウンロードできます。",
       "others": "このフォルダには礼拝式の動画も {n} 本保存されています。"
+    },
+    "channels": {
+      "title": "チャンネル",
+      "hint": "リンクを貼り付けてチャンネルを追加します（例：youtube.com/@channel）。プレイリストと動画は開いたときに YouTube から読み込まれます。",
+      "addPlaceholder": "YouTube チャンネルのリンクか @ハンドルを貼り付け…",
+      "add": "チャンネルを追加",
+      "adding": "チャンネルを読み込み中…",
+      "addInvalid": "YouTube チャンネルのリンクではありません（例：youtube.com/@channel）。",
+      "addEmpty": "このチャンネルには公開プレイリストがありません。",
+      "addError": "今はチャンネルを読み込めませんでした。インターネット接続を確認して、もう一度お試しください。",
+      "added": "チャンネル「{name}」を追加しました。",
+      "alreadyDefault": "「{name}」はアプリに最初から入っています。",
+      "delete": "チャンネルを削除",
+      "deleteTitle": "チャンネル「{name}」を削除しますか？",
+      "deleteMessage": "チャンネルは一覧から消えます。動画は履歴、お気に入り、コレクションに残ります。",
+      "deleteConfirm": "削除",
+      "filterPlaylists": "プレイリストを検索…",
+      "noPlaylistMatch": "「{query}」のプレイリストはありません。",
+      "searchPlaceholder": "アドベンチストのチャンネルを検索（例：賛美、青年、クリスマス）…",
+      "search": "検索",
+      "searching": "チャンネルを検索中…",
+      "searchTitle": "「{query}」のアドベンチスト・チャンネル",
+      "searchEmpty": "「{query}」のチャンネルは見つかりませんでした。別の言葉で試してください。",
+      "searchError": "今は検索できませんでした。インターネット接続を確認して、もう一度お試しください。",
+      "searchClose": "検索を閉じる",
+      "register": "追加",
+      "registered": "追加済み",
+      "builtIn": "アプリに付属",
+      "playlistCount": "{n} 件のプレイリスト",
+      "open": "開く",
+      "backToChannels": "チャンネルに戻る",
+      "backToPlaylists": "プレイリストに戻る",
+      "loading": "プレイリストを読み込み中…",
+      "error": "今はプレイリストを読み込めませんでした。インターネット接続を確認して、もう一度お試しください。",
+      "empty": "このプレイリストは今は空です。",
+      "retry": "再試行",
+      "saveAsCollection": "コレクションとして保存",
+      "filter": "番号か名前で検索…",
+      "noMatch": "「{query}」の動画はありません。"
+    },
+    "remote": {
+      "subtitle": "パソコンで再生",
+      "sent": "パソコンで開いています：{title}",
+      "notConnected": "まずリモコンをパソコンに接続してください。"
     }
   }
 }

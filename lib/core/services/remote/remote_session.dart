@@ -6,6 +6,7 @@ import 'remote_connection_store.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:louvorja_piano_mobile/core/services/remote/remote_slide_gallery.dart';
+import 'package:louvorja_piano_mobile/core/services/remote/remote_youtube_library.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/desktop_connection.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_protocol.dart';
 import 'package:louvorja_piano_mobile/core/services/remote/remote_device_name.dart';
@@ -229,6 +230,7 @@ class RemoteSession {
     // Vídeo fechado: o quadro antigo não pode aparecer no próximo vídeo.
     if (state.videoControls == null) videoFrame.value = null;
     RemoteSlideGallery.remember(state);
+    RemoteYoutubeLibrary.remember(state);
     _statesCtrl.add(state);
   }
 

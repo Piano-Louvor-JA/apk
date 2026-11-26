@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import 'package:louvorja_piano_mobile/core/services/youtube/youtube_channel_parser.dart';
 import 'package:louvorja_piano_mobile/core/services/youtube/youtube_search_parser.dart';
+import 'package:louvorja_piano_mobile/domain/entities/youtube_channel.dart';
 import 'package:louvorja_piano_mobile/domain/entities/youtube_video.dart';
 import 'package:louvorja_piano_mobile/domain/repositories/youtube_search_repository.dart';
 
@@ -71,6 +73,11 @@ class YoutubeSearchRepositoryImpl implements YoutubeSearchRepository {
 
   /// Filtro "Tipo: vídeo".
   static const onlyVideos = 'EgIQAQ%253D%253D';
+
+  /// Filtro "Tipo: canal".
+  static const onlyChannels = 'EgIQAg%253D%253D';
+  static const channelMaxPlaylists = 300;
+  static const channelMaxPages = 10;
   static const defaultClientVersion = '2.20251101.00.00';
   static const headers = {
     'User-Agent':
@@ -232,6 +239,91 @@ class YoutubeSearchRepositoryImpl implements YoutubeSearchRepository {
       );
     } catch (_) {
       return const YoutubePlaylistResult(error: 'network');
+    }
+  }
+
+  @override
+  Future<YoutubeChannelResult> channel(String text) async {
+    final path = YoutubeChannelParser.channelPath(text);
+    if (path == null) return const YoutubeChannelResult(error: 'invalid');
+    try {
+      final res = await _http.get(
+        'https://www.youtube.com/${Uri.encodeFull(path)}/playlists?hl=pt-BR',
+        headers,
+      );
+      if (res.status < 200 || res.status >= 300) {
+        return YoutubeChannelResult(error: 'http-${res.status}');
+      }
+      final data = YoutubeSearchParser.initialData(res.body);
+      final channel = data == null ? null : YoutubeChannelParser.channelInfo(data);
+      if (channel == null) return const YoutubeChannelResult(error: 'parse');
+      final first = YoutubeChannelParser.collectPlaylists(data);
+      final playlists = [...first.items];
+      final seen = playlists.map((p) => p.id).toSet();
+      final apiKey = YoutubeSearchParser.readConfig(
+        res.body,
+        'INNERTUBE_API_KEY',
+      );
+      final clientVersion =
+          YoutubeSearchParser.readConfig(res.body, 'INNERTUBE_CLIENT_VERSION') ??
+          defaultClientVersion;
+      var token = first.token;
+      for (
+        var page = 0;
+        token != null &&
+            page < channelMaxPages &&
+            playlists.length < channelMaxPlaylists;
+        page++
+      ) {
+        final more = await _http.post(
+          'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false${_keyParam(apiKey)}',
+          {...headers, 'Content-Type': 'application/json'},
+          _body(token, clientVersion),
+        );
+        if (more.status < 200 || more.status >= 300) break;
+        final next = YoutubeChannelParser.collectPlaylists(_json(more.body));
+        var added = 0;
+        for (final playlist in next.items) {
+          if (!seen.add(playlist.id)) continue;
+          playlists.add(playlist);
+          added++;
+        }
+        token = added > 0 ? next.token : null;
+      }
+      if (playlists.isEmpty) {
+        return YoutubeChannelResult(channel: channel, error: 'empty');
+      }
+      return YoutubeChannelResult(
+        channel: channel,
+        playlists: playlists.length > channelMaxPlaylists
+            ? playlists.sublist(0, channelMaxPlaylists)
+            : playlists,
+      );
+    } catch (_) {
+      return const YoutubeChannelResult(error: 'network');
+    }
+  }
+
+  @override
+  Future<YoutubeChannelSearchResult> searchChannels(String query) async {
+    final q = YoutubeChannelParser.adventistQuery(query);
+    if (q.isEmpty) return const YoutubeChannelSearchResult();
+    try {
+      final res = await _http.get(
+        'https://www.youtube.com/results?search_query=${Uri.encodeComponent(q)}&sp=$onlyChannels&hl=pt-BR',
+        headers,
+      );
+      if (res.status < 200 || res.status >= 300) {
+        return YoutubeChannelSearchResult(error: 'http-${res.status}');
+      }
+      final data = YoutubeSearchParser.initialData(res.body);
+      if (data == null) return const YoutubeChannelSearchResult(error: 'parse');
+      final items = YoutubeChannelParser.collectChannels(data);
+      return items.isEmpty
+          ? const YoutubeChannelSearchResult(error: 'empty')
+          : YoutubeChannelSearchResult(items: items);
+    } catch (_) {
+      return const YoutubeChannelSearchResult(error: 'network');
     }
   }
 }

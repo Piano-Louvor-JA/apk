@@ -22,3 +22,12 @@
 -keep class com.yausername.** { *; }
 -keep class com.fasterxml.jackson.** { *; }
 -dontwarn com.fasterxml.jackson.**
+
+# commons-compress (o youtubedl-android extrai o Python de um zip com ele):
+# ExtraFieldUtils cria os campos extras do zip por reflexão (Class.newInstance)
+# no bloco static. Sem isto o R8 remove os construtores vazios, o bloco static
+# lança ExceptionInInitializerError e o app fecha ao baixar do YouTube.
+-keep class * implements org.apache.commons.compress.archivers.zip.ZipExtraField {
+    public <init>();
+}
+-dontwarn org.apache.commons.compress.**

@@ -38,6 +38,7 @@ class YoutubeVideoTile extends StatelessWidget {
     this.detail,
     this.leading,
     this.extraActions = const [],
+    this.downloads = true,
   });
 
   final YoutubeVideo video;
@@ -53,6 +54,9 @@ class YoutubeVideoTile extends StatelessWidget {
   /// Antes da capa (ex.: setas de reordenar na coletânea).
   final Widget? leading;
   final List<YoutubeTileAction> extraActions;
+
+  /// Botão de baixar (falso no controle remoto: quem toca é o computador).
+  final bool downloads;
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +188,7 @@ class YoutubeVideoTile extends StatelessWidget {
                     onPressed: onAddToCollection,
                     icon: const Icon(TablerIcons.playlistAdd),
                   ),
-                  if (YoutubeDownloads.supported)
+                  if (downloads && YoutubeDownloads.supported)
                     YoutubeDownloadButton(video: video),
                   if (extraActions.isNotEmpty)
                     PopupMenuButton<int>(
