@@ -14,11 +14,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app/app.dart';
 import 'core/services/bundle/bundle_sync_boot.dart';
 import 'core/services/media_state_mirror.dart';
+import 'core/services/onboarding_preferences.dart';
 import 'core/services/offline_status.dart';
 import 'core/services/settings_controller.dart';
 import 'core/services/sync/operator_state_boot.dart';
 import 'core/services/sync/operator_state_client.dart';
+import 'core/services/telemetry/heartbeat.dart';
 import 'core/telemetry/telemetry.dart';
+import 'data/datasources/remote/telemetry_api_impl.dart';
 
 void main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +35,12 @@ void main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   final prefs = await SharedPreferences.getInstance();
+  // Telemetria de dispositivos: SharedPreferences vazias antes de qualquer
+  // gravacao = instalacao nova → assistente completo na Home (cor, animacao,
+  // distrito/igreja). Quem ja usava ve so distrito/igreja, se faltar.
+  if (prefs.getKeys().isEmpty) {
+    await OnboardingPreferences.markFreshInstall();
+  }
   final settings = SettingsController(
     outboxHook: (key, value) =>
         unawaited(OperatorStateBoot.enqueuePrefsChange(prefs, key, value)),
@@ -99,5 +108,13 @@ void main() async {
         ),
       ),
     );
+    // Sinal de "online" (POST /v1/telemetry/heartbeat) a cada 5 min com o
+    // app em primeiro plano. Sempre ligado; falha e silenciosa.
+    if (!kIsWeb) {
+      HeartbeatLoop(
+        api: TelemetryApiImpl(),
+        builder: HeartbeatBodyBuilder(),
+      ).start();
+    }
   });
 }

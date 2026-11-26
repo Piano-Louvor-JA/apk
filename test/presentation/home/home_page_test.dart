@@ -12,6 +12,13 @@ import 'package:louvorja_piano_mobile/core/services/sync/operator_state_client.d
 import 'package:louvorja_piano_mobile/presentation/home/home_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Estes testes cobrem os campos da Home: o assistente de primeira
+/// inicializacao ja concluido (ele tem testes proprios).
+const _onboardingDone = {
+  'onboarding.state':
+      '{"completedAt":"2026-01-01T00:00:00Z","reminderDismissed":true}',
+};
+
 Widget _wrapHome() {
   return EasyLocalization(
     supportedLocales: const [Locale('pt', 'BR')],
@@ -33,7 +40,7 @@ void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({..._onboardingDone});
     OperatorStateBoot.resetForTest();
   });
 
@@ -89,6 +96,7 @@ void main() {
 
     testWidgets('valor vindo da conta atualiza a tela aberta', (tester) async {
       SharedPreferences.setMockInitialValues({
+        ..._onboardingDone,
         'home.location': '{"district":"Antigo","church":"Antiga"}',
       });
       await tester.pumpWidget(
@@ -138,6 +146,7 @@ void main() {
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({
+        ..._onboardingDone,
         'home.location': '{"district":"Distrito Norte","church":""}',
       });
 
