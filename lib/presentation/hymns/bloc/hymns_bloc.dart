@@ -21,6 +21,10 @@ class HymnsLoadRequested extends HymnsEvent {}
 
 class HymnsRefreshRequested extends HymnsEvent {}
 
+/// Convite "Ver em Português": troca SÓ o catálogo (override pt),
+/// a UI mantém o idioma do usuário.
+class HymnsSeePortugueseRequested extends HymnsEvent {}
+
 // --- States ---
 
 abstract class HymnsState {
@@ -42,6 +46,16 @@ class HymnsError extends HymnsState {
   final String code;
 
   const HymnsError(this.code);
+}
+
+/// Idioma sem catálogo na API (404 em `<lang>_categories`): NÃO é erro —
+/// convite à comunidade para contribuir (paridade com o convite do desktop).
+/// [previewCategories]: catálogo pt-BR real buscado em background para o
+/// backdrop desfocado (não funcional, aria-hidden); vazio → mockup estático.
+class HymnsCatalogInvite extends HymnsState {
+  final List<AlbumCategory> previewCategories;
+
+  const HymnsCatalogInvite({this.previewCategories = const []});
 }
 
 // --- BLoC ---
@@ -68,6 +82,7 @@ class HymnsBloc extends Bloc<HymnsEvent, HymnsState> {
   }) : super(HymnsInitial()) {
     on<HymnsLoadRequested>(_onLoad);
     on<HymnsRefreshRequested>(_onRefresh);
+    on<HymnsSeePortugueseRequested>(_onSeePortuguese);
   }
 
   /// Exposto para páginas filhas (AlbumDetailPage) buscarem hinos.
@@ -86,7 +101,15 @@ class HymnsBloc extends Bloc<HymnsEvent, HymnsState> {
       unawaited(_syncCatalog(categories));
       emit(HymnsLoaded(await _visibleCategories(categories)));
     } on LouvorjaApiException catch (e) {
-      emit(HymnsError(e.code));
+      if (e.code == 'errors.notFound') {
+        // Idioma sem catálogo (404 `<lang>_categories`): convite, não erro.
+        // Catálogo pt-BR em background para o backdrop desfocado (não
+        // bloqueia o convite; falha → preview vazio → mockup estático).
+        final preview = await _repository.previewPortugueseCategories();
+        emit(HymnsCatalogInvite(previewCategories: preview));
+      } else {
+        emit(HymnsError(e.code));
+      }
     } catch (_) {
       emit(const HymnsError('errors.unknown'));
     }
@@ -97,6 +120,31 @@ class HymnsBloc extends Bloc<HymnsEvent, HymnsState> {
     Emitter<HymnsState> emit,
   ) async {
     try {
+      final categories = await _repository.getCategories();
+      unawaited(_syncCatalog(categories));
+      emit(HymnsLoaded(await _visibleCategories(categories)));
+    } on LouvorjaApiException catch (e) {
+      if (e.code == 'errors.notFound') {
+        // Idioma sem catálogo (404 `<lang>_categories`): convite, não erro.
+        final preview = await _repository.previewPortugueseCategories();
+        emit(HymnsCatalogInvite(previewCategories: preview));
+      } else {
+        emit(HymnsError(e.code));
+      }
+    } catch (_) {
+      emit(const HymnsError('errors.unknown'));
+    }
+  }
+
+  /// Convite → catálogo em Português: override pt no repositório e
+  /// recarrega. A UI NÃO troca de idioma (só o catálogo).
+  Future<void> _onSeePortuguese(
+    HymnsSeePortugueseRequested event,
+    Emitter<HymnsState> emit,
+  ) async {
+    emit(HymnsLoading());
+    try {
+      _repository.setCatalogLanguage('pt');
       final categories = await _repository.getCategories();
       unawaited(_syncCatalog(categories));
       emit(HymnsLoaded(await _visibleCategories(categories)));

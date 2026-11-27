@@ -24,4 +24,16 @@ abstract interface class HymnRepository {
 
   /// Lista todas as coletâneas (flat, sem categoria).
   List<Album> getAllAlbums();
+
+  /// Override do idioma do CATÁLOGO (API) sem trocar o idioma da UI.
+  /// Usado pelo convite "Ver em Português" em idiomas sem catálogo
+  /// (paridade desktop: prefixOverride do album-catalog.ts).
+  void setCatalogLanguage(String prefix);
+
+  /// Idioma atual do catálogo (API).
+  String get catalogLanguage;
+
+  /// Catálogo pt-BR para o backdrop desfocado do convite (idioma sem
+  /// catálogo). Não altera o estado do repositório. Falha → vazio.
+  Future<List<AlbumCategory>> previewPortugueseCategories();
 }

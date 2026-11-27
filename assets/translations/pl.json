@@ -703,7 +703,11 @@
     "shuffle": "Odtwórz losowo",
     "appendQueue": "Dodaj do kolejki",
     "appendedQueue": "Dodano do kolejki: {} pieśni",
-    "playAll": "Odtwórz wszystkie"
+    "playAll": "Odtwórz wszystkie",
+    "convite_titulo": "Katalog w przygotowaniu",
+    "convite_catalogo": "Katalog muzyczny nie jest jeszcze dostępny w Twoim języku. Dołącz do społeczności i pomóż budować katalog LouvorJA w Twoim języku.",
+    "convite_hint": "Podgląd powyżej pokazuje katalog w języku portugalskim — wkrótce w Twoim języku, z Twoją pomocą.",
+    "convite_ver_pt": "Zobacz po portugalsku"
   },
   "offline": {
     "sectionTitle": "Tryb offline",

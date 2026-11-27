@@ -703,7 +703,11 @@
     "shuffle": "Willekeurig afspelen",
     "appendQueue": "Aan wachtrij toevoegen",
     "appendedQueue": "Toegevoegd aan wachtrij: {} lied(eren)",
-    "playAll": "Alles afspelen"
+    "playAll": "Alles afspelen",
+    "convite_titulo": "Catalogus in opbouw",
+    "convite_catalogo": "De muziekcatalogus is nog niet beschikbaar in jouw taal. Sluit je aan bij de community en help de LouvorJA-catalogus in jouw taal op te bouwen.",
+    "convite_hint": "De preview hierboven toont de catalogus in het Portugees — binnenkort in jouw taal, met jouw hulp.",
+    "convite_ver_pt": "Bekijk in het Portugees"
   },
   "offline": {
     "sectionTitle": "Offlinemodus",

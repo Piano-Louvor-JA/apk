@@ -210,4 +210,39 @@ class HymnRepositoryImpl implements HymnRepository {
     if (data is! List) return const [];
     return data.map((e) => Hymn.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  @override
+  void setCatalogLanguage(String prefix) {
+    // Troca SÓ o catálogo (API); a UI mantém o idioma escolhido pelo
+    // usuário (paridade desktop: prefixOverride do convite).
+    _api.languagePrefix = prefix;
+    _categoriesCache = null;
+    _flatAlbumsCache = null;
+  }
+
+  @override
+  String get catalogLanguage => _api.languagePrefix;
+
+  /// Preview do catálogo pt-BR para o backdrop do convite (idioma sem
+  /// catálogo): fetch com prefixo pt SEM alterar o estado do repositório
+  /// (restaura prefixo e caches). Falha → lista vazia (UI usa mockup).
+  @override
+  Future<List<AlbumCategory>> previewPortugueseCategories() async {
+    final previousPrefix = _api.languagePrefix;
+    final previousCategoriesCache = _categoriesCache;
+    final previousFlatCache = _flatAlbumsCache;
+    try {
+      _api.languagePrefix = 'pt';
+      _categoriesCache = null;
+      _flatAlbumsCache = null;
+      // Sem cache de disco: só o essencial (categories), sem hinários extras.
+      return await _api.fetchCategories();
+    } catch (_) {
+      return const [];
+    } finally {
+      _api.languagePrefix = previousPrefix;
+      _categoriesCache = previousCategoriesCache;
+      _flatAlbumsCache = previousFlatCache;
+    }
+  }
 }

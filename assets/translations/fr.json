@@ -703,7 +703,11 @@
     "shuffle": "Lecture aléatoire",
     "appendQueue": "Ajouter à la file",
     "appendedQueue": "Ajouté à la file : {} chant(s)",
-    "playAll": "Tout lire"
+    "playAll": "Tout lire",
+    "convite_titulo": "Catalogue en construction",
+    "convite_catalogo": "Le catalogue musical n'est pas encore disponible dans votre langue. Rejoignez la communauté et aidez à construire le catalogue LouvorJA dans votre langue.",
+    "convite_hint": "L'aperçu montre le catalogue en portugais — bientôt dans votre langue, avec votre aide.",
+    "convite_ver_pt": "Voir en portugais"
   },
   "offline": {
     "sectionTitle": "Mode hors ligne",
