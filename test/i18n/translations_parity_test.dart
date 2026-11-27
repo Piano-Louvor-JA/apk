@@ -21,6 +21,7 @@ const kSourceFile = 'en';
 /// Locales validos suportados pelo app (ordem do main.dart).
 const kSupportedLocales = [
   'pt-BR', 'en', 'es', 'ru', 'uk', 'fr', 'ja', 'ko', 'zh', 'tr', 'ar', 'hi',
+  'it', 'nl', 'pl',
 ];
 
 List<String> _assetTranslationLocales() {
@@ -68,11 +69,11 @@ void main() {
     expect(en, isNotEmpty);
   });
 
-  test('os 12 idiomas suportados tem arquivo de traducao', () {
+  test('os 15 idiomas suportados tem arquivo de traducao', () {
     for (final l in kSupportedLocales) {
       expect(locales, contains(l), reason: 'faltando assets/translations/$l.json');
     }
-    expect(locales, hasLength(12));
+    expect(locales, hasLength(15));
   });
 
   for (final locale in locales) {
