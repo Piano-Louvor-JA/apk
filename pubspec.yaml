@@ -25,7 +25,7 @@ dependencies:
 
   # Fonts
   # 9.0.0 troca TextTheme do Flutter por material_ui e não compila com ThemeData.
-  google_fonts: ^8.2.1
+  google_fonts: ^9.0.0
 
   # Internationalization
   easy_localization: ^3.0.7
@@ -69,21 +69,21 @@ dependencies:
 
   # Seleção de mídia local para itens da liturgia (mobile/web).
   # 13.x é federado: FilePicker.pickFile/pickFiles, sem FilePicker.platform.
-  file_picker: 13.4.0
+  file_picker: 13.4.1
 
   # Abrir URLs externas (site, video online) da liturgia
   url_launcher: ^6.3.3
 
   # Manter tela acesa durante o culto
   wakelock_plus: ^1.8.2
-  flutter_local_notifications: ^22.3.3
+  flutter_local_notifications: ^23.0.4
   timezone: ^0.11.2
   open_filex: ^5.0.0
   image_picker: ^1.2.4
   flutter_colorpicker: ^1.1.0
   image: ^4.13.1
   # 4.6.0 deixa de lançar erro em dado danificado: .slja corrompido seria importado pela metade.
-  archive: '>=4.5.2 <4.6.0'
+  archive: ^4.7.1
   flutter_foreground_task: ^11.0.3
   multicast_dns: ^0.3.3+1
   # iOS: Bonjour nativo p/ achar receivers (_palco._tcp) sem o entitlement
@@ -117,7 +117,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # Code generation
-  build_runner: ^2.16.1
+  build_runner: ^2.17.1
   freezed: ^4.0.1
   json_serializable: ^6.15.2
 
