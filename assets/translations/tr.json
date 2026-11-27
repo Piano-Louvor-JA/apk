@@ -366,7 +366,10 @@
     "languageChinese": "中文",
     "languageTurkish": "Türkçe",
     "languageArabic": "العربية",
-    "languageHindi": "हिन्दी"
+    "languageHindi": "हिन्दी",
+    "languageItalian": "Italiano",
+    "languageDutch": "Nederlands",
+    "languagePolish": "Polski"
   },
   "timer": {
     "save": "Kaydet",
