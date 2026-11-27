@@ -366,7 +366,10 @@
     "languageChinese": "中文",
     "languageTurkish": "Türkçe",
     "languageArabic": "العربية",
-    "languageHindi": "हिन्दी"
+    "languageHindi": "हिन्दी",
+    "languageItalian": "Italiano",
+    "languageDutch": "Nederlands",
+    "languagePolish": "Polski"
   },
   "timer": {
     "save": "Сохранить",
@@ -700,7 +703,11 @@
     "shuffle": "Случайное воспроизведение",
     "appendQueue": "Добавить в очередь",
     "appendedQueue": "Добавлено в очередь: {} песен",
-    "playAll": "Воспроизвести всё"
+    "playAll": "Воспроизвести всё",
+    "convite_titulo": "Каталог в разработке",
+    "convite_catalogo": "Музыкальный каталог ещё недоступен на вашем языке. Присоединяйтесь к сообществу и помогите создать каталог LouvorJA на вашем языке.",
+    "convite_hint": "Предпросмотр показывает каталог на португальском — скоро на вашем языке, с вашей помощью.",
+    "convite_ver_pt": "Смотреть на португальском"
   },
   "offline": {
     "sectionTitle": "Офлайн-режим",

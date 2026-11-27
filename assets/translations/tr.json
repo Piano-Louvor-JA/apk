@@ -366,7 +366,10 @@
     "languageChinese": "中文",
     "languageTurkish": "Türkçe",
     "languageArabic": "العربية",
-    "languageHindi": "हिन्दी"
+    "languageHindi": "हिन्दी",
+    "languageItalian": "Italiano",
+    "languageDutch": "Nederlands",
+    "languagePolish": "Polski"
   },
   "timer": {
     "save": "Kaydet",
@@ -700,7 +703,11 @@
     "shuffle": "Karışık çal",
     "appendQueue": "Sıraya ekle",
     "appendedQueue": "Sıraya eklendi: {} ilahi",
-    "playAll": "Tümünü oynat"
+    "playAll": "Tümünü oynat",
+    "convite_titulo": "Katalog yapım aşamasında",
+    "convite_catalogo": "Müzik kataloğu dilinizde henüz mevcut değil. Topluluğa katılın ve LouvorJA kataloğunun kendi dilinizde oluşmasına yardımcı olun.",
+    "convite_hint": "Önizleme Portekizce kataloğu gösteriyor — yardımınızla yakında dilinizde.",
+    "convite_ver_pt": "Portekizce görüntüle"
   },
   "offline": {
     "sectionTitle": "Çevrimdışı mod",

@@ -1,6 +1,7 @@
 library;
 
 import "dart:async";
+import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -13,6 +14,7 @@ import 'package:path_provider/path_provider.dart'
 import 'package:tabler_icons_plus/tabler_icons_plus.dart';
 
 import 'package:louvorja_piano_mobile/app/theme/app_spacing.dart';
+import 'package:louvorja_piano_mobile/app/theme/app_radius.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album.dart';
 import 'package:louvorja_piano_mobile/domain/entities/hymn.dart';
 import 'package:louvorja_piano_mobile/domain/entities/album_category.dart';
@@ -426,6 +428,105 @@ class _HymnsViewState extends State<_HymnsView> {
         builder: (context, state) {
           if (state is HymnsLoading || state is HymnsInitial) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (state is HymnsCatalogInvite) {
+            // Idioma sem catálogo (404): convite à comunidade, não erro
+            // (paridade desktop PR app#607, adaptado mobile):
+            // - fundo: catálogo pt-BR real NÃO funcional, desfocado (blur 5,
+            //   opacity .8, sem clique); fallback: mockup estático (12 cards);
+            // - frente: card premium central com backdrop blur (glass).
+            return Stack(
+              key: const Key('hymns-catalog-invite'),
+              fit: StackFit.expand,
+              children: [
+                // ---- Backdrop: preview pt-BR real (aria-hidden equivalente:
+                // IgnorePointer + ExcludeSemantics) ou mockup estático ----
+                ExcludeSemantics(
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 0.8,
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(
+                          sigmaX: 5,
+                          sigmaY: 5,
+                          tileMode: TileMode.decal,
+                        ),
+                        child: _CatalogInviteBackdrop(
+                          categories: state.previewCategories,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // ---- Card premium na frente ----
+                Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpacing.s6),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s6,
+                          vertical: AppSpacing.s6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withValues(
+                            alpha: 0.86,
+                          ),
+                          borderRadius: AppRadius.lg,
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              TablerIcons.seeding,
+                              size: 40,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(height: AppSpacing.s3),
+                            Text(
+                              'albums.convite_titulo'.tr(),
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.s2),
+                            Text(
+                              'albums.convite_catalogo'.tr(),
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.s2),
+                            Text(
+                              'albums.convite_hint'.tr(),
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.s4),
+                            FilledButton.icon(
+                              key: const Key('hymns-invite-see-pt'),
+                              onPressed: () => context.read<HymnsBloc>().add(
+                                HymnsSeePortugueseRequested(),
+                              ),
+                              icon: const Icon(TablerIcons.world, size: 18),
+                              label: Text('albums.convite_ver_pt'.tr()),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
           }
           if (state is HymnsError) {
             return Center(
@@ -938,6 +1039,238 @@ class _DownloadAllButton extends StatelessWidget {
       tooltip: 'downloads.downloadAll'.tr(),
       icon: const Icon(TablerIcons.download),
       onPressed: onPressed,
+    );
+  }
+}
+
+/// Backdrop do convite: preview real do catálogo pt-BR (capas via
+/// CachedNetworkImage — como o grid normal, mas não funcional) ou, quando
+/// vazio/erro de rede, mockup estático de 12 cards com gradientes
+/// (paridade visual com o desktop PR app#607 f77bd8b0).
+class _CatalogInviteBackdrop extends StatelessWidget {
+  final List<AlbumCategory> categories;
+
+  const _CatalogInviteBackdrop({required this.categories});
+
+  static const _mockGradients = [
+    [Color(0xFFB45309), Color(0xFF7C2D12)],
+    [Color(0xFF1D4ED8), Color(0xFF172554)],
+    [Color(0xFF047857), Color(0xFF064E3B)],
+    [Color(0xFF6D28D9), Color(0xFF3B0764)],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const _CatalogInviteMockup();
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.s4),
+      itemCount: categories.length,
+      itemBuilder: (context, i) {
+        final category = categories[i];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.s5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (category.name != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                  child: Text(
+                    category.name!,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              for (final album in category.albums.take(12))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                  child: Row(
+                    children: [
+                      _PreviewCover(album: album),
+                      const SizedBox(width: AppSpacing.s3),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              album.name ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            if (album.subtitle != null)
+                              Text(
+                                album.subtitle!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Capa do preview (asset local, rede ou placeholder colorido).
+class _PreviewCover extends StatelessWidget {
+  final Album album;
+
+  const _PreviewCover({required this.album});
+
+  @override
+  Widget build(BuildContext context) {
+    final coverUrl = album.coverUrl;
+    final hasCover = coverUrl != null && coverUrl.isNotEmpty;
+    final isAsset = hasCover && coverUrl.startsWith('asset:');
+    final assetName = isAsset ? coverUrl.substring('asset:'.length) : null;
+    final fullCoverUrl =
+        hasCover && !isAsset ? DownloadUrlBuilder.build(coverUrl) : null;
+    final size = 56.0;
+
+    final placeholder = Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: _CatalogInviteBackdrop._mockGradients[
+              album.id % _CatalogInviteBackdrop._mockGradients.length],
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(8),
+          bottomRight: Radius.circular(8),
+        ),
+      ),
+      child: Icon(
+        TablerIcons.music,
+        size: 20,
+        color: Colors.white.withValues(alpha: 0.8),
+      ),
+    );
+
+    if (assetName != null) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(8),
+          bottomRight: Radius.circular(8),
+        ),
+        child: Image.asset(
+          'assets/images/library/$assetName',
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => placeholder,
+        ),
+      );
+    }
+    if (fullCoverUrl != null) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(8),
+          bottomRight: Radius.circular(8),
+        ),
+        child: CachedNetworkImage(
+          imageUrl: fullCoverUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => placeholder,
+          errorWidget: (_, _, _) => placeholder,
+        ),
+      );
+    }
+    return placeholder;
+  }
+}
+
+/// Mockup estático do catálogo (fallback offline do preview pt-BR):
+/// 12 capas com gradientes + linhas de título (desktop f77bd8b0).
+class _CatalogInviteMockup extends StatelessWidget {
+  const _CatalogInviteMockup();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.s4),
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+          child: Text(
+            'Hinários',
+            style: theme.textTheme.titleMedium,
+          ),
+        ),
+        for (var n = 0; n < 12; n++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: _CatalogInviteBackdrop._mockGradients[n % 4],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      bottomRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Icon(
+                    TablerIcons.music,
+                    size: 20,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 10,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s1),
+                      Container(
+                        height: 8,
+                        width: 150,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

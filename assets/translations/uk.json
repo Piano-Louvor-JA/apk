@@ -366,7 +366,10 @@
     "languageChinese": "中文",
     "languageTurkish": "Türkçe",
     "languageArabic": "العربية",
-    "languageHindi": "हिन्दी"
+    "languageHindi": "हिन्दी",
+    "languageItalian": "Italiano",
+    "languageDutch": "Nederlands",
+    "languagePolish": "Polski"
   },
   "timer": {
     "save": "Зберегти",
@@ -700,7 +703,11 @@
     "shuffle": "Випадкове відтворення",
     "appendQueue": "Додати до черги",
     "appendedQueue": "Додано до черги: {} пісень",
-    "playAll": "Відтворити все"
+    "playAll": "Відтворити все",
+    "convite_titulo": "Каталог у розробці",
+    "convite_catalogo": "Музичний каталог ще недоступний вашою мовою. Приєднуйтесь до спільноти та допоможіть створити каталог LouvorJA вашою мовою.",
+    "convite_hint": "Попередній перегляд показує каталог португальською — скоро на вашій мові, за вашої допомоги.",
+    "convite_ver_pt": "Переглянути португальською"
   },
   "offline": {
     "sectionTitle": "Офлайн-режим",

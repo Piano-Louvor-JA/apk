@@ -366,7 +366,10 @@
     "languageChinese": "中文",
     "languageTurkish": "Türkçe",
     "languageArabic": "العربية",
-    "languageHindi": "हिन्दी"
+    "languageHindi": "हिन्दी",
+    "languageItalian": "Italiano",
+    "languageDutch": "Nederlands",
+    "languagePolish": "Polski"
   },
   "timer": {
     "save": "保存",
@@ -700,7 +703,11 @@
     "shuffle": "随机播放",
     "appendQueue": "加入队列",
     "appendedQueue": "已加入队列：{} 首",
-    "playAll": "全部播放"
+    "playAll": "全部播放",
+    "convite_titulo": "目录建设中",
+    "convite_catalogo": "音乐目录尚不支持您的语言。欢迎加入社区，帮助构建您语言的 LouvorJA 目录。",
+    "convite_hint": "上方预览为葡萄牙语目录 — 有了您的帮助，很快会支持您的语言。",
+    "convite_ver_pt": "以葡萄牙语查看"
   },
   "offline": {
     "sectionTitle": "离线模式",

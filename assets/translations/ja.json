@@ -366,7 +366,10 @@
     "languageChinese": "中文",
     "languageTurkish": "Türkçe",
     "languageArabic": "العربية",
-    "languageHindi": "हिन्दी"
+    "languageHindi": "हिन्दी",
+    "languageItalian": "Italiano",
+    "languageDutch": "Nederlands",
+    "languagePolish": "Polski"
   },
   "timer": {
     "save": "保存",
@@ -700,7 +703,11 @@
     "shuffle": "シャッフル再生",
     "appendQueue": "キューに追加",
     "appendedQueue": "キューに追加: {}曲",
-    "playAll": "すべて再生"
+    "playAll": "すべて再生",
+    "convite_titulo": "カタログ構築中",
+    "convite_catalogo": "音楽カタログはまだあなたの言語では利用できません。コミュニティに参加して、あなたの言語のLouvorJAカタログ作りにご協力ください。",
+    "convite_hint": "上のプレビューはポルトガル語のカタログです。あなたの助けで、もうすぐあなたの言語でも。",
+    "convite_ver_pt": "ポルトガル語で表示"
   },
   "offline": {
     "sectionTitle": "オフラインモード",

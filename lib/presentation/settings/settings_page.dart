@@ -286,6 +286,60 @@ class _SettingsPageState extends State<SettingsPage> {
                             // coverage:ignore-line
                           )?.setLocale(const Locale('hi')),
                         ),
+                        _ChoiceChip(
+                          label: 'settings.languageItalian'.tr(),
+                          selected: locale == const Locale('it'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('it')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageDutch'.tr(),
+                          selected: locale == const Locale('nl'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('nl')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languagePolish'.tr(),
+                          selected: locale == const Locale('pl'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('hi')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageItalian'.tr(),
+                          selected: locale == const Locale('it'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('it')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languageDutch'.tr(),
+                          selected: locale == const Locale('nl'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('nl')),
+                        ),
+                        _ChoiceChip(
+                          label: 'settings.languagePolish'.tr(),
+                          selected: locale == const Locale('pl'),
+                          // coverage:ignore-line
+                          onTap: () => EasyLocalization.of(
+                            context,
+                            // coverage:ignore-line
+                          )?.setLocale(const Locale('pl')),
+                        ),
                       ],
                     ),
                   ),
